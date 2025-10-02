@@ -4,8 +4,13 @@
   "service": "app",
   "workspaceFolder": "/workspace",
 
+  // Dev Container Features
+  "features": {
+    "ghcr.io/devcontainers/features/claude-code:latest": {}
+  },
+
   // 開発コンテナ起動後のコマンド
-  "postCreateCommand": "npm install",
+  "postCreateCommand": "pnpm install",
 
   // VSCode拡張機能
   "customizations": {
