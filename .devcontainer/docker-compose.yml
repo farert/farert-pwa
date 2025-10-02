@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    volumes:
+      - ..:/workspace:cached
+      - ../../farert-wasm:/workspace-wasm:ro
+
+    # コンテナを起動し続ける
+    command: sleep infinity
+
+    # ネットワーク設定
+    ports:
+      - "5173:5173"  # Vite dev server
+      - "4173:4173"  # Vite preview server
+
+    # 環境変数
+    environment:
+      - NODE_ENV=development
+      - WASM_PROJECT_PATH=/workspace-wasm
+
+    # ホスト名設定
+    hostname: farert-pwa-dev

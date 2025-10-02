@@ -1,0 +1,59 @@
+{
+  "name": "Farert PWA Development",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspace",
+
+  // 開発コンテナ起動後のコマンド
+  "postCreateCommand": "npm install",
+
+  // VSCode拡張機能
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "svelte.svelte-vscode",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "bradlc.vscode-tailwindcss",
+        "EditorConfig.EditorConfig",
+        "ms-azuretools.vscode-docker"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "[svelte]": {
+          "editor.defaultFormatter": "svelte.svelte-vscode"
+        },
+        "typescript.tsdk": "node_modules/typescript/lib",
+        "typescript.enablePromptUseWorkspaceTsdk": true
+      }
+    }
+  },
+
+  // フォワードするポート
+  "forwardPorts": [5173, 4173],
+  "portsAttributes": {
+    "5173": {
+      "label": "Dev Server",
+      "onAutoForward": "notify"
+    },
+    "4173": {
+      "label": "Preview Server",
+      "onAutoForward": "notify"
+    }
+  },
+
+  // コンテナ内のユーザー設定
+  "remoteUser": "node",
+
+  // マウント設定
+  "mounts": [
+    // farert-wasmプロジェクトを読み取り専用でマウント
+    "source=${localWorkspaceFolder}/../farert-wasm,target=/workspace-wasm,type=bind,consistency=cached"
+  ],
+
+  // 環境変数
+  "remoteEnv": {
+    "WASM_PROJECT_PATH": "/workspace-wasm"
+  }
+}
