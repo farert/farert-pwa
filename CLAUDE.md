@@ -46,7 +46,7 @@
 ### 詳細仕様ドキュメント
 すべての画面仕様は `specs/` ディレクトリに定義されています：
 - `specs/main-screen.md` - メイン画面
-- `specs/drawer-navigation.md` - ドロワーナビゲーション
+- `specs/drawer-navigation.md` - キップホルダー画面 ドロワーナビゲーション
 - `specs/station-selection-screen.md` - 駅一覧・経路追加用駅選択画面
 - `specs/line-selection-screen.md` - 路線選択画面
 - `specs/terminal-selection-screen.md` - 発駅選択画面（発駅/着駅選択）
@@ -60,7 +60,7 @@
 
 ### UI仕様凡例
 
- プロジェクトの specs は、以下の表記ルールに則り記述する.
+ プロジェクトの specs 以下のドキュメントは、以下の表記ルールに則り記述する.
 
 | 項目         | 意味・用途                                           | 表記例                     |
 |--------------|------------------------------------------------------|----------------------------|
