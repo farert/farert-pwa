@@ -128,10 +128,10 @@
 ## データソース
 
 - 駅の所属路線を返す
-  - `getLinesByStation(station : string) : string []`
+  - `wasm.getLinesByStation(station : string) : string []`
 - 指定した駅も含め路線の分岐駅一覧を返す
-  - `getBranchStationsByLine(line: string, station: string) : string []`
+  - `wasm,getBranchStationsByLine(line: string, station: string) : string []`
+- 路線の全駅一覧を返す
+  - `wasm.getStationsByLine(line: string) : string []`
 - 駅名のかなを得る
-  - `wasm.getHiraganaByStationName(stationName: string):string`
-- 路線の駅一覧を返す
-  - `getStationsByLineAndPrefecture(line : string):string []`
+  - `wasm.getKanaByStation(stationName: string):string`

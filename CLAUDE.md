@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # Farert モバイルアプリからPWAへの移行 (SvelteKit PWA)
 
 ## 基本設定
@@ -9,23 +13,74 @@
 - コミットメッセージは conventional commits 形式で書いてください
 - 関数は単一責任の原則に従って小さく保ってください
 
-## 技術的な制約
-- TypeScript を使用する際は strict モードを有効にしてください
-- CSS は Tailwind CSS を優先的に使用してください
-- コアロジックは、WASM モジュールをロードして実行します。WASMプロジェクトは、
-`~/priv/Farert.repos/farert-wasm/` にあります。使用法は、
-`~/priv/Farert.repos/farert-wasm/CLAUDE.md`
-`~/priv/Farert.repos/farert-wasm/README.md`
-を参照してください
+## プロジェクト構造
 
-## プロジェクトのソース
+```
+farert-pwa/
+├── specs/              # 画面仕様・データモデル定義
+├── images/             # アプリアイコン画像
+├── farert-svelte/      # 補助スクリプトとテンプレート
+├── chat/               # プロトタイプコード（参考用）
+├── .devcontainer/      # DevContainer設定
+└── src/                # (実装予定) SvelteKitソースコード
+    ├── routes/         # ページコンポーネント
+    ├── lib/            # 共有コンポーネント・ストア・ユーティリティ
+    └── wasm/           # WASM統合コード
+```
+
+## 開発コマンド
+
+プロジェクトはまだ初期段階です。SvelteKitプロジェクトのセットアップ後、以下のコマンドが使用可能になります：
+
+```bash
+# 依存関係のインストール
+pnpm install
+
+# 開発サーバー起動（ホットリロード有効）
+pnpm dev
+
+# 本番ビルド
+pnpm build
+
+# 本番ビルドのプレビュー
+pnpm preview
+
+# TypeScriptの型チェック
+pnpm check
+
+# リント実行
+pnpm lint
+
+# テスト実行（TDD）
+pnpm test
+
+# テストウォッチモード
+pnpm test:watch
+```
+
+## DevContainer環境
+
+このプロジェクトはDevContainer環境での開発を推奨しています：
+
+- Node.js 20 LTS環境
+- pnpmがプリインストール済み
+- WASMプロジェクト (`../farert-wasm/`) が `/workspace-wasm` に読み取り専用でマウント
+- 開発サーバーのポート: 5173（開発）、4173（プレビュー）
+
+## 技術的な制約
+
+- TypeScript strict モードを有効にする
+- CSS は Tailwind CSS を優先的に使用
+- コアロジックは WASM モジュールをロードして実行
+  - WASMプロジェクト: `~/priv/farert.repos/farert-wasm/`（DevContainer内: `/workspace-wasm`）
+  - 詳細: `/workspace-wasm/CLAUDE.md` と `/workspace-wasm/README.md` を参照
+
+## 参照プロジェクト
+
 - 旧版Android: ~/priv/Farert.android
 - 新版Android: ~/priv/farert.repos/farert/app/Farert.android
 - iOS オリジナル: ~/priv/farert.repos/farert/app/Farert.ios/Farert
-- WASM
-
-## 出力先
-- SvelteKit PWA: ~/priv/farert.repos/farert-pwa
+- WASM: ~/priv/farert.repos/farert-wasm/
 
 ## アプリ構成（画面とルーティング）
 
@@ -71,30 +126,7 @@
 | 表示例       | 表示名の下などに**動的に表示される値の一例**。       | _三重_                    |
 | リンク       | ボタンラベル以外のタップすると動作する文字列       | _`行`_                    |
 
-- 関数定義で、`wasm.func()` とあるのは、WASMモジュール関数であることをしめす
-
-## スクリーンショットの参照先
-スクリーンショットの場所: ~/priv/farert.repos/farert-pwa/screenshots/
-
-画面のマッピング:
-- main.png: リスト表示のメイン画面
-- drawer.png: 開いたナビゲーションドロワー
-- drawer_list.png: ドロワー内のリストビュー
-- select.png: 4つのリストオプションを表示する選択画面
-- settings.png: 設定/構成画面
-- save.png: 保存/エクスポート機能画面
-- detail.png: 詳細情報表示画面
-
-正確なレイアウトの再現とレスポンシブデザインの決定のための視覚的な参考資料として使用してください。
-
-## キャプチャすべき画面状態
-- main.png: データが入力されたリストを表示（空の状態ではない）
-- drawer.png: ドロワーが完全に開いた状態、メニュー項目が見える
-- select.png: 4つの選択オプションすべてが明確に表示されている
-- settings.png: すべての設定オプションが見える（多様性を示すためにスクロール）
-- detail.png: サンプルの詳細コンテンツが読み込まれている
-
-ライトモードでキャプチャ（ダークモードはオプションですが、あると便利です）。
+- 関数定義で、`wasm.func()` とあるのは、WASMモジュール関数であることを示す
 
 ## アプリのコンテキスト
 - アプリ名: Farert（Fare + Ticket）
@@ -106,70 +138,49 @@
   3. 営業キロ・運賃・有効日数などの詳細情報を表示
   4. 経路を保存・共有
 
-## 技術要件
-- 最小限の構成でSvelteKit（SPAモード）
-- ファイルベースルーティング
-- ドロワーナビゲーション付きの共有 +layout.svelte
-- @vite-pwa/sveltekitを使用したPWA
-- TypeScriptを全体で使用（strict mode）
-- データ永続化のためのlocalStorage（1-2MB）
-- クライアントサイドのみ（SSRなし、APIルートなし）
-- WASM統合（../farert-wasm/ プロジェクトと連携）
-- Tailwind CSS使用
-- DevContainer環境での開発
+## 技術スタック・アーキテクチャ
 
-## PWA設定
+### フロントエンド
+- **SvelteKit**: SPAモード（SSRなし、APIルートなし）
+- **TypeScript**: strict モード必須
+- **Tailwind CSS**: スタイリング
+- **@vite-pwa/sveltekit**: PWA機能（オフライン対応、ホーム画面追加）
 
-- manifest.json - アプリ名、アイコン、テーマカラー、表示モードなどの定義
-- Service Worker - オフラインでの動作を可能にするキャッシュ戦略
-- インストール機能 -　ホーム画面に追加できるようにする
-- オフライン対応 - ネット接続がなくても動作
+### データ層
+- **localStorage**: 永続化（1-2MBのテキストデータ）
+  - 現在の経路、保存経路、きっぷホルダ、駅履歴
+- **Svelte Stores**: グローバル状態管理
+  - `currentRoute`, `savedRoutes`, `ticketHolder`, `stationHistory`
 
-## TypeScript strict mode 設定
+### ビジネスロジック
+- **WASM**: 運賃計算エンジン
+  - 経路計算、運賃計算、データベース照会
+  - DevContainer内で `/workspace-wasm` にマウント
 
-- すべての厳格チェックを有効化
-- 暗黙的なany型を禁止
-- null/undefinedチェックを厳格化
-- 未使用の変数を警告
-- 未使用のパラメータを警告
+### PWA要件
+- manifest.json: アプリメタデータ（名前、アイコン、テーマカラー）
+- Service Worker: オフラインキャッシュ戦略
+- インストール可能: ホーム画面に追加可能
 
-## データ管理（シンプルなアプローチ）
-- ローカル永続化のためのlocalStorage（1-2MBのテキストデータ）
-- ユーザー制御のデータ共有のためのコピー＆ペースト
-- エクスポート/インポート機能（JSON、プレーンテキスト）
-- サーバーインフラストラクチャは不要
-- 完全にオフライン対応
+## 実装アプローチ
 
-## デザインアプローチ
-反復的な改善を伴うモバイルからWebへの直接変換:
-1. ピクセルパーフェクトな初期変換を作成
-2. レスポンシブデザインの原則を自動的に適用
-3. 主要なコンポーネントに対して複数のデザインバリエーションを提供
-4. フィードバックに基づいた迅速な反復を可能にする
-5. モバイルの制約よりもWeb固有のUX改善に焦点を当てる
+### モバイルからWebへの移行戦略
+1. Android/iOSの既存実装を参考にしながら、Webネイティブな実装を行う
+2. レスポンシブデザインでモバイル・デスクトップ両対応
+3. ファイルベースルーティングで画面遷移を実装
+4. 共有レイアウト（+layout.svelte）でドロワーナビゲーションを実装
+5. 最小限の構成を維持、過度なエンジニアリングを避ける
 
-モダンでアクセシブルなCSSを現代的なデザイントレンドで生成します。
+### データ共有
+- コピー＆ペーストによる経路の共有（スペース区切りテキスト形式）
+- エクスポート/インポート機能（JSON形式）
+- サーバー不要、完全にクライアントサイドで完結
 
-## 変換戦略
-- AndroidのXMLレイアウトをSvelteページコンポーネントに変換
-- Fragment/ActivityのナビゲーションをSvelteKitのルーティングにマッピング
-- RecyclerViewsをリアクティブなSvelteリストに変換
-- ドロワーナビゲーション付きの共有レイアウトを作成
-- PWAのインストールとオフライン機能を実装
-- 構成を最小限に保つ - 過度なエンジニアリングを避ける
-- Androidのcolors.xmlとiOSのAssetsから色を自動抽出
-- ピクセルパーフェクトな変換のための視覚的参考としてスクリーンショットを使用
-
-## 期待される出力
-モダンなSvelteKit PWAで:
-- Androidの進化形からのピクセルパーフェクトなUI
-- 高パフォーマンスのコアロジック（WASM統合準備済み）
-- 適切なインターフェースを持つTypeScriptを全体で使用
-- コピー＆ペースト共有によるシンプルなデータ管理
-- Progressive Web Appの機能
-- オフラインファーストの機能
-
-不必要な複雑さを避け、SvelteKitのルーティングの利点を活用したクリーンで高速でインストール可能なPWAを作成します。
+### WASM統合の手順
+1. WASMモジュールのビルド（`/workspace-wasm` 内）
+2. 生成された `.wasm` ファイルを `static/` にコピー
+3. `src/lib/wasm/` にTypeScript型定義とラッパー関数を作成
+4. 各画面から `wasm.calculateFare()` などを呼び出し
 
 # 重要な指示の再確認
 求められたことを実行してください。それ以上でも以下でもありません。

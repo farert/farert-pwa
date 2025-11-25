@@ -84,8 +84,8 @@
 ## データソース
 
 - 駅の所属路線を配列で返す
-  - `wasm.listLinesByStation(station: string):string[]`
+  - `wasm.getLinesByStation(station: string):string[]`
 - 都道府県の路線一覧を配列で返す
-  - `wasm.listLinesByPrefecture(prefecture: string):string[]`
+  - `wasm.getLinesByPrefect(prefecture: string):string[]`
 - JRグループの路線一覧を配列で返す
-  - `wasm.listLinesByJRGroup(jrgroup: string):string[]`
+  - `wasm.getLinesByCompany(jrgroup: string):string[]`

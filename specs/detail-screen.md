@@ -270,3 +270,13 @@ JR東海   株主優待2割： ¥1,840
 有効日数：   2日
 途中下車できます
 ```
+
+
+app/Farert.android/app/src/main/java/org/sutezo/alps/
+の中のオブジェクト、メソッドで、
+app/Farert.android/app/src/main/java/org/sutezo/farert/
+で使用しているものを抽出してください。
+object, 使用している関数/モジュール
+で一覧してください。
+ファイルは、../farert-doc/public-object.md
+として作成してください。

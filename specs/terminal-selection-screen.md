@@ -124,11 +124,16 @@ _ひらがな_ (_都道府県_)
   - JRグループの列挙
     - `wasm.getJRGroups():string[]`
   - ひらがな
-    - `wasm.getHiraganaByStationName(stationName: string):string`
-  - 所属都道府県
+    - `wasm.getKanaByStation(stationName: string):string`
+  - 駅のある都道府県
     - `wasm.getPrefectureByStation(stationName: string): string`
+  - 路線の会社管轄内駅一覧を返す
+    - `wasm.getStationsByCompanyAndLine(jrgroup: string, lineName: string) : string[]`
+  - 路線の都道府県内の駅一覧を返す
+    - `wasm.getStationsByPrefectureAndLine(company : string, line : string):string []`
   - 検索
     - `wasm.searchStationByKeyword(matchStation: string): string[]`
+
 - 履歴検索
   - listLinesFromHistoryStorage():string[]
 - 開発時は仮のスタブを利用
