@@ -1,57 +1,34 @@
-# Dependencies
-node_modules/
-.pnpm-store/
+test-results
+node_modules
 
-# Build output
-dist/
-build/
-.svelte-kit/
-/tmp
+# Output
+.output
+.vercel
+.netlify
+.wrangler
+/.svelte-kit
+/build
 
-# Environment variables
-.env
-.env.local
-.env.*.local
-.env.development
-.env.test
-.env.production
-
-# Logs
-logs/
-*.log
-npm-debug.log*
-pnpm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-lerna-debug.log*
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-!.vscode/settings.json
-.idea
+# OS
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+Thumbs.db
 
-# PWA
-dev-dist/
-sw.js
-sw.js.map
-workbox-*.js
-workbox-*.js.map
+# Env
+.env
+.env.*
+!.env.example
+!.env.test
 
-# Test coverage
-coverage/
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
 
-# TypeScript
-*.tsbuildinfo
+# WASM files (copied from ../farert-wasm/dist/ during build)
+static/farert.wasm
+static/farert.js
+static/farert.data
 
-# Temporary files
-.temp
-.tmp
-*.tmp
-*.temp
+# Personal settings
+.mcp.json
+.serena/
+CLAUDE.md.backup

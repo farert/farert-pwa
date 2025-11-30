@@ -4,13 +4,14 @@
   "service": "app",
   "workspaceFolder": "/workspace",
 
-  // Dev Container Features
-  "features": {
-    "ghcr.io/devcontainers/features/claude-code:latest": {}
-  },
-
   // 開発コンテナ起動後のコマンド
-  "postCreateCommand": "pnpm install",
+  // SvelteKitプロジェクトがセットアップされたら "pnpm install" に変更
+  "postCreateCommand": "echo 'DevContainer ready. Run: pnpm create svelte@latest . to initialize SvelteKit project'",
+
+    "features": {
+        "ghcr.io/devcontainers/features/node:1": {},
+     },
+
 
   // VSCode拡張機能
   "customizations": {
