@@ -11,8 +11,8 @@
 
 |パラメーター|パラメーター2|パラメーター3|
 |-----|-----|-----|
-|``from=main``|``staion``=_xxxx_|``line``=_yyyy_|
-|``from=start``</br>``from=destination``|``line``=_xxxx_|``prefect``=_aaaa_|
+|``from=main``|``station``=_xxxx_|``line``=_yyyy_|
+|``from=start``</br>``from=destination``|``line``=_xxxx_|``prefecture``=_aaaa_|
 |``from=start``</br>``from=destination``|``line``=_xxxx_|``group``=_aaaa_|
 
 ## レイアウト
@@ -53,7 +53,7 @@
   - "路線"
 
 - '発着駅選択'
-  - ``prefect`` あり？
+  - ``prefecture`` あり？
     - `都道府県名` - `路線`
     - 例：
       - _神奈川県_ - _横浜線_
@@ -65,14 +65,14 @@
 ### 3行目以降: リスト
 
 - 画面タイトル == "分岐駅指定"
-- ``prefect`` も``group`` もなく、``station`` と ``line`` が指定され、``from=main``
+- ``prefecture`` も``group`` もなく、``station`` と ``line`` が指定され、``from=main``
   - `station` でしめす駅を含む路線に属する分岐駅一覧を列挙する
 - 画面タイトル == "着駅指定"
-- ``prefect`` も``group`` もなく、``station`` と ``line`` が指定され、``from=main``
+- ``prefecture`` も``group`` もなく、``station`` と ``line`` が指定され、``from=main``
   - 路線に属する駅一覧を列挙する
 - '発着駅選択'
-  - ``prefect`` あり？
-    - ``prefect``の都道府県内の路線内の `_駅_` 一覧
+  - ``prefecture`` あり？
+    - ``prefecture``の都道府県内の路線内の `_駅_` 一覧
   - ``group`` あり？
     - ``group`` のJRグループ会社の路線ないの `_駅_`  一覧
 

@@ -12,7 +12,7 @@
 - **状態更新**: `currentRoute`の更新
 - **画面遷移**:
   - `/station-select?type=start` - 発駅選択
-  - `/route-add?from={stationId}` - 経路追加
+  - `/route-add?from={station}` - 経路追加
   - `/detail?index={n}` - 詳細画面
   - `/save` - 保存画面
   - `/version` - バージョン情報
@@ -66,7 +66,7 @@
 #### Output
 - **戻り値**: `Line` - 選択された路線
 - **画面遷移**:
-  - `/station-list?line={lineId}` - 駅一覧へ
+  - `/station-list?line={line}` - 駅選択へ
 
 #### WASM呼び出し
 - `getLinesByGroup(group)` - グループ指定時
@@ -74,11 +74,11 @@
 
 ---
 
-### 4. 駅一覧画面 (/station-list)
+### 4. 駅選択画面 (/station-list)
 
 #### Input
 - **URLパラメータ**:
-  - `line: number` - 路線ID
+  - `line: string` - 路線
   - `context: 'start' | 'destination'` - 発駅選択か着駅選択か
 
 #### Output
@@ -89,7 +89,7 @@
 - **画面遷移**: `/` - メイン画面へ戻る
 
 #### WASM呼び出し
-- `getStationsByLine(lineId)` - 駅一覧取得
+- `getStationsByLine(line)` - 駅一覧取得
 
 ---
 
@@ -97,7 +97,7 @@
 
 #### Input
 - **URLパラメータ**:
-  - `from: number` - 前の経路の着駅ID
+  - `from: string` - 前の経路の着駅
 - **グローバル状態**:
   - `currentRoute: Route`
 
@@ -107,10 +107,10 @@
   - `currentRoute.segments`に追加
 - **画面遷移**:
   - `/station-select?type=destination` - 最短経路選択時
-  - `/route-station-select?line={lineId}&from={stationId}` - 路線選択時
+  - `/route-station-select?line={line}&from={station}` - 路線選択時
 
 #### WASM呼び出し
-- `getStationById(stationId)` - 駅情報取得（駅の所属路線リスト表示用）
+- `getLinesByStation(station)` - 駅情報取得（駅の所属路線リスト表示用）
 
 ---
 
@@ -118,8 +118,8 @@
 
 #### Input
 - **URLパラメータ**:
-  - `line: number` - 路線ID
-  - `from: number` - 前の経路の着駅ID（発駅として反転表示）
+  - `line: string` - 路線
+  - `from: string` - 前の経路の着駅（発駅として反転表示）
   - `mode: 'branch' | 'destination'` - 分岐駅選択か着駅選択か
 
 #### Output
@@ -129,7 +129,7 @@
 - **画面遷移**: `/` - メイン画面へ戻る
 
 #### WASM呼び出し
-- `getStationsByLine(lineId)` - 駅一覧取得
+- `getStationsByLine(line)` - 駅一覧取得
 
 ---
 
@@ -137,20 +137,17 @@
 
 #### Input
 - **URLパラメータ**:
-  - `index?: number` - 経路のインデックス（未指定時は全経路）
-- **グローバル状態**:
-  - `currentRoute: Route`
+  - `r: string` - 圧縮された経路データ（LZ-string形式）
+- **復元**:
+  - URLパラメータから経路を解凍・復元
 
 #### Output
-- **状態更新**:
-  - `currentRoute.options`の更新（オプション変更時）
-- **画面遷移**: なし（モーダルまたはバック）
-
-#### 状態管理
-- オプション変更時に再計算
+- **画面遷移**: なし（バックボタンでメイン画面へ）
+- **共有**: Web Share APIまたはクリップボードにURL共有
 
 #### WASM呼び出し
-- `calculateFare(route)` - オプション変更時
+- `decompressRouteFromUrl(compressed)` - 画面表示時
+- `getFareInfoObjectJson()` - 運賃情報取得
 
 ---
 
@@ -221,23 +218,25 @@ interface ExportData {
 ```typescript
 // src/lib/stores/app.ts
 import { writable } from 'svelte/store';
+import { Farert } from 'farert-wasm';
 
-// 現在の経路
-export const currentRoute = writable<Route | null>(null);
+// 現在の経路（WASM Farert オブジェクト）
+export const mainRoute = writable<Farert>(new Farert());
 
-// 保持経路リスト
-export const savedRoutes = writable<Route[]>([]);
+// 保持経路リスト（routeScript 文字列配列）
+export const savedRoutes = writable<string[]>([]);
 
 // きっぷホルダリスト
 export const ticketHolder = writable<TicketHolderItem[]>([]);
 
-// 駅選択履歴
-export const stationHistory = writable<Station[]>([]);
+// 駅選択履歴（駅名文字列配列）
+export const stationHistory = writable<string[]>([]);
 
 // localStorage同期
-currentRoute.subscribe(value => {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem(STORAGE_KEYS.CURRENT_ROUTE, JSON.stringify(value));
+mainRoute.subscribe(value => {
+  if (typeof window !== 'undefined' && value) {
+    const routeStr = value.routeScript();
+    localStorage.setItem(STORAGE_KEYS.CURRENT_ROUTE, routeStr);
   }
 });
 
@@ -258,6 +257,38 @@ stationHistory.subscribe(value => {
     localStorage.setItem(STORAGE_KEYS.STATION_HISTORY, JSON.stringify(value));
   }
 });
+
+// 初期化（localStorage から復元）
+export function initStores() {
+  if (typeof window !== 'undefined') {
+    // 現在の経路を復元
+    const currentRouteStr = localStorage.getItem(STORAGE_KEYS.CURRENT_ROUTE);
+    if (currentRouteStr) {
+      const route = new Farert();
+      if (route.buildRoute(currentRouteStr) === 0) {
+        mainRoute.set(route);
+      }
+    }
+
+    // 保持経路を復元
+    const savedRoutesStr = localStorage.getItem(STORAGE_KEYS.SAVED_ROUTES);
+    if (savedRoutesStr) {
+      savedRoutes.set(JSON.parse(savedRoutesStr));
+    }
+
+    // きっぷホルダを復元
+    const ticketHolderStr = localStorage.getItem(STORAGE_KEYS.TICKET_HOLDER);
+    if (ticketHolderStr) {
+      ticketHolder.set(JSON.parse(ticketHolderStr));
+    }
+
+    // 駅履歴を復元
+    const historyStr = localStorage.getItem(STORAGE_KEYS.STATION_HISTORY);
+    if (historyStr) {
+      stationHistory.set(JSON.parse(historyStr));
+    }
+  }
+}
 ```
 
 ---
@@ -276,8 +307,8 @@ stationHistory.subscribe(value => {
 4. 路線選択画面: group=JR東日本 で起動、路線リスト表示
    ↓
 5. ユーザーが「東海道線」を選択
-   ↓ WASM: getStationsByLine(東海道線ID)
-6. 駅一覧画面: line=東海道線ID で起動、駅リスト表示
+   ↓ WASM: getStationsByLine(東海道線)
+6. 駅選択画面: line=東海道線 で起動、駅リスト表示
    ↓
 7. ユーザーが「東京」を選択
    ↓ 状態更新: currentRoute = { startStation: 東京, segments: [] }
@@ -290,12 +321,12 @@ stationHistory.subscribe(value => {
 ```
 1. メイン画面: ユーザーが「追加」行をタップ
    ↓
-2. 経路追加画面: from=東京ID で起動
-   ↓ WASM: getStationById(東京ID) で東京駅の所属路線を取得
+2. 経路追加画面: from=東京 で起動
+   ↓ WASM: getStation(東京) で東京駅の所属路線を取得
    ↓ 路線リスト表示: 東海道線、中央線、...
 3. ユーザーが「東海道線」を選択
-   ↓ WASM: getStationsByLine(東海道線ID)
-4. 駅選択画面: line=東海道線ID, from=東京ID, mode=branch で起動
+   ↓ WASM: getStationsByLine(東海道線)
+4. 駅選択画面: line=東海道線, from=東京, mode=branch で起動
    ↓ 東京駅を反転表示（選択不可）
 5. ユーザーが「熱海」を選択
    ↓ 状態更新: currentRoute.segments.push({ line: 東海道線, arrivalStation: 熱海 })

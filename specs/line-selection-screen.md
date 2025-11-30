@@ -20,8 +20,8 @@
 |----|-----|-----|-----|
 |**<メイン>** ``[追加]``|``from=main``|``station``=_xxxx_||
 |**<メイン>** ``[追加]``|``from=main``|``station``=_xxxx_|``line``=_yyyy_|
-|**<発着駅選択>**|``from=start``|``prefect``=_aaaa_|
-|**<発着駅選択>**|``from=destination``|``prefect``=_aaaa_|
+|**<発着駅選択>**|``from=start``|``prefecture``=_aaaa_|
+|**<発着駅選択>**|``from=destination``|``prefecture``=_aaaa_|
 |**<発着駅選択>**|``from=start``|``group``=_aaaa_|
 |**<発着駅選択>**|``from=destination``|``group``=_aaaa_|
 
@@ -41,7 +41,7 @@
 |パラメーター|リストタイトル|
 |----|-----|
 |``station``=_xxxx_|駅名を表示（例: _東京_）|
-|``prefect``=_aaaa_|都道府県名を表示（例: _東京都_）|
+|``prefecture``=_aaaa_|都道府県名を表示（例: _東京都_）|
 |``group``=_aaaa_|JRグループ名を表示（例: _JR東日本_）|
 
 ### 3行目以降: リスト
@@ -55,28 +55,29 @@
 
 - JRグループに属する路線名を列挙（例: _東海道線_、_中央線_、_山手線_、...）
 
-#### ``prefect`` parameter is not null
+#### ``prefecture`` parameter is not null
 
 - 都道府県に属する路線名を列挙（例: _東海道線_、_中央線_、_京浜東北線_、...）
 
 ## 動作
 
-### 路線一覧の _`行`_ を選択
+### 路線選択の _`行`_ を選択
 
 - **<駅選択>** 画面へ遷移
 - **<駅選択>** 画面への引数は以下の通り
 
 |パラメーター|パラメーター2|パラメーター3|
 |-----|-----|-----|
-|``from=main``|``staion``=_xxxx_|``selLine``=_yyyy_|
-|``from=start``</br>``from=destination``|``selLine``=_xxxx_|``prefect``=_aaaa_|
-|``from=start``</br>``from=destination``|``selLine``=_xxxx_|``group``=_aaaa_|
+|``from=main``|``station``=_xxxx_|``line``=_yyyy_|
+|``from=start``</br>``from=destination``|``line``=_xxxx_|``prefecture``=_aaaa_|
+|``from=start``</br>``from=destination``|``line``=_xxxx_|``group``=_aaaa_|
 
-- ``selLine`` は本画面 **<路線選択>** 画面で選択した路線
+- ``line`` は本画面 **<路線選択>** 画面で選択した路線
 
 ### ボタンラベル ``[最短経路]``をタップ
 
 - **<発着駅選択>** 画面へ遷移する。
+  - <発着駅選択> の画面と動作は [terminal-selection-screen.md](terminal-selection-screen.md) の動作とおなじ。画面タイトルは「着駅選択（最短経路）」となり、駅選択後、メイン画面へ遷移し、`wasm.autoRoute()`を実行し、経路画面を反映する。
   - 入力パラメーターはなし
 
 ---
@@ -86,6 +87,6 @@
 - 駅の所属路線を配列で返す
   - `wasm.getLinesByStation(station: string):string[]`
 - 都道府県の路線一覧を配列で返す
-  - `wasm.getLinesByPrefect(prefecture: string):string[]`
+  - `wasm.getLinesByPrefecture(prefecture: string):string[]`
 - JRグループの路線一覧を配列で返す
   - `wasm.getLinesByCompany(jrgroup: string):string[]`
