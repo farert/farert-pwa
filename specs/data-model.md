@@ -20,7 +20,7 @@ const fareInfo = JSON.parse(route.getFareInfoObjectJson());
 
 // 文字列化（保存・共有用）
 const routeScript = route.routeScript();
-// → "東京 東海道線 熱海 身延線 甲府"
+// → "東京,東海道線,熱海,身延線,甲府"
 
 // 復元
 const restoredRoute = new Farert();
@@ -124,15 +124,15 @@ interface AppStorage {
 
 // 例
 {
-  "currentRoute": "東京 東海道線 熱海 身延線 甲府",
+  "currentRoute": "東京,東海道線,熱海,身延線,甲府",
   "savedRoutes": [
-    "東京 東海道線 新大阪",
-    "札幌 函館本線 小樽"
+    "東京,東海道線,新大阪",
+    "札幌,函館本線,小樽"
   ],
   "ticketHolder": [
     {
       "order": 1,
-      "routeScript": "東京 東海道線 熱海",
+      "routeScript": "東京,東海道線,熱海",
       "fareType": "NORMAL"
     }
   ],
@@ -160,16 +160,16 @@ const STORAGE_KEYS = {
 
 ### フォーマット
 
-WASM の `routeScript()` が返す形式：**スペース区切り**
+WASM の `routeScript()` が返す形式：**カンマ区切り**
 
 ```
-発駅名 路線名 着駅名 路線名 着駅名 ...
+発駅名,路線名,着駅名,路線名,着駅名,...
 ```
 
 ### 例
 
 ```
-東京 東海道線 熱海 身延線 甲府
+東京,東海道線,熱海,身延線,甲府
 ```
 
 ### 構造

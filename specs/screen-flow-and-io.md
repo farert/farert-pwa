@@ -307,8 +307,8 @@ export function initStores() {
 4. 路線選択画面: group=JR東日本 で起動、路線リスト表示
    ↓
 5. ユーザーが「東海道線」を選択
-   ↓ WASM: getStationsByLine(東海道線)
-6. 駅選択画面: line=東海道線 で起動、駅リスト表示
+   ↓ WASM: getStationsByPrefectureAndLine("東京"、"東海道線")
+6. 駅選択画面: line=東海道線 prefecture=東京 で起動、駅リスト表示
    ↓
 7. ユーザーが「東京」を選択
    ↓ 状態更新: currentRoute = { startStation: 東京, segments: [] }
@@ -322,12 +322,14 @@ export function initStores() {
 1. メイン画面: ユーザーが「追加」行をタップ
    ↓
 2. 経路追加画面: from=東京 で起動
-   ↓ WASM: getStation(東京) で東京駅の所属路線を取得
+   ↓ WASM: getLinesByStation(東京) で東京駅の所属路線を取得
    ↓ 路線リスト表示: 東海道線、中央線、...
 3. ユーザーが「東海道線」を選択
-   ↓ WASM: getStationsByLine(東海道線)
-4. 駅選択画面: line=東海道線, from=東京, mode=branch で起動
+   ↓ WASM: getBranchStationsByLine(東海道線, 東京)
+4. 分岐駅選択画面: line=東海道線, from=東京, mode=branch で起動
    ↓ 東京駅を反転表示（選択不可）
+4-2. ユーザーが「着駅指定」を選択: 駅選択画面: line=東海道線, from=東京, mode=station で起動
+   ↓ WASM: getStationsByLine(東海道線)
 5. ユーザーが「熱海」を選択
    ↓ 状態更新: currentRoute.segments.push({ line: 東海道線, arrivalStation: 熱海 })
    ↓ WASM: calculateFare(currentRoute)
@@ -338,7 +340,7 @@ export function initStores() {
 ### 例3: きっぷホルダから経路選択フロー
 
 ```
-1. メイン画面: ユーザーがハンバーガーメニューをタップ
+1. メイン画面: ユーザーが画面左端上部のハンバーガーメニューをタップ
    ↓
 2. ドロワーが開く: ticketHolder配列をカード表示
    ↓
@@ -349,6 +351,8 @@ export function initStores() {
 4. ドロワーを閉じる
    ↓
 5. メイン画面: 選択した経路が表示される
+　　メイン画面の経路がキップホルダにも保存ページにも保存されていない場合、
+   "経路が保存されていません。上書きしてよろしいですか？" とダイアログ（はい、いいえ）を表示する。「はい」なら上書き、「いいえ」ならなにもせず、メイン画面の経路を保持
 ```
 
 ---
