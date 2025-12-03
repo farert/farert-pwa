@@ -93,12 +93,13 @@ interface TicketHolderItem {
 // 使用例
 const item: TicketHolderItem = {
   order: 1,
-  routeScript: mainRoute.routeScript(), // "東京 東海道線 熱海"
+  routeScript: mainRoute.routeScript(), // "東京,東海道線,熱海"
   fareType: FareType.NORMAL,
 };
 
 // 復元
 const route = new Farert();
+// buildRoute()はカンマ区切り、スペース区切りの両方を受け付けます。
 route.buildRoute(item.routeScript);
 const fareInfo = JSON.parse(route.getFareInfoObjectJson());
 ```
@@ -174,13 +175,12 @@ WASM の `routeScript()` が返す形式：**カンマ区切り**
 
 ### 構造
 
-```
-駅1 路線1 駅2 路線2 駅3 路線3 駅4 ...
-```
+発駅,路線,着駅,路線,着駅,...
+と、カンマで区切られた文字列です。
 
 - 奇数個のフィールド
 - 最初の1つが発駅
-- 以降は「路線 着駅」のペアの繰り返し
+- 以降は「路線,着駅」のペアの繰り返し
 
 ### 変換
 

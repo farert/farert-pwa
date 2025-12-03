@@ -1,110 +1,88 @@
 # **<きっぷホルダー>** 画面（ドロワーナビゲーション）の詳細仕様
 
-- ドロワーナビゲーション（コンポーネント）
+`component-design.md`で定義されている`DrawerNavigation`コンポーネントを使用します。
 
 ## 呼び出し画面
 
 - **<メイン>** 画面
-  - ``[ハンバーガーメニュー]``
+  - `AppBar`の``[メニュー]``アイコン (`MenuIcon`)
 
 ## 入力パラメーター
 
-- ``route as 経路``
+- `isOpen: boolean` (ドロワーの開閉状態)
+- `ticketHolderItems: TicketHolderItem[]` (表示するきっぷホルダアイテムのリスト)
+- `onClose: () => void` (ドロワーを閉じるためのコールバック)
+- `onItemClick: (item: TicketHolderItem) => void` (アイテムがクリックされた時のコールバック)
+- `onItemDelete: (id: string) => void` (アイテムが削除された時のコールバック)
+- `onFareTypeChange: (id: string, fareType: FareType) => void` (運賃タイプが変更された時のコールバック)
+- `onAddToHolder: () => void` (きっぷホルダに追加するボタンがクリックされた時のコールバック)
 
-## 基本レイアウト
+## レイアウトと構成
 
-- 幅: 画面の8割程度
-- 構成: 上部固定エリア（25%） + スクロール可能なリストエリア
+`component-design.md`の`DrawerNavigation`コンポーネントの構造に準拠します。
 
-## 上部固定エリア（25%）
+### ドロワーヘッダー
 
-### ヘッダー部
+-   左上: `FolderIcon` (MDIアイコン)
+-   タイトル: 「きっぷホルダ」
 
-- 左上: アイコン <images/tickfolder3.png>
-- タイトル: きっぷホルダ
+### 集計表示部 (`drawer-summary`クラス)
 
-### 集計表示部
-
-- 総運賃: 全行の運賃合計（最大7桁）
-  - 運賃タイプが ``[無効]``の行は0円として計算
-- 総営業キロ: 全行の営業キロ合計（最大6桁）例：_¥999,000_
+-   総運賃: 全行の運賃合計 (`totalFare`) を表示（最大7桁、例：_¥999,000_）。運賃タイプが `DISABLED` の行は0円として計算します。
+-   総営業キロ: 全行の営業キロ合計 (`totalKm`) を表示（最大6桁、例：_999.0km_）。
 
 ### 操作部
 
-- 左側: ``[共有]``アイコン（``<ShareIcon />``）: タップできっぷホルダ全体を共有
-- 右側: ``[追加≪]``ボタン: メイン画面の経路をきっぷホルダに追加
-  - メイン画面の経路が空の場合は非表示
-  - 同一経路の重複追加も可能
+`component-design.md`の`DrawerNavigation`コンポーネント構造に沿って、以下のボタンが配置されます。
 
-## リストエリア（スクロール可能）
+-   **共有ボタン** (`ShareIcon`): タップできっぷホルダ全体を共有します。共有形式については別途定義が必要です。
+-   **追加ボタン** (`AddIcon` または `AddToHolderButton`): メイン画面の現在の経路をきっぷホルダに追加します。メイン画面の経路が空の場合は非表示です。同一経路の重複追加も可能です。
 
-### カード表示形式（2段行、2段列）
+### リストエリア（スクロール可能）
 
-```
-発駅 - 着駅             営業キロ
-[運賃タイプ]            運賃        [>]
-```
+`component-design.md`で定義されている`TicketHolderCard`コンポーネントを、`ticketHolderItems`の各アイテムに対して表示します。
 
-``[運賃タイプ]`` は、ピッカーで後述
+#### `TicketHolderCard`コンポーネント
 
-例:
+-   Props: `item: TicketHolderItem`
+-   Events:
+    -   `click`: カード全体がタップされた際、`onItemClick`を呼び出し、メイン画面がその経路表示に切り替わります。
+    -   `delete`: `TicketHolderCard`内の削除ボタン(`DeleteIcon`)がクリックされた際、`onItemDelete`を呼び出します。確認ダイアログなしで即座に削除されます。
+    -   `fareTypeChange`: `TicketHolderCard`内の`FarePicker`コンポーネントで運賃タイプが変更された際、`onFareTypeChange`を呼び出します。
 
-```
-剣淵 - 旭川              45.2km
-[普通運賃]             ¥1,210      [>]
-```
+#### `FarePicker`コンポーネント（`TicketHolderCard`内）
 
-### 通常表示モード
-
-- 左端: 空白
-- 右端: `>` アイコン
-- タップ動作: メイン画面がその経路表示に切り替わる
+-   `component-design.md`の`FarePicker`を参照。
+-   `FareType`enumに基づいて以下の選択肢を提供します。
+    1.  普通運賃 (`NORMAL`)
+    2.  小児運賃 (`CHILD`)
+    3.  往復運賃 (`ROUND_TRIP`)
+    4.  株割運賃 (`STOCK_DISCOUNT`)
+    5.  株割x2運賃 (`STOCK_DISCOUNT_X2`)
+    6.  学割運賃 (`STUDENT`)
+    7.  学割往復 (`STUDENT_ROUND_TRIP`)
+    8.  無効 (`DISABLED`)
+-   デフォルト表示は「普通運賃」です。
 
 ### 並べ替え（ドラッグアンドドロップ）
 
-カードリスト表示時、常にドラッグハンドルが表示される:
+`ui-guidelines.md`の「リストの並べ替え」セクションで詳細を定義しています。
 
-- 右端: ``[>]`` の手前に横3本線アイコン（ドラッグハンドル、MDI: `drag-horizontal-variant`）
-- ドラッグで行の並び替えが可能（編集モード不要）
-- 並び替え順は `order` フィールドで管理
-- 並び替え後は自動的にlocalStorageに保存
+-   並べ替えは、`TicketHolderCard`の右端に表示されるドラッグハンドル（横3本線アイコン、MDI: `drag-horizontal-variant`）を使用して行います。
+-   ドラッグにより行の並び替えが可能です。
+-   並べ替え順は `TicketHolderItem`の`order`フィールドで管理され、並べ替え後は自動的に`localStorage`に保存されます。
 
-### 削除機能
+## 動作
 
-カードの左上に ``[×]`` ボタン表示:
-
-- タップでそのカードをきっぷホルダから削除
-- 確認ダイアログなし（即座に削除）
-
-### 運賃タイプ ピッカー
-
-#### 表示形式
-
-- 角丸矩形に囲われた表示
-
-#### 選択肢
-
-1. `普通運賃`
-2. `小児運賃`
-3. `往復`
-4. `株割`
-5. `株割x2`
-6. `学割`
-7. `学割往復`
-8. `無効`
-
-- デフォルト表示は `普通運賃`
-
-### 動作
-
-- ピッカーの選択を切り替えると「運賃タイプ」により、[集計表示部] の表示の総運賃、総営業キロが変わる
+-   `FarePicker`の選択を切り替えると、きっぷホルダ全体の総運賃と総営業キロが、選択された運賃タイプに基づいて再計算・更新されます。
 
 ## データ制約
 
-- 最大営業キロ: 6桁
-- 最大運賃: 7桁
+-   最大営業キロ: 6桁
+-   最大運賃: 7桁
 
 ## データソース
 
-- 運賃タイプ変更による運賃計算
-  - `wasm.calcRoute(route: string, option: FareCalcOption) : FareInfo`
+-   運賃タイプ変更による運賃計算には、`Farert`クラスの運賃設定関連メソッドと`getFareInfoObjectJson()`を使用します。
+    -   例: `farert.setFareType(FareType.CHILD);`
+    -   例: `JSON.parse(farert.getFareInfoObjectJson());`

@@ -243,7 +243,7 @@ export function generateShareUrl(route: Farert, segmentCount: number = -1): stri
 
 **例**:
 ```
-元の経路: "東京 東海道線 熱海 身延線 甲府" (約20バイト)
+元の経路: "東京,東海道線,熱海,身延線,甲府" (約20バイト)
 圧縮後: "N4IgdghgtgpiBcIAqA..." (約10-15バイト、50%削減)
 
 完全URL:

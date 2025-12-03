@@ -157,7 +157,7 @@ pnpm add @mdi/js svelte-material-icons
 
     const newItem: TicketHolderItem = {
       order: Math.max(...$ticketHolder.map(i => i.order), 0) + 1,
-      route: structuredClone($currentRoute), // ディープコピー
+      routeScript: $currentRoute.routeScript(), // routeScript()で文字列形式で取得
       fareType: FareType.NORMAL,
     };
 
@@ -283,18 +283,21 @@ pnpm add @mdi/js svelte-material-icons
 ### 実装例
 ```svelte
 <script>
+  import { get } from 'svelte/store'; // getをインポート
+  import { mainRoute } from '$lib/stores/app'; // mainRouteストアをインポート
+
   let showOptionsMenu = false;
 
   function selectOsakakanOption(isDetour: boolean) {
-    currentRoute.update(route => ({
-      ...route,
-      options: {
-        ...route.options,
-        osakakanDetour: isDetour,
-      },
-    }));
-    // 運賃再計算
-    recalculateFare();
+    // WASMオブジェクトを直接操作
+    const currentFarertInstance = get(mainRoute);
+    currentFarertInstance.setDetour(isDetour); // WASMメソッドを使用
+
+    // 変更されたインスタンスでストアを更新
+    mainRoute.set(currentFarertInstance);
+
+    // 運賃再計算 (mainRouteの更新で自動的にトリガーされる想定)
+    // recalculateFare();
     showOptionsMenu = false;
   }
 </script>
