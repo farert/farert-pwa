@@ -27,109 +27,65 @@
 
 ---
 
-### 2. 発駅選択画面 (/station-select)
+### 2. 駅選択画面 (/station-select)
+
+`specs/station-selection-screen.md`で定義されている単一の多機能画面です。URLパラメータに応じて、その表示モードと動作が変化します。
 
 #### Input
 - **URLパラメータ**:
-  - `type: 'start' | 'destination'` - 発駅選択か着駅選択(最短経路)か
+  - `from: 'start' | 'destination' | 'main'` - 画面の遷移元。それぞれ「発駅選択」「着駅選択（最短経路）」「経路追加」に対応します。
+  - `station?: string` - 経路追加時の前の駅 (`from=main`の場合)。
+  - `line?: string` - 選択された路線。
+  - `prefecture?: string` - 選択された都道府県。
+  - `group?: string` - 選択されたJRグループ。
 - **グローバル状態**:
-  - `stationHistory: Station[]` - 履歴タブ用
+  - `stationHistory: string[]` - 履歴タブ用。
+  - `currentRoute: Farert` - 経路追加モード時に、分岐駅などを決定するために参照。
 
 #### Output
-- **戻り値**: `Station` - 選択された駅
+- **戻り値**: 選択された駅 (`Station`) または 経路区間 (`RouteSegment`)。
 - **状態更新**:
-  - `currentRoute`の更新（発駅選択時は既存経路をクリア）
-  - `stationHistory`に追加
+  - `currentRoute`の更新（発駅選択時は既存経路をクリア、経路追加時はセグメントを追加）。
+  - `stationHistory`に追加。
 - **画面遷移**:
-  - `/` - メイン画面へ戻る
-  - `/line-select?group={group}` - グループ選択時
-  - `/line-select?prefecture={prefecture}` - 都道府県選択時
+  - `/` - 駅選択完了後、メイン画面へ戻る。
+  - `/line-select? ...` - 路線選択が必要な場合、路線選択画面へ遷移。
 
-#### 状態管理
-- 選択した駅を`stationHistory`の先頭に追加
-- 最大100件まで保持
+#### 状態管理 (モード)
+-   URLパラメータの組み合わせにより、以下のモードを内部的に切り替えます。
+    1.  **発着駅選択モード**: `from=start`または`from=destination`。`specs/terminal-selection-screen.md`に詳細。
+    2.  **経路選択モード**: `from=main`。経路の次の駅（分岐駅または着駅）を選択します。
 
 #### WASM呼び出し
-- `getJRGroups()` - グループタブ表示時
-- `getPrefectures()` - 都道府県タブ表示時
-- `searchStations(query)` - 検索バー入力時
+- `getJRGroups()`, `getPrefectures()`
+- `getLinesByStation(station)`, `getBranchStationsByLine(line, station)`, `getStationsByLine(line)`など、`specs/station-selection-screen.md`のデータソースに記載されている全ての関数。
 
 ---
 
 ### 3. 路線選択画面 (/line-select)
 
+駅選択画面から遷移してくる中間画面です。
+
 #### Input
 - **URLパラメータ**:
-  - `group: JRGroup` - JRグループ（グループから選択時）
-  - `prefecture: string` - 都道府県（都道府県から選択時）
+  - `from: 'start' | 'destination' | 'main'` - コンテキストを引き継ぎます。
+  - `group?: JRGroup` - JRグループ。
+  - `prefecture?: string` - 都道府県。
+  - `station?: string` - 経路追加時の前の駅。
 
 #### Output
 - **戻り値**: `Line` - 選択された路線
 - **画面遷移**:
-  - `/station-list?line={line}` - 駅選択へ
+  - `/station-select? ...` - 選択した路線情報をパラメータに追加して駅選択画面へ戻る。
 
 #### WASM呼び出し
-- `getLinesByGroup(group)` - グループ指定時
-- `getLinesByPrefecture(prefecture)` - 都道府県指定時
+- `getLinesByGroup(group)`
+- `getLinesByPrefecture(prefecture)`
+- `getLinesByStation(station)`
 
 ---
+(セクション4, 5, 6はセクション2に統合されたため削除)
 
-### 4. 駅選択画面 (/station-list)
-
-#### Input
-- **URLパラメータ**:
-  - `line: string` - 路線
-  - `context: 'start' | 'destination'` - 発駅選択か着駅選択か
-
-#### Output
-- **戻り値**: `Station` - 選択された駅
-- **状態更新**:
-  - `currentRoute`の発駅を設定（`context=start`時）
-  - `stationHistory`に追加
-- **画面遷移**: `/` - メイン画面へ戻る
-
-#### WASM呼び出し
-- `getStationsByLine(line)` - 駅一覧取得
-
----
-
-### 5. 経路追加画面 (/route-add)
-
-#### Input
-- **URLパラメータ**:
-  - `from: string` - 前の経路の着駅
-- **グローバル状態**:
-  - `currentRoute: Route`
-
-#### Output
-- **戻り値**: `RouteSegment` - 追加する経路セグメント
-- **状態更新**:
-  - `currentRoute.segments`に追加
-- **画面遷移**:
-  - `/station-select?type=destination` - 最短経路選択時
-  - `/route-station-select?line={line}&from={station}` - 路線選択時
-
-#### WASM呼び出し
-- `getLinesByStation(station)` - 駅情報取得（駅の所属路線リスト表示用）
-
----
-
-### 6. 駅選択画面（経路追加用） (/route-station-select)
-
-#### Input
-- **URLパラメータ**:
-  - `line: string` - 路線
-  - `from: string` - 前の経路の着駅（発駅として反転表示）
-  - `mode: 'branch' | 'destination'` - 分岐駅選択か着駅選択か
-
-#### Output
-- **戻り値**: `{ station: Station, line: Line }` - 選択された駅と路線
-- **状態更新**:
-  - `currentRoute.segments`に追加
-- **画面遷移**: `/` - メイン画面へ戻る
-
-#### WASM呼び出し
-- `getStationsByLine(line)` - 駅一覧取得
 
 ---
 
@@ -170,13 +126,7 @@
 - インポート/エクスポート時にJSON/テキスト変換
 
 #### データ形式
-```
-// エクスポート形式 (複数行のテキスト)
-// 各行が1つの経路スクリプト（カンマ区切り）を表します。
-// 例:
-// 東京,東海道線,熱海,身延線,甲府
-// 札幌,函館本線,小樽
-```
+- エクスポート形式: 1経路1行のカンマ区切りのCSVファイル
 
 ---
 
