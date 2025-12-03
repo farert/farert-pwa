@@ -12,6 +12,12 @@ JR運賃計算アプリ - SvelteKit PWA版
 
 ### インストール
 
+farert-pwa リポジトリトップディレクトリで、
+`code .`
+または、
+`code -n .`
+で、DevContainerを起動し、コンテナ内で実施することを推奨しています。
+
 ```bash
 # 依存関係のインストール
 pnpm install
