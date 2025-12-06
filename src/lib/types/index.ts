@@ -110,19 +110,67 @@ export interface ExportData {
 
 /**
  * 運賃情報オブジェクト（WASM APIから返される）
- *
- * Note: 詳細な型定義はWASM APIドキュメント（../farert-wasm/docs/API.md）を参照
- * ここでは最小限の型定義を提供
+ * 仕様: specs/data-model.md
  */
 export interface FareInfo {
-	/** 計算結果: 0=成功, 1=不完全な経路, 2=会社線のみ */
-	result: number;
-	/** 運賃（円） */
-	fare?: number;
-	/** 営業キロ */
-	distance?: number;
-	/** 有効日数 */
-	validDays?: number;
-	/** その他の詳細情報 */
-	[key: string]: unknown;
+	fareResultCode: 0 | 1 | -2;
+	totalSalesKm: number;
+	jrSalesKm: number;
+	jrCalcKm: number;
+	companySalesKm: number;
+	brtSalesKm: number;
+	salesKmForHokkaido: number;
+	calcKmForHokkaido: number;
+	salesKmForShikoku: number;
+	calcKmForShikoku: number;
+	salesKmForKyusyu: number;
+	calcKmForKyusyu: number;
+	fare: number;
+	fareForCompanyline: number;
+	fareForBRT: number;
+	fareForIC: number;
+	ticketAvailDays: number;
+	childFare: number;
+	roundtripChildFare: number;
+	academicFare: number;
+	isAcademicFare: boolean;
+	roundtripAcademicFare: number;
+	roundTripFareWithCompanyLine: number;
+	isRoundtripDiscount: boolean;
+	stockDiscounts: {
+		rule114StockFare?: number;
+		stockDiscountFare: number;
+		stockDiscountTitle: string;
+	}[];
+	isRule114Applied: boolean;
+	rule114SalesKm: number;
+	rule114CalcKm: number;
+	rule114ApplyTerminal: string;
+	farePriorRule114: number;
+	roundTripFareWithCompanyLinePriorRule114?: number;
+	isMeihanCityStartTerminalEnable: boolean;
+	isMeihanCityStart: boolean;
+	isMeihanCityTerminal: boolean;
+	isRuleAppliedEnable: boolean;
+	isRuleApplied: boolean;
+	isJRCentralStockEnable: boolean;
+	isJRCentralStock: boolean;
+	isEnableLongRoute: boolean;
+	isLongRoute: boolean;
+	isRule115specificTerm: boolean;
+	isEnableRule115: boolean;
+	isResultCompanyBeginEnd: boolean;
+	isResultCompanyMultipassed: boolean;
+	isEnableTokaiStockSelect: boolean;
+	isBeginInCity: boolean;
+	isEndInCity: boolean;
+	isSpecificFare: boolean;
+	isRoundtrip: boolean;
+	isBRTdiscount: boolean;
+	isFareOptEnabled: boolean;
+	beginStation: string;
+	endStation: string;
+	routeList: string;
+	routeListForTOICA: string;
+	messages: string[];
 }

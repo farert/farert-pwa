@@ -15,12 +15,12 @@ vi.mock('$lib/utils/urlRoute', () => ({
 
 const { default: DetailPage } = await import('./+page.svelte');
 
-describe('/detail/+page.svelte', () => {
-	beforeEach(() => {
-		initFarertMock.mockReset();
-		decompressMock.mockReset();
-		initFarertMock.mockResolvedValue(undefined);
-	});
+	describe('/detail/+page.svelte', () => {
+		beforeEach(() => {
+			initFarertMock.mockReset();
+			decompressMock.mockReset();
+			initFarertMock.mockResolvedValue(undefined);
+		});
 
 	it('shows an error when route parameter is missing', async () => {
 		render(DetailPage);
@@ -52,7 +52,50 @@ describe('/detail/+page.svelte', () => {
 		const fare = page.getByText('¥8,910');
 		await expect.element(fare).toBeInTheDocument();
 
-		const message = page.getByText('テストメッセージ').first();
+		const message = page.getByText('テストメッセージ');
 		await expect.element(message).toBeInTheDocument();
+	});
+
+	it('displays kilometer, fare and route details from FareInfo', async () => {
+		const fakeRoute = {
+			routeScript: () => '柏木平,陸羽東線,鳴子温泉,陸羽街道,新庄',
+			departureStationName: () => '柏木平',
+			arrivevalStationName: () => '阿知須',
+			getFareInfoObjectJson: () =>
+				JSON.stringify({
+					fareResultCode: 0,
+					totalSalesKm: 1454.7,
+					jrCalcKm: 1484.3,
+					fare: 16610,
+					roundTripFareWithCompanyLine: 29880,
+					childFare: 8300,
+					academicFare: 13280,
+					messages: ['規程114条を適用しました'],
+					ticketAvailDays: 9,
+					routeList: '[陸羽東線]鳴子温泉[陸羽街道]新庄',
+					routeListForTOICA: '[陸羽東線]鳴子温泉'
+				}),
+			getRoutesJson: () =>
+				JSON.stringify([
+					{ line: '陸羽東線', station: '鳴子温泉' },
+					{ line: '陸羽街道', station: '新庄' }
+				])
+		};
+		decompressMock.mockReturnValue(fakeRoute);
+
+		render(DetailPage, { initialCompressedRoute: 'encoded' });
+
+		await expect.element(page.getByRole('heading', { name: '柏木平 → 阿知須' })).toBeInTheDocument();
+		await expect.element(page.getByText('キロ程')).toBeInTheDocument();
+		await expect.element(page.getByText('1,454.7km')).toBeInTheDocument();
+		await expect.element(page.getByRole('heading', { name: '運賃' })).toBeInTheDocument();
+		await expect.element(page.getByText('¥16,610')).toBeInTheDocument();
+		await expect.element(page.getByText('¥29,880')).toBeInTheDocument();
+		await expect.element(page.getByText('有効日数')).toBeInTheDocument();
+		await expect.element(page.getByText('9日間')).toBeInTheDocument();
+		await expect
+			.element(page.getByText('[陸羽東線]鳴子温泉[陸羽街道]新庄'))
+			.toBeInTheDocument();
+		await expect.element(page.getByText('規程114条を適用しました')).toBeInTheDocument();
 	});
 });
