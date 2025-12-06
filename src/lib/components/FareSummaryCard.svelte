@@ -3,6 +3,7 @@ import type { FareInfo } from '$lib/types';
 
 export let fareInfo: FareInfo | null = null;
 export let onDetailClick: (() => void) | undefined;
+export let detailEnabled = false;
 
 function formatCurrency(value: number | undefined): string {
 	if (typeof value !== 'number' || Number.isNaN(value)) return '¥—';
@@ -26,7 +27,9 @@ $: distanceText = resolveDistance(fareInfo);
 $: validDaysText = resolveValidDays(fareInfo);
 
 function handleDetailClick(): void {
-	onDetailClick?.();
+	const showDetail = detailEnabled && onDetailClick;
+	if (!showDetail) return;
+	onDetailClick();
 }
 </script>
 
@@ -46,7 +49,7 @@ function handleDetailClick(): void {
 			<p class="label">営業キロ</p>
 			<p class="value">{distanceText}</p>
 		</div>
-		<button type="button" class="detail-link" on:click={handleDetailClick}>
+		<button type="button" class="detail-link" on:click={handleDetailClick} disabled={!detailEnabled}>
 			<span>詳細を見る</span>
 			<span class="material-symbols-rounded" aria-hidden="true">chevron_right</span>
 		</button>
@@ -100,6 +103,11 @@ function handleDetailClick(): void {
 		color: #047857;
 		font-weight: 600;
 		cursor: pointer;
+	}
+
+	.detail-link:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
 	}
 
 	.detail-link :global(.material-symbols-rounded) {

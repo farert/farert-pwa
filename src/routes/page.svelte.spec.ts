@@ -205,6 +205,13 @@ describe('/+page.svelte', () => {
 		await expect.element(placeholder).toBeInTheDocument();
 	});
 
+	it('shows disabled fare summary detail button before route selection', async () => {
+		render(Page);
+
+		const detailButton = page.getByRole('button', { name: '詳細を見る' });
+		await expect.element(detailButton).toBeDisabled();
+	});
+
 	it('renders a material train icon on the start station card', async () => {
 		render(Page);
 
@@ -268,7 +275,7 @@ describe('/+page.svelte', () => {
 		const validityLabel = page.getByText('有効日数');
 		await expect.element(validityLabel).toBeInTheDocument();
 		const detailButton = page.getByRole('button', { name: '詳細を見る' });
-		await expect.element(detailButton).toBeInTheDocument();
+		await expect.element(detailButton).not.toBeDisabled();
 	});
 
 	it('navigates to line selection with encoded params when adding a route', async () => {

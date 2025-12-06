@@ -416,9 +416,11 @@ function handleUndo() {
 			<p>路線 → 着駅の順で選択します</p>
 		</button>
 
-		{#if fareInfo && segments.length > 0}
-			<FareSummaryCard fareInfo={fareInfo} onDetailClick={openFullDetail} />
-		{/if}
+		<FareSummaryCard
+			fareInfo={fareInfo}
+			detailEnabled={Boolean(detailLink && segments.length > 0)}
+			onDetailClick={openFullDetail}
+		/>
 
 		<nav class="bottom-nav">
 			<button type="button" onclick={handleUndo} disabled={!canUndo} aria-label="戻る">
