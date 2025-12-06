@@ -33,7 +33,13 @@ function handleDetailClick(): void {
 }
 </script>
 
-<div class="fare-summary-card">
+<button
+	class="fare-summary-card"
+	type="button"
+	on:click={handleDetailClick}
+	disabled={!detailEnabled}
+	aria-label="運賃サマリー"
+>
 	<div class="summary-row">
 		<div>
 			<p class="label">普通運賃</p>
@@ -49,12 +55,9 @@ function handleDetailClick(): void {
 			<p class="label">営業キロ</p>
 			<p class="value">{distanceText}</p>
 		</div>
-		<button type="button" class="detail-link" on:click={handleDetailClick} disabled={!detailEnabled}>
-			<span>詳細を見る</span>
-			<span class="material-symbols-rounded" aria-hidden="true">chevron_right</span>
-		</button>
+		<span class="chevron" aria-hidden="true">&gt;</span>
 	</div>
-</div>
+</button>
 
 <style>
 	.fare-summary-card {
@@ -65,6 +68,10 @@ function handleDetailClick(): void {
 		flex-direction: column;
 		gap: 0.75rem;
 		box-shadow: 0 10px 25px rgba(16, 185, 129, 0.15);
+		border: none;
+		width: 100%;
+		text-align: left;
+		cursor: pointer;
 	}
 
 	.summary-row {
@@ -93,24 +100,13 @@ function handleDetailClick(): void {
 		color: #064e3b;
 	}
 
-	.detail-link {
-		align-self: flex-start;
-		display: inline-flex;
-		align-items: center;
-		gap: 0.2rem;
-		border: none;
-		background: transparent;
-		color: #047857;
-		font-weight: 600;
-		cursor: pointer;
-	}
-
-	.detail-link:disabled {
-		opacity: 0.5;
+	.fare-summary-card:disabled {
+		opacity: 0.4;
 		cursor: not-allowed;
 	}
 
-	.detail-link :global(.material-symbols-rounded) {
-		font-size: 1.25rem;
+	.chevron {
+		font-size: 1.5rem;
+		color: #10b981;
 	}
 </style>

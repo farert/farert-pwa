@@ -208,7 +208,7 @@ describe('/+page.svelte', () => {
 	it('shows disabled fare summary detail button before route selection', async () => {
 		render(Page);
 
-		const detailButton = page.getByRole('button', { name: '詳細を見る' });
+		const detailButton = page.getByRole('button', { name: '運賃サマリー' });
 		await expect.element(detailButton).toBeDisabled();
 	});
 
@@ -274,7 +274,7 @@ describe('/+page.svelte', () => {
 		await expect.element(distanceLabel).toBeInTheDocument();
 		const validityLabel = page.getByText('有効日数');
 		await expect.element(validityLabel).toBeInTheDocument();
-		const detailButton = page.getByRole('button', { name: '詳細を見る' });
+		const detailButton = page.getByRole('button', { name: '運賃サマリー' });
 		await expect.element(detailButton).not.toBeDisabled();
 	});
 
