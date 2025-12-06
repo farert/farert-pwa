@@ -267,7 +267,7 @@ describe('/+page.svelte', () => {
 		await expect.element(distanceLabel).toBeInTheDocument();
 		const validityLabel = page.getByText('有効日数');
 		await expect.element(validityLabel).toBeInTheDocument();
-		const detailButton = page.getByRole('button', { name: '詳細>>' });
+		const detailButton = page.getByRole('button', { name: '詳細を見る' });
 		await expect.element(detailButton).toBeInTheDocument();
 	});
 

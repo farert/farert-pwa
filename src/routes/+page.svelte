@@ -1,11 +1,12 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
-	import { initFarert, Farert } from '$lib/wasm';
-	import type { FaretClass } from '$lib/wasm/types';
-	import type { FareInfo } from '$lib/types';
-	import { initStores, mainRoute } from '$lib/stores';
-	import { generateShareUrl } from '$lib/utils/urlRoute';
+import { goto } from '$app/navigation';
+import { onMount } from 'svelte';
+import FareSummaryCard from '$lib/components/FareSummaryCard.svelte';
+import { initFarert, Farert } from '$lib/wasm';
+import type { FaretClass } from '$lib/wasm/types';
+import type { FareInfo } from '$lib/types';
+import { initStores, mainRoute } from '$lib/stores';
+import { generateShareUrl } from '$lib/utils/urlRoute';
 
 	interface RouteSegment {
 		id: number;
@@ -416,31 +417,7 @@ function handleUndo() {
 		</button>
 
 		{#if fareInfo && segments.length > 0}
-			<section class="card fare-summary">
-				<div class="fare-rows">
-					<div class="fare-item">
-						<p class="label">普通運賃</p>
-						<p class="value">¥{fareInfo.fare?.toLocaleString?.() ?? '—'}</p>
-					</div>
-					<div class="fare-item">
-						<p class="label">営業キロ</p>
-						<p class="value">
-							{(fareInfo.totalSalesKm as number | undefined) ??
-							(fareInfo.distance as number | undefined) ??
-							'—'} km
-						</p>
-					</div>
-					<div class="fare-item">
-						<p class="label">有効日数</p>
-						<p class="value">
-							{(fareInfo.ticketAvailDays as number | undefined) ?? fareInfo.validDays ?? '—'} 日
-						</p>
-					</div>
-				</div>
-				<button type="button" class="detail-button" onclick={openFullDetail}>
-					詳細&gt;&gt;
-				</button>
-			</section>
+			<FareSummaryCard fareInfo={fareInfo} onDetailClick={openFullDetail} />
 		{/if}
 
 		<nav class="bottom-nav">
@@ -735,46 +712,6 @@ function handleUndo() {
 	.add-route-card:disabled {
 		opacity: 0.4;
 		cursor: not-allowed;
-	}
-
-	.fare-summary {
-		background: #ecfdf5;
-		color: #065f46;
-		display: flex;
-		flex-direction: column;
-		gap: 0.75rem;
-	}
-
-	.fare-rows {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 1rem;
-	}
-
-	.fare-item {
-		flex: 1 1 160px;
-	}
-
-	.label {
-		margin: 0;
-		font-size: 0.85rem;
-		color: rgba(6, 95, 70, 0.8);
-	}
-
-	.value {
-		margin: 0.1rem 0 0;
-		font-size: 1.2rem;
-		font-weight: 600;
-	}
-
-	.detail-button {
-		align-self: flex-end;
-		padding: 0.5rem 1.2rem;
-		border-radius: 999px;
-		border: none;
-		background: #0f766e;
-		color: #fff;
-		cursor: pointer;
 	}
 
 	.menu-container {
