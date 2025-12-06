@@ -23,11 +23,12 @@ import { generateShareUrl } from '$lib/utils/urlRoute';
 	let route = $state<FaretClass | null>(null);
 	let startStation = $state('');
 	let segments = $state<RouteSegment[]>([]);
-	let fareInfo = $state<FareInfo | null>(null);
-	let detailLink = $state('');
+let fareInfo = $state<FareInfo | null>(null);
+let detailLink = $state('');
 let canUndo = $state(false);
 let canReverse = $state(false);
 let optionEnabled = $state(false);
+let showFareSummary = $state(false);
 let appMenuOpen = $state(false);
 let optionMenuOpen = $state(false);
 let hasOsakakanOption = $state(false);
@@ -96,6 +97,13 @@ const osakaMenuLabel = $derived(
 
 	segments = parsedSegments;
 	canUndo = hasStart;
+	try {
+		const routeCount = current.getRouteCount ? current.getRouteCount() : parsedSegments.length;
+		showFareSummary = routeCount >= 2;
+	} catch (err) {
+		console.warn('経路本数の取得に失敗しました', err);
+		showFareSummary = parsedSegments.length > 0;
+	}
 
 	try {
 		fareInfo = JSON.parse(current.getFareInfoObjectJson()) as FareInfo;
@@ -146,6 +154,7 @@ function resetView() {
 	treatKokuraAsSame = true;
 	appMenuOpen = false;
 	optionMenuOpen = false;
+	showFareSummary = false;
 }
 
 function updateOptionAvailability(tokens: string[]) {
@@ -416,11 +425,13 @@ function handleUndo() {
 			<p>路線 → 着駅の順で選択します</p>
 		</button>
 
-		<FareSummaryCard
-			fareInfo={fareInfo}
-			detailEnabled={Boolean(detailLink && segments.length > 0)}
-			onDetailClick={openFullDetail}
-		/>
+		{#if showFareSummary}
+			<FareSummaryCard
+				fareInfo={fareInfo}
+				detailEnabled={Boolean(detailLink)}
+				onDetailClick={openFullDetail}
+			/>
+		{/if}
 
 		<nav class="bottom-nav">
 			<button type="button" onclick={handleUndo} disabled={!canUndo} aria-label="戻る">

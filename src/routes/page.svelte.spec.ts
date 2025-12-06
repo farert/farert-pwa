@@ -205,12 +205,18 @@ describe('/+page.svelte', () => {
 		await expect.element(placeholder).toBeInTheDocument();
 	});
 
-	it('shows disabled fare summary detail button before route selection', async () => {
-		render(Page);
+it('hides fare summary card before route selection', async () => {
+	render(Page);
 
-		const detailButton = page.getByRole('button', { name: '運賃サマリー' });
-		await expect.element(detailButton).toBeDisabled();
-	});
+	const locator = page.getByRole('button', { name: '運賃サマリー' });
+	let isVisible = false;
+	try {
+		isVisible = await locator.isVisible();
+	} catch (err) {
+		isVisible = false;
+	}
+	expect(isVisible).toBe(false);
+});
 
 	it('renders a material train icon on the start station card', async () => {
 		render(Page);
@@ -264,6 +270,7 @@ describe('/+page.svelte', () => {
 		const seededRoute = new MockFarert();
 		seededRoute.addStartRoute('東京');
 		seededRoute.addRoute('東海道新幹線', '新大阪');
+		seededRoute.addRoute('山陽新幹線', '博多');
 		mainRouteStore.set(seededRoute);
 
 		render(Page);
