@@ -6,6 +6,8 @@ import type { FaretClass } from '$lib/wasm/types';
 
 class MockFarert implements FaretClass {
 	script = '';
+	private osakaDetour = false;
+	private notSameKokura = false;
 
 	addStartRoute(station: string): number {
 		this.script = station;
@@ -96,7 +98,8 @@ class MockFarert implements FaretClass {
 		return 0;
 	}
 
-	setDetour(): number {
+	setDetour(enabled: boolean): number {
+		this.osakaDetour = enabled;
 		return 0;
 	}
 
@@ -129,7 +132,7 @@ class MockFarert implements FaretClass {
 	}
 
 	isNotSameKokuraHakataShinZai(): boolean {
-		return true;
+		return this.notSameKokura;
 	}
 
 	isAvailableReverse(): boolean {
@@ -137,15 +140,15 @@ class MockFarert implements FaretClass {
 	}
 
 	isOsakakanDetourEnable(): boolean {
-		return false;
+		return true;
 	}
 
 	isOsakakanDetour(): boolean {
-		return false;
+		return this.osakaDetour;
 	}
 
-	setNotSameKokuraHakataShinZai(): void {
-		return;
+	setNotSameKokuraHakataShinZai(enabled: boolean): void {
+		this.notSameKokura = enabled;
 	}
 
 	getFareInfoObjectJson(): string {
@@ -164,6 +167,12 @@ class MockFarert implements FaretClass {
 		return this.script;
 	}
 }
+
+const gotoMock = vi.fn();
+
+vi.mock('$app/navigation', () => ({
+	goto: (...args: unknown[]) => gotoMock(...args)
+}));
 
 const initFarertMock = vi.fn().mockResolvedValue(undefined);
 const initStoresMock = vi.fn();
@@ -186,10 +195,33 @@ describe('/+page.svelte', () => {
 		mainRouteStore.set(null);
 		initFarertMock.mockClear();
 		initStoresMock.mockClear();
+		gotoMock.mockReset();
 	});
 
 	it('shows placeholder when start station is empty', async () => {
 		render(Page);
+
+		const placeholder = page.getByText('発駅を指定してください');
+		await expect.element(placeholder).toBeInTheDocument();
+	});
+
+	it('renders a material train icon on the start station card', async () => {
+		render(Page);
+
+		const icon = page.getByTestId('start-station-train-icon');
+		await expect.element(icon).toBeInTheDocument();
+	});
+
+	it('clears the start station when pressing the bottom back button without segments', async () => {
+		const seededRoute = new MockFarert();
+		seededRoute.addStartRoute('仙台');
+		mainRouteStore.set(seededRoute);
+
+		render(Page);
+
+		const undoButton = page.getByRole('button', { name: '戻る' });
+		await expect.element(undoButton).not.toBeDisabled();
+		await undoButton.click();
 
 		const placeholder = page.getByText('発駅を指定してください');
 		await expect.element(placeholder).toBeInTheDocument();
@@ -237,5 +269,57 @@ describe('/+page.svelte', () => {
 		await expect.element(validityLabel).toBeInTheDocument();
 		const detailButton = page.getByRole('button', { name: '詳細>>' });
 		await expect.element(detailButton).toBeInTheDocument();
+	});
+
+	it('navigates to line selection with encoded params when adding a route', async () => {
+		const seededRoute = new MockFarert();
+		seededRoute.addStartRoute('柏木平');
+		seededRoute.addRoute('北上線', '北上');
+		mainRouteStore.set(seededRoute);
+
+		render(Page);
+
+		const addButton = page.getByRole('button', { name: '経路を追加' });
+		await addButton.click();
+
+		const calledUrl = gotoMock.mock.calls.at(-1)?.[0] as string;
+		const parsed = new URL(calledUrl, 'https://example.com');
+		expect(parsed.pathname).toBe('/line-selection');
+		expect(parsed.searchParams.get('from')).toBe('main');
+		expect(parsed.searchParams.get('station')).toBe('北上');
+		expect(parsed.searchParams.get('line')).toBe('北上線');
+	});
+
+	it('opens the app menu and navigates to version info from the menu item', async () => {
+		render(Page);
+
+		const menuButton = page.getByRole('button', { name: 'メニュー' });
+		await menuButton.click();
+
+		const versionItem = page.getByRole('menuitem', { name: 'バージョン情報' });
+		await versionItem.click();
+
+		expect(gotoMock).toHaveBeenCalledWith('/version');
+	});
+
+	it('provides Osaka and Kokura toggles inside the option menu', async () => {
+		const seededRoute = new MockFarert();
+		seededRoute.buildRoute('小倉,鹿児島本線,博多,大阪環状線,大阪');
+		mainRouteStore.set(seededRoute);
+
+		render(Page);
+
+		const optionsButton = page.getByRole('button', { name: 'オプション' });
+		await optionsButton.click();
+
+		const osakaEnable = page.getByRole('menuitem', { name: '大阪環状線遠回り' });
+		await expect.element(osakaEnable).toBeInTheDocument();
+		await osakaEnable.click();
+
+		await optionsButton.click();
+		const osakaDisable = page.getByRole('menuitem', { name: '大阪環状線近回り' });
+		await expect.element(osakaDisable).toBeInTheDocument();
+		const kokuraItem = page.getByRole('menuitem', { name: '小倉博多間新幹線・在来線同一視' });
+		await expect.element(kokuraItem).not.toBeDisabled();
 	});
 });
