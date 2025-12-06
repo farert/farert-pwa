@@ -38,6 +38,7 @@
 4.  **FareSummaryCard (運賃サマリー)**
     -   `component-design.md`の`FareSummaryCard`を参照。
     -   経路が完成し、運賃情報が計算された場合に表示されます。
+    -   普通運賃と営業キロ、有効日数を表示します。詳細>> ラベルも右端に表示
     -   Props: `fareInfo`
     -   タップ動作: 全経路の **<詳細>** 画面へ遷移します。経路データを圧縮してURLパラメータで渡します（`/detail?r={compressed}`）。
 

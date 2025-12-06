@@ -1,218 +1,581 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
-	import { initFarert, Farert, getPrefects, searchStationByKeyword } from '$lib/wasm';
+	import { initFarert, Farert } from '$lib/wasm';
+	import type { FaretClass } from '$lib/wasm/types';
+	import type { FareInfo } from '$lib/types';
+	import { initStores, mainRoute } from '$lib/stores';
+	import { generateShareUrl } from '$lib/utils/urlRoute';
 
-	let initialized = $state(false);
+	interface RouteSegment {
+		id: number;
+		line: string;
+		station: string;
+	}
+
+	const OSAKA_LOOP_LINE = '大阪環状線';
+	const KOKURA_STATION = '小倉';
+	const HAKATA_STATION = '博多';
+
 	let loading = $state(true);
 	let error = $state('');
-	let fareResult = $state('');
-	let prefectures = $state<string[]>([]);
-	let searchResults = $state<string[]>([]);
+	let route = $state<FaretClass | null>(null);
+	let startStation = $state('');
+	let segments = $state<RouteSegment[]>([]);
+	let fareInfo = $state<FareInfo | null>(null);
+	let detailLink = $state('');
+	let canUndo = $state(false);
+	let canReverse = $state(false);
+	let optionEnabled = $state(false);
 
-	onMount(async () => {
-		try {
-			console.log('onMount: WASM初期化開始');
-			// WASM初期化
-			await initFarert();
-			console.log('onMount: WASM初期化完了');
-			initialized = true;
+	onMount(() => {
+		let unsubscribe: (() => void) | null = null;
 
-			// 都道府県リストを取得
-			console.log('onMount: 都道府県リスト取得中');
-			const prefectsJson = getPrefects();
-			console.log('onMount: prefectsJson =', prefectsJson);
-			const parsedPrefects = JSON.parse(prefectsJson);
-			// 結果が配列かオブジェクトか確認
-			prefectures = Array.isArray(parsedPrefects) ? parsedPrefects : (parsedPrefects.prefectures || []);
-			console.log('onMount: prefectures =', prefectures);
+		(async () => {
+			try {
+				await initFarert();
+				initStores(Farert);
+				unsubscribe = mainRoute.subscribe((value) => {
+					route = value;
+					refreshRouteState(value);
+				});
+			} catch (err) {
+				console.error('メイン画面初期化エラー', err);
+				error = `メイン画面の初期化に失敗しました: ${err}`;
+			} finally {
+				loading = false;
+			}
+		})();
 
-			// テスト: 東京 → 大阪の運賃計算
-			console.log('onMount: 運賃計算テスト開始');
-			const farert = new Farert();
-			farert.addStartRoute('東京');
-			farert.addRoute('東海道新幹線', '新大阪');
-			fareResult = farert.showFare();
-			console.log('onMount: fareResult =', fareResult);
-
-			// テスト: 駅検索
-			console.log('onMount: 駅検索テスト開始');
-			const results = searchStationByKeyword('新宿');
-			const parsedResults = JSON.parse(results);
-			console.log('onMount: parsedResults =', parsedResults);
-			// 結果がオブジェクトの場合はstationsプロパティを取得、配列の場合はそのまま
-			searchResults = Array.isArray(parsedResults) ? parsedResults : (parsedResults.stations || []);
-			console.log('onMount: searchResults =', searchResults);
-
-			loading = false;
-			console.log('onMount: すべて完了');
-		} catch (err) {
-			console.error('onMount: エラー発生', err);
-			error = `WASM初期化エラー: ${err}`;
-			loading = false;
-			// エラー時も配列を保持
-			prefectures = [];
-			searchResults = [];
-		}
+		return () => {
+			unsubscribe?.();
+		};
 	});
+
+	function refreshRouteState(current: FaretClass | null) {
+		if (!current) {
+			resetView();
+			return;
+		}
+
+		const script = current.routeScript().trim();
+		if (!script) {
+			resetView();
+			return;
+		}
+
+		const tokens = script
+			.split(',')
+			.map((token) => token.trim())
+			.filter((token) => token.length > 0);
+
+		startStation = tokens[0] ?? '';
+
+		const parsedSegments: RouteSegment[] = [];
+		for (let i = 1, segIndex = 0; i < tokens.length; i += 2, segIndex += 1) {
+			const lineName = tokens[i];
+			const stationName = tokens[i + 1];
+			if (!lineName || !stationName) continue;
+			parsedSegments.push({
+				id: segIndex,
+				line: lineName,
+				station: stationName
+			});
+		}
+
+		segments = parsedSegments;
+		canUndo = parsedSegments.length > 0;
+
+		try {
+			fareInfo = JSON.parse(current.getFareInfoObjectJson()) as FareInfo;
+		} catch (err) {
+			console.warn('運賃情報の解析に失敗しました', err);
+			fareInfo = null;
+		}
+
+		try {
+			detailLink = generateShareUrl(current);
+		} catch (err) {
+			console.error('シェアURLの生成に失敗しました', err);
+			detailLink = '';
+		}
+
+		canReverse = current.isAvailableReverse ? current.isAvailableReverse() : parsedSegments.length > 0;
+		updateOptionAvailability(tokens);
+	}
+
+	function resetView() {
+		startStation = '';
+		segments = [];
+		fareInfo = null;
+		detailLink = '';
+		canUndo = false;
+		canReverse = false;
+		optionEnabled = false;
+	}
+
+	function updateOptionAvailability(tokens: string[]) {
+		const stationTokens: string[] = [];
+		for (let i = 0; i < tokens.length; i += 2) {
+			if (tokens[i]) stationTokens.push(tokens[i]);
+		}
+
+		const hasOsakaLoop = segments.some((segment) => segment.line === OSAKA_LOOP_LINE);
+		const hasKokuraHakata =
+			stationTokens.includes(KOKURA_STATION) && stationTokens.includes(HAKATA_STATION);
+
+		optionEnabled = hasOsakaLoop || hasKokuraHakata;
+	}
+
+	function ensureRoute(): FaretClass {
+		if (route) return route;
+		const next = new Farert();
+		route = next;
+		mainRoute.set(next);
+		return next;
+	}
+
+	function openDrawer() {
+		const event = new CustomEvent('open-ticket-holder');
+		window.dispatchEvent(event);
+	}
+
+	function openVersionInfo() {
+		goto('/version');
+	}
+
+	function openTerminalSelection() {
+		goto('/terminal-selection');
+	}
+
+	function openRouteAddition() {
+		if (!startStation) {
+			error = '先に発駅を設定してください';
+			return;
+		}
+		goto('/line-selection');
+	}
+
+	function openSegmentDetail(segmentIndex: number) {
+		if (!route) return;
+		try {
+			const url = generateShareUrl(route, segmentIndex);
+			goto(url);
+		} catch (err) {
+			error = `詳細画面を開けませんでした: ${err}`;
+		}
+	}
+
+	function openFullDetail() {
+		if (!route || !detailLink) return;
+		goto(detailLink);
+	}
+
+	function handleUndo() {
+		if (!route || !canUndo) return;
+		route.removeTail();
+		mainRoute.set(route);
+		refreshRouteState(route);
+	}
+
+	function handleReverse() {
+		if (!route || !canReverse) return;
+		const result = route.reverse();
+		if (result !== 0) {
+			error = '経路の反転に失敗しました。';
+			return;
+		}
+		mainRoute.set(route);
+		refreshRouteState(route);
+	}
+
+	function openOptions() {
+		if (!optionEnabled) return;
+		goto('/option-menu');
+	}
+
+	function openSave() {
+		goto('/save');
+	}
 </script>
 
-<div class="container">
-	<h1>Farert PWA - WASM テスト</h1>
+<div class="page">
+	<header class="top-bar">
+		<button type="button" class="icon-button" aria-label="きっぷホルダ" onclick={openDrawer}>
+			☰
+		</button>
+		<div class="title">
+			<h1>Farert</h1>
+			<p>JR運賃計算</p>
+		</div>
+		<button type="button" class="icon-button" aria-label="バージョン情報" onclick={openVersionInfo}>
+			⋮
+		</button>
+	</header>
 
 	{#if loading}
-		<p class="loading">WASMモジュールを初期化中...</p>
-	{:else if error}
-		<p class="error">{error}</p>
-	{:else if initialized}
-		<div class="success">
-			<h2>✅ WASM初期化成功！</h2>
+		<p class="info-banner">データを読み込み中です...</p>
+	{:else}
+		{#if error}
+			<div class="error-banner" role="alert">
+				<p>{error}</p>
+				<button type="button" class="text-button" onclick={() => (error = '')}>閉じる</button>
+			</div>
+		{/if}
 
-			<section>
-				<h3>📍 都道府県リスト</h3>
-				<p>取得件数: {prefectures.length}件</p>
-				<div class="scroll-box">
-					{#each prefectures.slice(0, Math.min(10, prefectures.length)) as prefecture}
-						<span class="tag">{prefecture}</span>
+		<button type="button" class="card station-card actionable" onclick={openTerminalSelection}>
+			<h2>発駅</h2>
+			{#if startStation}
+				<p class="station-name">{startStation}</p>
+			{:else}
+				<p class="placeholder">発駅を指定してください</p>
+			{/if}
+		</button>
+
+		<section class="segment-section">
+			<p class="section-title">経路区間</p>
+			{#if segments.length === 0}
+				<p class="placeholder">まだ区間が追加されていません</p>
+			{:else}
+				<ul class="segment-cards">
+					{#each segments as segment, index}
+						<li>
+							<button
+								type="button"
+								class="card route-card actionable"
+								onclick={() => openSegmentDetail(segment.id)}
+								aria-label={`区間 ${index + 1} (${segment.line} → ${segment.station})`}
+							>
+								<span class="route-badge" aria-hidden="true">{index + 1}</span>
+								<div class="route-info">
+									<p class="route-line">{segment.line}</p>
+									<p class="route-station">{segment.station}</p>
+								</div>
+								<span class="chevron" aria-hidden="true">&gt;</span>
+							</button>
+						</li>
 					{/each}
-					{#if prefectures.length > 10}
-						<span class="more">...他 {prefectures.length - 10}件</span>
-					{/if}
-				</div>
-			</section>
-
-			<section>
-				<h3>💴 運賃計算テスト: 東京 → 新大阪</h3>
-				<pre class="fare-result">{fareResult}</pre>
-			</section>
-
-			<section>
-				<h3>🔍 駅検索テスト: "新宿"</h3>
-				<p>検索結果: {searchResults.length}件</p>
-				<div class="scroll-box">
-					{#each searchResults.slice(0, Math.min(10, searchResults.length)) as station}
-						<span class="tag">{station}</span>
-					{/each}
-					{#if searchResults.length > 10}
-						<span class="more">...他 {searchResults.length - 10}件</span>
-					{/if}
-				</div>
-			</section>
-
-			<section>
-				<h3>🎉 次のステップ</h3>
-				<ul>
-					<li>データモデルとSvelteストアの実装</li>
-					<li>メイン画面（経路リスト）の実装</li>
-					<li>駅選択画面の実装</li>
-					<li>ドロワーナビゲーションの実装</li>
 				</ul>
+			{/if}
+		</section>
+
+		<button
+			type="button"
+			class="card add-route-card actionable"
+			onclick={openRouteAddition}
+			disabled={!startStation}
+			aria-disabled={!startStation}
+		>
+			<span>+ 経路を追加</span>
+			<p>路線 → 着駅の順で選択します</p>
+		</button>
+
+		{#if fareInfo && segments.length > 0}
+			<section class="card fare-summary">
+				<div class="fare-rows">
+					<div class="fare-item">
+						<p class="label">普通運賃</p>
+						<p class="value">¥{fareInfo.fare?.toLocaleString?.() ?? '—'}</p>
+					</div>
+					<div class="fare-item">
+						<p class="label">営業キロ</p>
+						<p class="value">
+							{(fareInfo.totalSalesKm as number | undefined) ??
+							(fareInfo.distance as number | undefined) ??
+							'—'} km
+						</p>
+					</div>
+					<div class="fare-item">
+						<p class="label">有効日数</p>
+						<p class="value">
+							{(fareInfo.ticketAvailDays as number | undefined) ?? fareInfo.validDays ?? '—'} 日
+						</p>
+					</div>
+				</div>
+				<button type="button" class="detail-button" onclick={openFullDetail}>
+					詳細&gt;&gt;
+				</button>
 			</section>
-		</div>
+		{/if}
+
+		<nav class="bottom-nav">
+			<button type="button" onclick={handleUndo} disabled={!canUndo}>戻る</button>
+			<button type="button" onclick={handleReverse} disabled={!canReverse}>反転</button>
+			<button type="button" onclick={openOptions} disabled={!optionEnabled}>オプション</button>
+			<button type="button" onclick={openSave} disabled={!segments.length}>保存</button>
+		</nav>
 	{/if}
 </div>
 
 <style>
-	.container {
-		max-width: 800px;
+	:global(body) {
+		background: #f4f5f7;
+		font-family: 'Noto Sans JP', system-ui, sans-serif;
+	}
+
+	.page {
+		max-width: 960px;
 		margin: 0 auto;
-		padding: 2rem;
-		font-family: system-ui, -apple-system, sans-serif;
-	}
-
-	h1 {
-		color: #9333ea;
-		margin-bottom: 1.5rem;
-	}
-
-	h2 {
-		color: #16a34a;
-		margin-bottom: 1rem;
-	}
-
-	h3 {
-		color: #334155;
-		margin-bottom: 0.75rem;
-		font-size: 1.25rem;
-	}
-
-	.loading,
-	.error {
-		padding: 1rem;
-		border-radius: 0.5rem;
-		margin: 1rem 0;
-	}
-
-	.loading {
-		background-color: #dbeafe;
-		color: #1e40af;
-	}
-
-	.error {
-		background-color: #fee2e2;
-		color: #991b1b;
-	}
-
-	.success {
-		background-color: #f0fdf4;
 		padding: 1.5rem;
-		border-radius: 0.5rem;
-		border: 2px solid #16a34a;
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
 	}
 
-	section {
-		margin: 1.5rem 0;
+	.top-bar {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 0.5rem 0;
+	}
+
+	.icon-button {
+		width: 48px;
+		height: 48px;
+		border-radius: 50%;
+		border: none;
+		background: #f3e8ff;
+		color: #6b21a8;
+		font-size: 1.2rem;
+		cursor: pointer;
+	}
+
+	.title h1 {
+		margin: 0;
+		font-size: 1.4rem;
+		color: #1f2937;
+	}
+
+	.title p {
+		margin: 0;
+		color: #9ca3af;
+		font-size: 0.85rem;
+	}
+
+	.info-banner,
+	.error-banner {
 		padding: 1rem;
-		background-color: white;
-		border-radius: 0.5rem;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+		border-radius: 0.75rem;
 	}
 
-	.scroll-box {
+	.info-banner {
+		background: #eff6ff;
+		color: #1d4ed8;
+	}
+
+	.error-banner {
+		background: #fee2e2;
+		color: #b91c1c;
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.card {
+		background: #fff;
+		border-radius: 1rem;
+		padding: 1rem 1.25rem;
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+		border: none;
+		text-align: left;
+		transition: transform 0.15s ease, box-shadow 0.15s ease;
+	}
+
+	.card.actionable {
+		cursor: pointer;
+	}
+
+	.card.actionable:active {
+		transform: translateY(1px);
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+	}
+
+	.station-card {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+		background: linear-gradient(135deg, #2563eb, #38bdf8);
+		color: #fff;
+	}
+
+	.station-card h2 {
+		color: rgba(255, 255, 255, 0.9);
+	}
+
+	.station-name {
+		font-size: 1.6rem;
+		font-weight: 600;
+		margin: 0;
+	}
+
+	.placeholder {
+		color: #9ca3af;
+		font-style: italic;
+		margin: 0;
+	}
+
+	.station-card .placeholder {
+		color: rgba(255, 255, 255, 0.85);
+		font-style: normal;
+	}
+
+	.segment-section {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+
+	.section-title {
+		margin: 0;
+		font-size: 1rem;
+		font-weight: 600;
+		color: #6b7280;
+	}
+
+	.segment-cards {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+
+	.route-card {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		cursor: pointer;
+	}
+
+	.route-badge {
+		width: 36px;
+		height: 36px;
+		border-radius: 999px;
+		background: #c084fc;
+		color: #fff;
+		font-weight: 700;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.route-info {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		gap: 0.15rem;
+	}
+
+	.route-line {
+		margin: 0;
+		font-size: 1rem;
+		font-weight: 600;
+		color: #0f172a;
+	}
+
+	.route-station {
+		margin: 0;
+		color: #6b7280;
+	}
+
+	.chevron {
+		font-size: 1.5rem;
+		color: #c084fc;
+	}
+
+	.add-route-card {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+		background: #fff7ed;
+		color: #92400e;
+		font-weight: 600;
+		cursor: pointer;
+	}
+
+	.add-route-card span {
+		font-size: 1.1rem;
+	}
+
+	.add-route-card p {
+		margin: 0;
+		font-size: 0.85rem;
+		color: #b45309;
+	}
+
+	.add-route-card:disabled {
+		opacity: 0.4;
+		cursor: not-allowed;
+	}
+
+	.fare-summary {
+		background: #ecfdf5;
+		color: #065f46;
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+
+	.fare-rows {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.5rem;
-		margin-top: 0.5rem;
+		gap: 1rem;
 	}
 
-	.tag {
-		background-color: #e0e7ff;
-		color: #4338ca;
-		padding: 0.25rem 0.75rem;
-		border-radius: 0.25rem;
-		font-size: 0.875rem;
+	.fare-item {
+		flex: 1 1 160px;
 	}
 
-	.more {
-		color: #64748b;
-		font-style: italic;
-		padding: 0.25rem 0.75rem;
+	.label {
+		margin: 0;
+		font-size: 0.85rem;
+		color: rgba(6, 95, 70, 0.8);
 	}
 
-	.fare-result {
-		background-color: #f8fafc;
-		border: 1px solid #cbd5e1;
-		border-radius: 0.375rem;
-		padding: 1rem;
-		font-family: 'Courier New', monospace;
-		white-space: pre-wrap;
-		line-height: 1.6;
+	.value {
+		margin: 0.1rem 0 0;
+		font-size: 1.2rem;
+		font-weight: 600;
 	}
 
-	ul {
-		list-style: none;
-		padding-left: 0;
+	.detail-button {
+		align-self: flex-end;
+		padding: 0.5rem 1.2rem;
+		border-radius: 999px;
+		border: none;
+		background: #0f766e;
+		color: #fff;
+		cursor: pointer;
 	}
 
-	li {
-		padding: 0.5rem 0;
-		padding-left: 1.5rem;
-		position: relative;
+	.bottom-nav {
+		display: grid;
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		gap: 0.75rem;
+		margin-top: 1rem;
 	}
 
-	li::before {
-		content: '▸';
-		position: absolute;
-		left: 0;
-		color: #9333ea;
+	.bottom-nav button {
+		border: none;
+		border-radius: 0.75rem;
+		padding: 0.75rem;
+		background: #ede9fe;
+		color: #4c1d95;
+		font-weight: 600;
+		cursor: pointer;
+	}
+
+	.bottom-nav button:disabled {
+		opacity: 0.4;
+		cursor: not-allowed;
+	}
+
+	.text-button {
+		border: none;
+		background: transparent;
+		color: #7c3aed;
+		cursor: pointer;
 	}
 </style>

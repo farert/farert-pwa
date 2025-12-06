@@ -5,7 +5,14 @@
 
 import { build, files, version } from '$service-worker';
 
+declare const self: ServiceWorkerGlobalScope & {
+	__WB_MANIFEST?: Array<{ url: string; revision?: string }>;
+};
+
 const sw = self as unknown as ServiceWorkerGlobalScope;
+
+const precacheManifest = self.__WB_MANIFEST ?? [];
+const manifestUrls = precacheManifest.map((entry) => entry.url);
 
 // 開発モードでは何もしない
 const isDev = import.meta.env.DEV;
@@ -26,10 +33,8 @@ if (isDev) {
 const CACHE_NAME = `farert-cache-${version}`;
 
 // キャッシュするファイル
-const ASSETS = [
-	...build, // アプリのビルドファイル
-	...files  // static内のファイル
-];
+const assetSet = new Set<string>([...build, ...files, ...manifestUrls]);
+const ASSETS = Array.from(assetSet);
 
 // インストール時
 sw.addEventListener('install', (event) => {

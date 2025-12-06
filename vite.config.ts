@@ -3,22 +3,22 @@ import { playwright } from '@vitest/browser-playwright';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { SvelteKitPWA } from '@vite-pwa/sveltekit';
 
+const localHost = process.env.BIND_HOST ?? '127.0.0.1';
+
 export default defineConfig({
 	server: {
-		host: '0.0.0.0',
+		host: localHost,
 		port: 5173
 	},
 	preview: {
-		host: '0.0.0.0',
+		host: localHost,
 		port: 4173
 	},
 	plugins: [
 		sveltekit(),
 		SvelteKitPWA({
-			srcDir: './src',
 			mode: 'production',
 			strategies: 'injectManifest',
-			filename: 'service-worker.ts',
 			scope: '/',
 			base: '/',
 			disable: process.env.NODE_ENV === 'development',
@@ -44,6 +44,7 @@ export default defineConfig({
 				]
 			},
 			injectManifest: {
+				swSrc: 'src/service-worker.ts',
 				globPatterns: ['**/*.{js,css,html,svg,png,wasm}']
 			}
 		})

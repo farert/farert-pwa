@@ -288,6 +288,19 @@ Opens the embedded database. Called automatically by `initFarert()`.
 
 Closes the database. Generally not needed as cleanup is automatic.
 
+#### `databaseInfo(): string`
+
+**Returns:** Status message
+
+```json
+  {
+    "result": true,
+    "dbName": "2025",
+    "createdate": "2025-11-12 13:11:18",
+    "tax" : 10
+  }
+```
+
 ### Prefecture Functions
 
 #### `getPrefects(): string`
@@ -450,7 +463,7 @@ const results = JSON.parse(searchStationByKeyword("新宿"));
 |------|-------------|
 | 0 | Success(終端到達-追加不可) |
 | 1 | Success(OK-継続可能) |
-| 2 | 
+| 2 | N/A |
 | 4 | Success(会社線制限により終端) |
 | 5 | Success(すでに終了している) |
 | -1 | 復乗エラー（重複エラー） |
@@ -530,7 +543,7 @@ async function calculateFare() {
   const farert = new Farert();
 
   // Build route: Tokyo -> Osaka -> Kyoto
-  if (farert.addStartRoute("東京") !== 0) {
+  if (farert.addStartRoute("東京") < 0) {
     throw new Error("Invalid starting station");
   }
 
