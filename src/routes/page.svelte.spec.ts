@@ -178,6 +178,8 @@ vi.mock('$app/navigation', () => ({
 const initFarertMock = vi.fn().mockResolvedValue(undefined);
 const initStoresMock = vi.fn();
 const mainRouteStore: Writable<FaretClass | null> = writable(null);
+const ticketHolderStore: Writable<unknown[]> = writable([]);
+const savedRoutesStore: Writable<string[]> = writable([]);
 
 vi.mock('$lib/wasm', () => ({
 	initFarert: () => initFarertMock(),
@@ -186,6 +188,8 @@ vi.mock('$lib/wasm', () => ({
 
 vi.mock('$lib/stores', () => ({
 	mainRoute: mainRouteStore,
+	savedRoutes: savedRoutesStore,
+	ticketHolder: ticketHolderStore,
 	initStores: (...args: unknown[]) => initStoresMock(...args)
 }));
 

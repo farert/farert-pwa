@@ -2,10 +2,11 @@
 import { goto } from '$app/navigation';
 import { onMount } from 'svelte';
 import FareSummaryCard from '$lib/components/FareSummaryCard.svelte';
+import DrawerNavigation from '$lib/components/DrawerNavigation.svelte';
 import { initFarert, Farert } from '$lib/wasm';
 import type { FaretClass } from '$lib/wasm/types';
-import type { FareInfo } from '$lib/types';
-import { initStores, mainRoute } from '$lib/stores';
+import { FareType, type FareInfo, type TicketHolderItem } from '$lib/types';
+import { initStores, mainRoute, ticketHolder } from '$lib/stores';
 import { generateShareUrl, compressRouteForUrl } from '$lib/utils/urlRoute';
 
 	interface RouteSegment {
@@ -35,9 +36,45 @@ let hasOsakakanOption = $state(false);
 let hasKokuraOption = $state(false);
 let osakaDetourSelected = $state(false);
 let treatKokuraAsSame = $state(true);
+let drawerOpen = $state(false);
+let holderItems = $state<TicketHolderItem[]>([]);
+let holderView = $state<
+	{
+		key: string;
+		item: TicketHolderItem;
+		title: string;
+		fareText: string;
+		kmText: string;
+		fareValue: number;
+		kmValue: number;
+	}[]
+>([]);
+let info = $state('');
 const osakaMenuLabel = $derived(
 	osakaDetourSelected ? '大阪環状線近回り' : '大阪環状線遠回り'
 );
+const canAddToHolder = $derived(() => {
+	const script = route ? safeRouteScript(route) : currentRouteScript;
+	const count = resolveRouteCount(route, script);
+	return Boolean(script) && count > 1;
+});
+
+	function isBuildSuccess(result: unknown): boolean {
+		if (typeof result === 'number') return result >= 0;
+		if (typeof result === 'string') {
+			const trimmed = result.trim().replace(/\0/g, '');
+			const numeric = Number(trimmed);
+			if (!Number.isNaN(numeric)) return numeric >= 0;
+			try {
+				const parsed = JSON.parse(trimmed) as { rc?: number };
+				return typeof parsed.rc === 'number' ? parsed.rc >= 0 : false;
+			} catch {
+				const match = trimmed.match(/"rc"\s*:\s*(-?\d+)/);
+				return match ? Number(match[1]) >= 0 : false;
+			}
+		}
+		return false;
+	}
 
 function parseFareInfoJson(raw: unknown): FareInfo | null {
 	if (typeof raw !== 'string') return null;
@@ -78,6 +115,7 @@ function parseFareInfoJson(raw: unknown): FareInfo | null {
 
 	onMount(() => {
 		let unsubscribe: (() => void) | null = null;
+		let unsubscribeHolder: (() => void) | null = null;
 
 		(async () => {
 			try {
@@ -86,6 +124,10 @@ function parseFareInfoJson(raw: unknown): FareInfo | null {
 				unsubscribe = mainRoute.subscribe((value) => {
 					route = value;
 					refreshRouteState(value);
+				});
+				unsubscribeHolder = ticketHolder.subscribe((value) => {
+					holderItems = [...value].sort((a, b) => a.order - b.order);
+					updateHolderView();
 				});
 			} catch (err) {
 				console.error('メイン画面初期化エラー', err);
@@ -97,6 +139,7 @@ function parseFareInfoJson(raw: unknown): FareInfo | null {
 
 		return () => {
 			unsubscribe?.();
+			unsubscribeHolder?.();
 		};
 	});
 
@@ -225,8 +268,7 @@ function updateOptionAvailability(tokens: string[]) {
 	}
 
 	function openDrawer() {
-		const event = new CustomEvent('open-ticket-holder');
-		window.dispatchEvent(event);
+		drawerOpen = !drawerOpen;
 	}
 
 	function openVersionInfo() {
@@ -349,6 +391,180 @@ function handleUndo() {
 		}
 	}
 
+	function parseFareForHolder(info: FareInfo | null, fareType: FareType): number {
+		if (!info) return 0;
+		switch (fareType) {
+			case FareType.CHILD:
+				return info.childFare ?? 0;
+			case FareType.ROUND_TRIP:
+				return info.roundTripFareWithCompanyLine ?? 0;
+			case FareType.STOCK_DISCOUNT:
+				return info.stockDiscounts?.[0]?.stockDiscountFare ?? 0;
+			case FareType.STOCK_DISCOUNT_X2:
+				return (info.stockDiscounts?.[0]?.stockDiscountFare ?? 0) * 2;
+			case FareType.STUDENT:
+				return info.academicFare ?? 0;
+			case FareType.STUDENT_ROUND_TRIP:
+				return info.roundtripAcademicFare ?? 0;
+			case FareType.DISABLED:
+				return 0;
+			case FareType.NORMAL:
+			default:
+				return info.fare ?? 0;
+		}
+	}
+
+	function deriveTitle(script: string): string {
+		const tokens = script.split(',').map((t) => t.trim()).filter(Boolean);
+		if (tokens.length >= 3) {
+			const from = tokens[0];
+			const to = tokens[tokens.length - 1];
+			return `${from} - ${to}`;
+		}
+		return script || '経路';
+	}
+
+	function formatFare(value: number | null | undefined): string {
+		if (typeof value !== 'number' || Number.isNaN(value)) return '—';
+		return `¥${value.toLocaleString('ja-JP')}`;
+	}
+
+	function formatKm(value: number | null | undefined): string {
+		if (typeof value !== 'number' || Number.isNaN(value)) return '— km';
+		return `${value.toFixed(1)}km`;
+	}
+
+	function updateHolderView(): void {
+		const views: {
+			key: string;
+			item: TicketHolderItem;
+			title: string;
+			fareText: string;
+			kmText: string;
+			fareValue: number;
+			kmValue: number;
+		}[] = [];
+		for (const [index, item] of holderItems.entries()) {
+			let fare = 0;
+			let km = 0;
+			try {
+				const tmp = new Farert();
+				const rc = tmp.buildRoute(item.routeScript);
+				if (isBuildSuccess(rc)) {
+					try {
+						tmp.showFare?.();
+					} catch (err) {
+						console.warn('きっぷホルダ項目の運賃計算に失敗しました', err);
+					}
+					const info = parseFareInfoJson(tmp.getFareInfoObjectJson());
+					fare = parseFareForHolder(info, item.fareType);
+					km = info?.totalSalesKm ?? 0;
+				}
+			} catch (err) {
+				console.warn('きっぷホルダ項目の計算に失敗しました', err);
+			}
+			views.push({
+				key: `${item.order}-${index}`,
+				item,
+				title: deriveTitle(item.routeScript),
+				fareText: formatFare(fare),
+				kmText: formatKm(km),
+				fareValue: fare,
+				kmValue: km
+			});
+		}
+		holderView = views;
+	}
+
+	function handleHolderDelete(key: string): void {
+		const [, idxStr] = key.split('-');
+		const idx = Number(idxStr);
+		if (Number.isNaN(idx)) return;
+		ticketHolder.update((list) => list.filter((_, i) => i !== idx));
+	}
+
+	function handleHolderFareChange(key: string, fareType: FareType): void {
+		const [, idxStr] = key.split('-');
+		const idx = Number(idxStr);
+		if (Number.isNaN(idx)) return;
+		ticketHolder.update((list) =>
+			list.map((item, i) => (i === idx ? { ...item, fareType } : item))
+		);
+		updateHolderView();
+	}
+
+	function handleHolderSelect(drawerItem: { item: TicketHolderItem }): void {
+		const script = drawerItem.item.routeScript;
+		if (!script) return;
+		try {
+			const next = new Farert();
+			const rc = next.buildRoute(script);
+			if (!isBuildSuccess(rc)) {
+				error = `きっぷホルダの経路復元に失敗しました (コード: ${rc})`;
+				return;
+			}
+			mainRoute.set(next);
+			refreshRouteState(next);
+			drawerOpen = false;
+		} catch (err) {
+			console.error('きっぷホルダの適用に失敗しました', err);
+			error = 'きっぷホルダの適用に失敗しました。';
+		}
+	}
+
+	function resolveRouteCount(target: FaretClass | null, script: string): number {
+		try {
+			if (target?.getRouteCount) return target.getRouteCount();
+		} catch (err) {
+			console.warn('経路本数取得に失敗しました', err);
+		}
+		const tokens = script ? script.split(',').filter(Boolean) : [];
+		return Math.max(0, (tokens.length - 1) / 2);
+	}
+
+	function handleAddToHolder(): void {
+		const script = route ? route.routeScript() : currentRouteScript;
+		if (!script) {
+			error = '追加する経路がありません。';
+			return;
+		}
+		const count = resolveRouteCount(route, script);
+		if (count <= 1) {
+			error = '2区間以上の経路のみ追加できます。';
+			return;
+		}
+		const nextOrder = holderItems.length ? Math.max(...holderItems.map((i) => i.order)) + 1 : 1;
+		const newItem: TicketHolderItem = {
+			order: nextOrder,
+			routeScript: script,
+			fareType: FareType.NORMAL
+		};
+		ticketHolder.update((list) => [...list, newItem]);
+		updateHolderView();
+		info = 'きっぷホルダに追加しました。';
+	}
+
+	async function handleShareHolder(): Promise<void> {
+		const text = holderItems.map((item) => item.routeScript).join('\n');
+		if (!text) return;
+		try {
+			if (navigator.share) {
+				await navigator.share({ text });
+				info = 'きっぷホルダを共有しました。';
+				return;
+			}
+		} catch (err) {
+			console.warn('きっぷホルダ共有に失敗しました', err);
+		}
+		try {
+			await navigator.clipboard.writeText(text);
+			info = 'きっぷホルダをコピーしました。';
+		} catch (err) {
+			console.error('きっぷホルダのコピーに失敗しました', err);
+			error = 'きっぷホルダのコピーに失敗しました。';
+		}
+	}
+
 	function toggleOsakaDetourOption() {
 		if (!route || !hasOsakakanOption) return;
 		const next = !osakaDetourSelected;
@@ -413,6 +629,9 @@ function handleUndo() {
 				<p>{error}</p>
 				<button type="button" class="text-button" onclick={() => (error = '')}>閉じる</button>
 			</div>
+		{/if}
+		{#if info}
+			<p class="info-banner success" role="status">{info}</p>
 		{/if}
 
 		<button type="button" class="card station-card actionable" onclick={openTerminalSelection}>
@@ -531,6 +750,18 @@ function handleUndo() {
 			onclick={closeMenus}
 		></button>
 	{/if}
+
+	<DrawerNavigation
+		isOpen={drawerOpen}
+		items={holderView}
+		canAdd={canAddToHolder}
+		onClose={() => (drawerOpen = false)}
+		onShare={handleShareHolder}
+		onAddToHolder={handleAddToHolder}
+		onItemClick={handleHolderSelect}
+		onItemDelete={handleHolderDelete}
+		onFareTypeChange={handleHolderFareChange}
+	/>
 </div>
 
 <style>
