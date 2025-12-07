@@ -164,6 +164,13 @@ class JsonFailFarert extends FakeFarert {
 	}
 }
 
+class JsonNullFarert extends FakeFarert {
+	override buildRoute(routeStr: string): string {
+		super.buildRoute(routeStr);
+		return `${JSON.stringify({ rc: 0 })}\u0000`;
+	}
+}
+
 describe('urlRoute utilities', () => {
 	const originalWindow = globalThis.window;
 
@@ -227,6 +234,14 @@ describe('urlRoute utilities', () => {
 
 		const result = decompressRouteFromUrl(compressed, JsonFailFarert);
 		expect(result).toBeNull();
+	});
+
+	it('accepts buildRoute payloads that include null terminators', () => {
+		const script = '東京,東海道線,新大阪';
+		const compressed = LZString.compressToEncodedURIComponent(script);
+
+		const result = decompressRouteFromUrl(compressed, JsonNullFarert);
+		expect(result).not.toBeNull();
 	});
 
 	it('generates a share URL with the provided base URL', () => {

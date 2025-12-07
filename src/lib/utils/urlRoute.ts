@@ -73,13 +73,14 @@ function isSuccessfulBuild(result: unknown): boolean {
 	if (typeof result === 'string') {
 		const trimmed = result.trim();
 		if (!trimmed) return false;
-		if (trimmed === '0') return true;
+		const sanitized = trimmed.replace(/\0/g, '');
+		if (sanitized === '0') return true;
 		try {
-			const parsed = JSON.parse(trimmed) as { rc?: number };
+			const parsed = JSON.parse(sanitized) as { rc?: number };
 			return typeof parsed.rc === 'number' ? parsed.rc === 0 : false;
 		} catch (err) {
 			console.warn('[URL_ROUTE] buildRoute結果の解析に失敗しました', err);
-			return false;
+			return /"rc"\s*:\s*0/.test(sanitized);
 		}
 	}
 
