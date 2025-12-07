@@ -29,6 +29,7 @@ let fareInfo = $state<FareInfo | null>(null);
 let shareUrl = $state('');
 let routeRef = $state<FaretClass | null>(null);
 let fareExportText = $state('');
+let exportDialogOpen = $state(false);
 let { initialCompressedRoute = null } = $props<{ initialCompressedRoute?: string | null }>();
 
 const routeTitle = $derived(startStation && endStation ? `${startStation} → ${endStation}` : '経路詳細');
@@ -375,6 +376,14 @@ async function copyFareExport(): Promise<void> {
 	}
 	showExportMessage('このブラウザではコピーに対応していません');
 }
+
+function openExportDialog(): void {
+	exportDialogOpen = Boolean(fareExportText);
+}
+
+function closeExportDialog(): void {
+	exportDialogOpen = false;
+}
 </script>
 
 <div class="detail-page">
@@ -387,6 +396,15 @@ async function copyFareExport(): Promise<void> {
 			<h1>{routeTitle}</h1>
 		</div>
 		<div class="actions">
+			<button
+				type="button"
+				class="icon-button"
+				aria-label="結果エクスポート"
+				onclick={openExportDialog}
+				disabled={!fareExportText}
+			>
+				<span class="material-symbols-rounded" aria-hidden="true">description</span>
+			</button>
 			<button
 				type="button"
 				class="icon-button"
@@ -530,21 +548,36 @@ async function copyFareExport(): Promise<void> {
 		{/if}
 	{/if}
 
-	<section class="card export-card">
-		<h3>結果エクスポート</h3>
-		{#if fareExportText}
-			<pre class="export-text" data-testid="fare-export-text">{fareExportText}</pre>
-			<button type="button" class="copy-button" onclick={copyFareExport}>結果をコピー</button>
-			{#if exportFeedback}
-				<p class="metric-note success">{exportFeedback}</p>
-			{/if}
-		{:else}
-			<p class="placeholder">結果をエクスポートできません。</p>
-		{/if}
-	</section>
-
 	{#if menuOpen}
 		<button type="button" class="menu-overlay" aria-label="メニューを閉じる" onclick={closeMenu}></button>
+	{/if}
+
+	{#if exportDialogOpen}
+		<div class="export-dialog" role="dialog" aria-label="結果エクスポート">
+			<section class="card export-card">
+				<div class="export-card-header">
+					<h3>結果エクスポート</h3>
+					<button type="button" class="icon-button small" aria-label="閉じる" onclick={closeExportDialog}>
+						<span class="material-symbols-rounded" aria-hidden="true">close</span>
+					</button>
+				</div>
+				{#if fareExportText}
+					<pre class="export-text" data-testid="fare-export-text">{fareExportText}</pre>
+					<button type="button" class="copy-button" onclick={copyFareExport}>結果をコピー</button>
+					{#if exportFeedback}
+						<p class="metric-note success">{exportFeedback}</p>
+					{/if}
+				{:else}
+					<p class="placeholder">結果をエクスポートできません。</p>
+				{/if}
+			</section>
+			<button
+				type="button"
+				class="menu-overlay"
+				aria-label="結果エクスポートを閉じる"
+				onclick={closeExportDialog}
+			></button>
+		</div>
 	{/if}
 </div>
 
@@ -625,6 +658,11 @@ async function copyFareExport(): Promise<void> {
 	.icon-button:disabled {
 		opacity: 0.4;
 		cursor: not-allowed;
+	}
+
+	.icon-button.small {
+		width: 36px;
+		height: 36px;
 	}
 
 	.card {
@@ -761,6 +799,29 @@ async function copyFareExport(): Promise<void> {
 		color: #c2410c;
 	}
 
+	.export-dialog {
+		position: fixed;
+		inset: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 50;
+	}
+
+	.export-card {
+		max-width: 640px;
+		width: calc(100% - 2rem);
+		max-height: 80vh;
+		overflow: hidden;
+	}
+
+	.export-card-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5rem;
+	}
+
 	.export-card .export-text {
 		margin: 0 0 0.75rem;
 		padding: 0.9rem;
@@ -771,6 +832,8 @@ async function copyFareExport(): Promise<void> {
 		font-size: 0.95rem;
 		white-space: pre-wrap;
 		word-break: break-word;
+		max-height: 40vh;
+		overflow: auto;
 	}
 
 	.copy-button {

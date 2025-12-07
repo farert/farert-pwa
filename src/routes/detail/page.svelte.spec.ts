@@ -56,6 +56,7 @@ const { default: DetailPage } = await import('./+page.svelte');
 		const message = page.getByText('テストメッセージ');
 		await expect.element(message).toBeInTheDocument();
 
+		await page.getByRole('button', { name: '結果エクスポート' }).click();
 		const exportText = page.getByTestId('fare-export-text');
 		await expect.element(exportText).toHaveTextContent('FARE_EXPORT_TEXT');
 	});
@@ -102,6 +103,7 @@ const { default: DetailPage } = await import('./+page.svelte');
 			.element(page.getByText('[陸羽東線]鳴子温泉[陸羽街道]新庄'))
 			.toBeInTheDocument();
 		await expect.element(page.getByText('規程114条を適用しました')).toBeInTheDocument();
+		await page.getByRole('button', { name: '結果エクスポート' }).click();
 		await expect.element(page.getByTestId('fare-export-text')).toHaveTextContent('EXPORT_SAMPLE');
 	});
 });
