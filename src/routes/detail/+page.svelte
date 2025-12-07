@@ -20,12 +20,15 @@ interface MetricRow {
 let loading = $state(true);
 let errorMessage = $state('');
 let shareFeedback = $state('');
+let exportFeedback = $state('');
 let menuOpen = $state(false);
 let startStation = $state('');
 let endStation = $state('');
 let routeSegments = $state<RouteSegment[]>([]);
 let fareInfo = $state<FareInfo | null>(null);
 let shareUrl = $state('');
+let routeRef = $state<FaretClass | null>(null);
+let fareExportText = $state('');
 let { initialCompressedRoute = null } = $props<{ initialCompressedRoute?: string | null }>();
 
 const routeTitle = $derived(startStation && endStation ? `${startStation} → ${endStation}` : '経路詳細');
@@ -44,6 +47,7 @@ const fareResultHint = $derived(resolveFareResultMessage(fareInfo?.fareResultCod
 const shareEnabled = $derived(Boolean(shareUrl));
 
 let shareFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
+let exportFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
 
 onMount(() => {
 	(async () => {
@@ -59,11 +63,13 @@ onMount(() => {
 				errorMessage = '経路データの復元に失敗しました。';
 				return;
 			}
+			routeRef = route;
 			startStation = safeStationName(() => route.departureStationName());
 			endStation = safeStationName(() => route.arrivevalStationName());
 			routeSegments = parseRouteSegments(route);
 			fareInfo = parseFareInfo(route);
 			shareUrl = buildShareUrl(encoded);
+			fareExportText = buildFareExportString(route);
 		} catch (err) {
 			console.error('詳細画面の初期化に失敗しました', err);
 			errorMessage = '詳細情報の初期化に失敗しました。';
@@ -76,6 +82,9 @@ onMount(() => {
 onDestroy(() => {
 	if (shareFeedbackTimer) {
 		clearTimeout(shareFeedbackTimer);
+	}
+	if (exportFeedbackTimer) {
+		clearTimeout(exportFeedbackTimer);
 	}
 });
 
@@ -114,15 +123,21 @@ function parseFareInfo(route: FaretClass): FareInfo | null {
 		const raw = route.getFareInfoObjectJson();
 		if (!raw) return null;
 		const parsed = JSON.parse(raw) as FareInfo;
-		if (parsed && parsed.messages && Array.isArray(parsed.messages)) {
-			parsed.messages = [...parsed.messages];
-		} else {
-			parsed.messages = [];
-		}
+		parsed.messages = Array.isArray(parsed.messages) ? [...parsed.messages] : [];
 		return parsed;
 	} catch (err) {
 		console.warn('運賃情報の解析に失敗しました', err);
 		return null;
+	}
+}
+
+function buildFareExportString(route: FaretClass): string {
+	try {
+		const exportText = route.showFare ? route.showFare() : '';
+		return typeof exportText === 'string' ? exportText : '';
+	} catch (err) {
+		console.warn('結果エクスポート文字列の生成に失敗しました', err);
+		return '';
 	}
 }
 
@@ -319,6 +334,16 @@ function showShareMessage(message: string): void {
 	}, 4000);
 }
 
+function showExportMessage(message: string): void {
+	exportFeedback = message;
+	if (exportFeedbackTimer) {
+		clearTimeout(exportFeedbackTimer);
+	}
+	exportFeedbackTimer = setTimeout(() => {
+		exportFeedback = '';
+	}, 4000);
+}
+
 function toggleMenu(): void {
 	menuOpen = !menuOpen;
 }
@@ -335,6 +360,20 @@ function openVersionInfo(): void {
 function openOptions(): void {
 	closeMenu();
 	goto('/');
+}
+
+async function copyFareExport(): Promise<void> {
+	if (!fareExportText) return;
+	try {
+		if (navigator?.clipboard?.writeText) {
+			await navigator.clipboard.writeText(fareExportText);
+			showExportMessage('結果文字列をコピーしました');
+			return;
+		}
+	} catch (err) {
+		console.warn('結果文字列のコピーに失敗しました', err);
+	}
+	showExportMessage('このブラウザではコピーに対応していません');
 }
 </script>
 
@@ -491,6 +530,19 @@ function openOptions(): void {
 		{/if}
 	{/if}
 
+	<section class="card export-card">
+		<h3>結果エクスポート</h3>
+		{#if fareExportText}
+			<pre class="export-text" data-testid="fare-export-text">{fareExportText}</pre>
+			<button type="button" class="copy-button" onclick={copyFareExport}>結果をコピー</button>
+			{#if exportFeedback}
+				<p class="metric-note success">{exportFeedback}</p>
+			{/if}
+		{:else}
+			<p class="placeholder">結果をエクスポートできません。</p>
+		{/if}
+	</section>
+
 	{#if menuOpen}
 		<button type="button" class="menu-overlay" aria-label="メニューを閉じる" onclick={closeMenu}></button>
 	{/if}
@@ -634,6 +686,10 @@ function openOptions(): void {
 		color: #6b7280;
 	}
 
+	.metric-note.success {
+		color: #15803d;
+	}
+
 	.metric-value {
 		margin: 0;
 		font-size: 1rem;
@@ -703,6 +759,32 @@ function openOptions(): void {
 	.warning-banner {
 		background: #fff7ed;
 		color: #c2410c;
+	}
+
+	.export-card .export-text {
+		margin: 0 0 0.75rem;
+		padding: 0.9rem;
+		border-radius: 0.85rem;
+		background: #1f2937;
+		color: #f9fafb;
+		font-family: 'Roboto Mono', 'Noto Sans JP', monospace;
+		font-size: 0.95rem;
+		white-space: pre-wrap;
+		word-break: break-word;
+	}
+
+	.copy-button {
+		border: none;
+		background: #4c1d95;
+		color: #fff;
+		padding: 0.5rem 1.2rem;
+		border-radius: 999px;
+		font-weight: 600;
+		cursor: pointer;
+	}
+
+	.copy-button:hover {
+		background: #5b21b6;
 	}
 
 	.app-menu {

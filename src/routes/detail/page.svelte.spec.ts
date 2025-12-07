@@ -34,6 +34,7 @@ const { default: DetailPage } = await import('./+page.svelte');
 			routeScript: () => '東京,東海道新幹線,新大阪',
 			departureStationName: () => '東京',
 			arrivevalStationName: () => '新大阪',
+			showFare: () => 'FARE_EXPORT_TEXT',
 			getFareInfoObjectJson: () =>
 				JSON.stringify({
 					fare: 8910,
@@ -54,6 +55,9 @@ const { default: DetailPage } = await import('./+page.svelte');
 
 		const message = page.getByText('テストメッセージ');
 		await expect.element(message).toBeInTheDocument();
+
+		const exportText = page.getByTestId('fare-export-text');
+		await expect.element(exportText).toHaveTextContent('FARE_EXPORT_TEXT');
 	});
 
 	it('displays kilometer, fare and route details from FareInfo', async () => {
@@ -61,6 +65,7 @@ const { default: DetailPage } = await import('./+page.svelte');
 			routeScript: () => '柏木平,陸羽東線,鳴子温泉,陸羽街道,新庄',
 			departureStationName: () => '柏木平',
 			arrivevalStationName: () => '阿知須',
+			showFare: () => 'EXPORT_SAMPLE',
 			getFareInfoObjectJson: () =>
 				JSON.stringify({
 					fareResultCode: 0,
@@ -97,5 +102,6 @@ const { default: DetailPage } = await import('./+page.svelte');
 			.element(page.getByText('[陸羽東線]鳴子温泉[陸羽街道]新庄'))
 			.toBeInTheDocument();
 		await expect.element(page.getByText('規程114条を適用しました')).toBeInTheDocument();
+		await expect.element(page.getByTestId('fare-export-text')).toHaveTextContent('EXPORT_SAMPLE');
 	});
 });
