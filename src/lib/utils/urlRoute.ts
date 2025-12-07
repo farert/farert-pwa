@@ -53,7 +53,7 @@ export function decompressRouteFromUrl(
 
 		const route = new RouteCtor();
 		const buildResult = route.buildRoute(script);
-		if (buildResult !== 0) {
+		if (!isSuccessfulBuild(buildResult)) {
 			console.error('[URL_ROUTE] route.buildRouteが失敗しました:', buildResult);
 			return null;
 		}
@@ -63,6 +63,27 @@ export function decompressRouteFromUrl(
 		console.error('[URL_ROUTE] 圧縮データからの復元でエラーが発生しました', error);
 		return null;
 	}
+}
+
+function isSuccessfulBuild(result: unknown): boolean {
+	if (typeof result === 'number') {
+		return result === 0;
+	}
+
+	if (typeof result === 'string') {
+		const trimmed = result.trim();
+		if (!trimmed) return false;
+		if (trimmed === '0') return true;
+		try {
+			const parsed = JSON.parse(trimmed) as { rc?: number };
+			return typeof parsed.rc === 'number' ? parsed.rc === 0 : false;
+		} catch (err) {
+			console.warn('[URL_ROUTE] buildRoute結果の解析に失敗しました', err);
+			return false;
+		}
+	}
+
+	return result === undefined || result === null;
 }
 
 interface ShareUrlOptions {

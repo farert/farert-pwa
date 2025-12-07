@@ -150,6 +150,20 @@ class FailingBuildFarert extends FakeFarert {
 	}
 }
 
+class JsonBuildFarert extends FakeFarert {
+	override buildRoute(routeStr: string): string {
+		super.buildRoute(routeStr);
+		return JSON.stringify({ rc: 0 });
+	}
+}
+
+class JsonFailFarert extends FakeFarert {
+	override buildRoute(routeStr: string): string {
+		super.buildRoute(routeStr);
+		return JSON.stringify({ rc: -2 });
+	}
+}
+
 describe('urlRoute utilities', () => {
 	const originalWindow = globalThis.window;
 
@@ -196,6 +210,22 @@ describe('urlRoute utilities', () => {
 		const compressed = LZString.compressToEncodedURIComponent(script);
 
 		const result = decompressRouteFromUrl(compressed, FailingBuildFarert);
+		expect(result).toBeNull();
+	});
+
+	it('accepts buildRoute results that return JSON success payloads', () => {
+		const script = '東京,東海道線,新大阪';
+		const compressed = LZString.compressToEncodedURIComponent(script);
+
+		const result = decompressRouteFromUrl(compressed, JsonBuildFarert);
+		expect(result).not.toBeNull();
+	});
+
+	it('rejects buildRoute JSON payloads with non-zero rc', () => {
+		const script = '東京,東海道線,新大阪';
+		const compressed = LZString.compressToEncodedURIComponent(script);
+
+		const result = decompressRouteFromUrl(compressed, JsonFailFarert);
 		expect(result).toBeNull();
 	});
 
