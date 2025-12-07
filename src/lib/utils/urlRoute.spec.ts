@@ -150,6 +150,20 @@ class FailingBuildFarert extends FakeFarert {
 	}
 }
 
+class NonZeroSuccessFarert extends FakeFarert {
+	override buildRoute(routeStr: string): number {
+		super.buildRoute(routeStr);
+		return 1;
+	}
+}
+
+class NonZeroFailFarert extends FakeFarert {
+	override buildRoute(routeStr: string): number {
+		super.buildRoute(routeStr);
+		return 2;
+	}
+}
+
 class JsonBuildFarert extends FakeFarert {
 	override buildRoute(routeStr: string): string {
 		super.buildRoute(routeStr);
@@ -205,6 +219,23 @@ describe('urlRoute utilities', () => {
 		const result = decompressRouteFromUrl(compressed, FakeFarert);
 		expect(result).not.toBeNull();
 		expect(result?.routeScript()).toBe(script);
+	});
+
+	it('treats positive buildRoute codes as success', () => {
+		const script = '東京,総武線,千葉';
+		const compressed = LZString.compressToEncodedURIComponent(script);
+
+		const result = decompressRouteFromUrl(compressed, NonZeroSuccessFarert);
+		expect(result).not.toBeNull();
+		expect(result?.routeScript()).toBe(script);
+	});
+
+	it('rejects non-success numeric codes', () => {
+		const script = '東京,中央線,高尾';
+		const compressed = LZString.compressToEncodedURIComponent(script);
+
+		const result = decompressRouteFromUrl(compressed, NonZeroFailFarert);
+		expect(result).toBeNull();
 	});
 
 	it('returns null when decompression fails', () => {

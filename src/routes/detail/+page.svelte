@@ -120,16 +120,34 @@ function parseRouteSegments(route: FaretClass): RouteSegment[] {
 }
 
 function parseFareInfo(route: FaretClass): FareInfo | null {
-	try {
-		const raw = route.getFareInfoObjectJson();
-		if (!raw) return null;
-		const parsed = JSON.parse(raw) as FareInfo;
-		parsed.messages = Array.isArray(parsed.messages) ? [...parsed.messages] : [];
-		return parsed;
-	} catch (err) {
-		console.warn('運賃情報の解析に失敗しました', err);
-		return null;
+	const raw = route.getFareInfoObjectJson ? route.getFareInfoObjectJson() : '';
+	if (!raw) return null;
+	const cleaned = raw.replace(/\u0000/g, '').trim();
+	if (!cleaned) return null;
+	const collapseCommas = (input: string): string => {
+		let output = input.replace(/,\s*([}\]])/g, '$1').replace(/([\[{])\s*,/g, '$1');
+		while (/,(\s*,)+/.test(output)) {
+			output = output.replace(/,\s*,+/g, ',');
+		}
+		return output;
+	};
+
+	const candidates = [
+		cleaned,
+		collapseCommas(cleaned),
+		collapseCommas(collapseCommas(cleaned))
+	];
+	for (const candidate of candidates) {
+		try {
+			const parsed = JSON.parse(candidate) as FareInfo;
+			parsed.messages = Array.isArray(parsed.messages) ? [...parsed.messages] : [];
+			return parsed;
+		} catch (repairErr) {
+			continue;
+		}
 	}
+	console.warn('運賃情報の復元に失敗しました（修復不可）');
+	return null;
 }
 
 function buildFareExportString(route: FaretClass): string {

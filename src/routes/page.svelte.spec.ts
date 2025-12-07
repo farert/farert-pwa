@@ -8,6 +8,11 @@ class MockFarert implements FaretClass {
 	script = '';
 	private osakaDetour = false;
 	private notSameKokura = false;
+	fareInfoJson = JSON.stringify({
+		fare: 1520,
+		totalSalesKm: 120,
+		ticketAvailDays: 3
+	});
 
 	addStartRoute(station: string): number {
 		this.script = station;
@@ -152,11 +157,7 @@ class MockFarert implements FaretClass {
 	}
 
 	getFareInfoObjectJson(): string {
-		return JSON.stringify({
-			fare: 1520,
-			totalSalesKm: 120,
-			ticketAvailDays: 3
-		});
+		return this.fareInfoJson;
 	}
 
 	getRoutesJson(): string {
@@ -225,6 +226,34 @@ it('hides fare summary card before route selection', async () => {
 		await expect.element(icon).toBeInTheDocument();
 	});
 
+	it('recovers from trailing commas in fare info JSON', async () => {
+		const seededRoute = new MockFarert();
+		seededRoute.addStartRoute('東京');
+		seededRoute.addRoute('山手線', '品川');
+		seededRoute.addRoute('東海道線', '横浜');
+		seededRoute.fareInfoJson = '{"fare":2000,"messages":["テスト"],}';
+		mainRouteStore.set(seededRoute);
+
+		render(Page);
+
+		const summary = page.getByRole('button', { name: '運賃サマリー' });
+		await expect.element(summary).toBeEnabled();
+	});
+
+	it('recovers from empty elements in arrays', async () => {
+		const seededRoute = new MockFarert();
+		seededRoute.addStartRoute('東京');
+		seededRoute.addRoute('山手線', '品川');
+		seededRoute.addRoute('東海道線', '横浜');
+		seededRoute.fareInfoJson = '{"fare":2000,"messages":["a",,"b",],"stockDiscounts":[{"stockDiscountTitle":"x","stockDiscountFare":500},,]}';
+		mainRouteStore.set(seededRoute);
+
+		render(Page);
+
+		const summary = page.getByRole('button', { name: '運賃サマリー' });
+		await expect.element(summary).toBeEnabled();
+	});
+
 	it('clears the start station when pressing the bottom back button without segments', async () => {
 		const seededRoute = new MockFarert();
 		seededRoute.addStartRoute('仙台');
@@ -275,14 +304,11 @@ it('hides fare summary card before route selection', async () => {
 
 		render(Page);
 
-		const fareLabel = page.getByText('普通運賃');
-		await expect.element(fareLabel).toBeInTheDocument();
-		const distanceLabel = page.getByText('営業キロ');
-		await expect.element(distanceLabel).toBeInTheDocument();
-		const validityLabel = page.getByText('有効日数');
-		await expect.element(validityLabel).toBeInTheDocument();
 		const detailButton = page.getByRole('button', { name: '運賃サマリー' });
 		await expect.element(detailButton).not.toBeDisabled();
+		await expect.element(detailButton.getByText('普通運賃')).toBeInTheDocument();
+		await expect.element(detailButton.getByText('営業キロ')).toBeInTheDocument();
+		await expect.element(detailButton.getByText('有効日数')).toBeInTheDocument();
 	});
 
 	it('navigates to line selection with encoded params when adding a route', async () => {

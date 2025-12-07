@@ -6,6 +6,7 @@
 </script>
 
 <svelte:head>
+	<title>経路運賃営業キロ計算アプリ Farert</title>
 	<link rel="icon" href={favicon} />
 </svelte:head>
 

@@ -6,7 +6,7 @@ import { initFarert, Farert } from '$lib/wasm';
 import type { FaretClass } from '$lib/wasm/types';
 import type { FareInfo } from '$lib/types';
 import { initStores, mainRoute } from '$lib/stores';
-import { generateShareUrl } from '$lib/utils/urlRoute';
+import { generateShareUrl, compressRouteForUrl } from '$lib/utils/urlRoute';
 
 	interface RouteSegment {
 		id: number;
@@ -38,6 +38,43 @@ let treatKokuraAsSame = $state(true);
 const osakaMenuLabel = $derived(
 	osakaDetourSelected ? '大阪環状線近回り' : '大阪環状線遠回り'
 );
+
+function parseFareInfoJson(raw: unknown): FareInfo | null {
+	if (typeof raw !== 'string') return null;
+	const cleaned = raw.replace(/\u0000/g, '').trim();
+	if (!cleaned) return null;
+
+	const tryParse = (text: string): FareInfo | null => {
+		try {
+			const parsed = JSON.parse(text) as FareInfo;
+			parsed.messages = Array.isArray(parsed.messages) ? [...parsed.messages] : [];
+			return parsed;
+		} catch (err) {
+			return null;
+		}
+	};
+
+	const collapseCommas = (input: string): string => {
+		let output = input.replace(/,\s*([}\]])/g, '$1').replace(/([\[{])\s*,/g, '$1');
+		while (/,(\s*,)+/.test(output)) {
+			output = output.replace(/,\s*,+/g, ',');
+		}
+		return output;
+	};
+
+	const candidates = [
+		cleaned,
+		collapseCommas(cleaned),
+		collapseCommas(collapseCommas(cleaned))
+	];
+
+	for (const candidate of candidates) {
+		const parsed = tryParse(candidate);
+		if (parsed) return parsed;
+	}
+
+	return null;
+}
 
 	onMount(() => {
 		let unsubscribe: (() => void) | null = null;
@@ -106,9 +143,13 @@ const osakaMenuLabel = $derived(
 	}
 
 	try {
-		fareInfo = JSON.parse(current.getFareInfoObjectJson()) as FareInfo;
+		const raw = current.getFareInfoObjectJson ? current.getFareInfoObjectJson() : '';
+		fareInfo = parseFareInfoJson(raw);
+		if (!fareInfo && raw.trim()) {
+			console.warn('運賃情報の復元に失敗しました（修復不可）');
+		}
 	} catch (err) {
-		console.warn('運賃情報の解析に失敗しました', err);
+		console.warn('運賃情報の取得に失敗しました', err);
 		fareInfo = null;
 	}
 
@@ -242,16 +283,21 @@ function updateOptionAvailability(tokens: string[]) {
 	function openSegmentDetail(segmentIndex: number) {
 		if (!route) return;
 		try {
-			const url = generateShareUrl(route, segmentIndex);
-			goto(url);
+			const compressed = compressRouteForUrl(route, segmentIndex);
+			goto(`/detail?r=${compressed}`);
 		} catch (err) {
 			error = `詳細画面を開けませんでした: ${err}`;
 		}
 	}
 
 	function openFullDetail() {
-		if (!route || !detailLink) return;
-		goto(detailLink);
+		if (!route) return;
+		try {
+			const compressed = compressRouteForUrl(route);
+			goto(`/detail?r=${compressed}`);
+		} catch (err) {
+			error = `詳細画面を開けませんでした: ${err}`;
+		}
 	}
 
 function handleUndo() {
@@ -328,8 +374,8 @@ function handleUndo() {
 			<span class="material-symbols-rounded icon-button-symbol" aria-hidden="true">menu</span>
 		</button>
 		<div class="title">
-			<h1>Farert</h1>
-			<p>JR運賃計算</p>
+			<h1>経路運賃営業キロ計算アプリ</h1>
+			<p>Farert</p>
 		</div>
 		<div class="menu-container">
 			<button
@@ -443,7 +489,7 @@ function handleUndo() {
 			<button type="button" onclick={openOptions} disabled={!optionEnabled} aria-label="オプション">
 				<span class="material-symbols-rounded bottom-nav-icon" aria-hidden="true">tune</span>
 			</button>
-			<button type="button" onclick={openSave} disabled={!segments.length} aria-label="保存">
+			<button type="button" onclick={openSave} aria-label="保存">
 				<span class="material-symbols-rounded bottom-nav-icon" aria-hidden="true">save</span>
 			</button>
 		</nav>

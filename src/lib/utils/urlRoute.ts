@@ -29,6 +29,10 @@ export function compressRouteForUrl(
 		script = clone.routeScript();
 	}
 
+	if (!script || script.trim() === '') {
+		throw new Error('経路スクリプトが空です');
+	}
+
 	return LZString.compressToEncodedURIComponent(script);
 }
 
@@ -43,18 +47,23 @@ export function decompressRouteFromUrl(
 	ctor?: FarertConstructor
 ): FaretClass | null {
 	try {
+		if (!compressed || compressed.trim() === '') {
+			console.error('[URL_ROUTE] 圧縮データが空です');
+			return null;
+		}
+
 		const RouteCtor = ctor ?? Farert;
 
 		const script = LZString.decompressFromEncodedURIComponent(compressed);
 		if (!script) {
-			console.error('[URL_ROUTE] ルートの伸長に失敗しました');
+			console.error('[URL_ROUTE] ルートの伸長に失敗しました。圧縮データ:', compressed.substring(0, 50));
 			return null;
 		}
 
 		const route = new RouteCtor();
 		const buildResult = route.buildRoute(script);
 		if (!isSuccessfulBuild(buildResult)) {
-			console.error('[URL_ROUTE] route.buildRouteが失敗しました:', buildResult);
+			console.error('[URL_ROUTE] route.buildRouteが失敗しました:', buildResult, 'スクリプト:', script);
 			return null;
 		}
 
@@ -66,21 +75,32 @@ export function decompressRouteFromUrl(
 }
 
 function isSuccessfulBuild(result: unknown): boolean {
+	const successCodes = new Set([0, 1, 4, 5]);
+
 	if (typeof result === 'number') {
-		return result === 0;
+		return successCodes.has(result);
 	}
 
 	if (typeof result === 'string') {
 		const trimmed = result.trim();
 		if (!trimmed) return false;
 		const sanitized = trimmed.replace(/\0/g, '');
-		if (sanitized === '0') return true;
+
+		const numeric = Number(sanitized);
+		if (!Number.isNaN(numeric)) {
+			return successCodes.has(numeric);
+		}
+
 		try {
 			const parsed = JSON.parse(sanitized) as { rc?: number };
-			return typeof parsed.rc === 'number' ? parsed.rc === 0 : false;
+			return typeof parsed.rc === 'number' ? successCodes.has(parsed.rc) : false;
 		} catch (err) {
 			console.warn('[URL_ROUTE] buildRoute結果の解析に失敗しました', err);
-			return /"rc"\s*:\s*0/.test(sanitized);
+			const match = sanitized.match(/"rc"\s*:\s*(-?\d+)/);
+			if (match && match[1] !== undefined) {
+				return successCodes.has(Number(match[1]));
+			}
+			return false;
 		}
 	}
 
