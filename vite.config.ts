@@ -49,6 +49,9 @@ export default defineConfig({
 			}
 		})
 	],
+	define: {
+		__APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? 'dev')
+	},
 	test: {
 		expect: { requireAssertions: true },
 		projects: [
