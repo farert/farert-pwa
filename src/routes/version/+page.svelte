@@ -33,21 +33,36 @@
 		if (typeof raw !== 'string') return { name: '', createDate: '', tax: null };
 		try {
 			const parsed = JSON.parse(raw) as {
+				dbName?: string;
+				createdate?: string;
+				tax?: number;
 				name?: string;
 				create_date?: string;
 				createdbdate?: string;
-				tax?: number;
-				dbverInf?: { name?: string; create_date?: string; createdbdate?: string; tax?: number };
+				dbverInf?: { dbName?: string; createdate?: string; name?: string; create_date?: string; createdbdate?: string; tax?: number };
 			};
-			const name = parsed.name ?? parsed.dbverInf?.name ?? '';
+			const name =
+				parsed.dbName ??
+				parsed.dbverInf?.dbName ??
+				parsed.name ??
+				parsed.dbverInf?.name ??
+				'';
 			const createDate =
+				parsed.createdate ??
+				parsed.dbverInf?.createdate ??
 				parsed.createdbdate ??
 				parsed.create_date ??
 				parsed.dbverInf?.createdbdate ??
 				parsed.dbverInf?.create_date ??
 				'';
-			const tax = parsed.tax ?? parsed.dbverInf?.tax ?? null;
-			return { name, createDate, tax: typeof tax === 'number' ? tax : null };
+			const rawTax = parsed.tax ?? parsed.dbverInf?.tax ?? null;
+			const tax =
+				typeof rawTax === 'number'
+					? rawTax
+					: typeof rawTax === 'string' && rawTax.trim() !== ''
+						? Number(rawTax)
+						: null;
+			return { name, createDate, tax: typeof tax === 'number' && !Number.isNaN(tax) ? tax : null };
 		} catch (err) {
 			console.warn('DB情報の解析に失敗しました', err);
 			return { name: '', createDate: '', tax: null };
@@ -76,15 +91,16 @@
 		{#if error}
 			<p class="banner error" role="alert">{error}</p>
 		{/if}
-		<p class="app-version">Farert {appVersion}</p>
+		<img src="/trade-icon.png" alt="Farert" class="hero-icon" />
 		<h1>バージョン情報</h1>
+		<p class="app-version">Farert {appVersion}</p>
 
 		<section class="block">
 			<p class="db">DB Rev. [{dbMeta.name || '—'}] ({dbMeta.createDate || '—'})</p>
 			<p class="tax">消費税: {taxText}</p>
 		</section>
 
-		<p class="copyright">Copyright © 2015-2023 TAKEDA, Noriyuki</p>
+		<p class="copyright">Copyright © 2015-2023 Sutezo</p>
 
 		<section class="eula">
 			<p>
@@ -119,6 +135,12 @@
 		font-weight: 700;
 		font-size: 1.1rem;
 		color: #4c1d95;
+	}
+
+	.hero-icon {
+		width: 96px;
+		height: 96px;
+		object-fit: contain;
 	}
 
 	h1 {

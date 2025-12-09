@@ -50,6 +50,7 @@ let holderView = $state<
 	}[]
 >([]);
 let info = $state('');
+let theme = $state<'light' | 'dark'>('light');
 const osakaMenuLabel = $derived(
 	osakaDetourSelected ? '大阪環状線近回り' : '大阪環状線遠回り'
 );
@@ -119,6 +120,8 @@ function parseFareInfoJson(raw: unknown): FareInfo | null {
 
 		(async () => {
 			try {
+				const initialTheme = resolveTheme();
+				applyTheme(initialTheme);
 				await initFarert();
 				initStores(Farert);
 				unsubscribe = mainRoute.subscribe((value) => {
@@ -142,6 +145,31 @@ function parseFareInfoJson(raw: unknown): FareInfo | null {
 			unsubscribeHolder?.();
 		};
 	});
+
+	function resolveTheme(): 'light' | 'dark' {
+		if (typeof localStorage !== 'undefined') {
+			const stored = localStorage.getItem('theme');
+			if (stored === 'dark' || stored === 'light') return stored;
+		}
+		if (typeof window !== 'undefined' && window.matchMedia) {
+			return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+		}
+		return 'light';
+	}
+
+	function applyTheme(next: 'light' | 'dark'): void {
+		theme = next;
+		if (typeof document !== 'undefined') {
+			document.documentElement.setAttribute('data-theme', next);
+		}
+		if (typeof localStorage !== 'undefined') {
+			localStorage.setItem('theme', next);
+		}
+	}
+
+	function toggleTheme(): void {
+		applyTheme(theme === 'light' ? 'dark' : 'light');
+	}
 
 	function refreshRouteState(current: FaretClass | null) {
 		if (!current) {
@@ -589,37 +617,51 @@ function handleUndo() {
 		<button type="button" class="icon-button" aria-label="きっぷホルダ" onclick={openDrawer}>
 			<span class="material-symbols-rounded icon-button-symbol" aria-hidden="true">menu</span>
 		</button>
-		<div class="title">
-			<h1>経路運賃営業キロ計算アプリ</h1>
+	<div class="title">
+		<img src="/trade-icon.png" alt="" class="title-icon tall" />
+		<div class="title-text">
+			<h1>経路運賃営業キロ計算</h1>
 			<p>Farert</p>
 		</div>
-		<div class="menu-container">
-			<button
-				type="button"
-				class="icon-button"
-				aria-label="メニュー"
-				aria-expanded={appMenuOpen}
-				onclick={toggleAppMenu}
-			>
-				<span class="material-symbols-rounded icon-button-symbol" aria-hidden="true">more_vert</span>
-			</button>
-			{#if appMenuOpen}
-				<div class="app-menu" role="menu">
-					<button type="button" role="menuitem" onclick={handleVersionMenuSelection}>
-						バージョン情報
-					</button>
-					<button
-						type="button"
-						role="menuitem"
-						onclick={openOptionsFromMenu}
-						disabled={!optionEnabled}
-					>
-						オプション
-					</button>
-				</div>
-			{/if}
-		</div>
-	</header>
+	</div>
+	<div class="menu-container">
+		<button
+			type="button"
+			class="icon-button"
+			aria-label={theme === 'dark' ? 'ライトモードに切り替え' : 'ダークモードに切り替え'}
+			onclick={toggleTheme}
+			data-testid="theme-toggle"
+		>
+			<span class="material-symbols-rounded icon-button-symbol" aria-hidden="true">
+				{theme === 'dark' ? 'light_mode' : 'dark_mode'}
+			</span>
+		</button>
+		<button
+			type="button"
+			class="icon-button"
+			aria-label="メニュー"
+			aria-expanded={appMenuOpen}
+			onclick={toggleAppMenu}
+		>
+			<span class="material-symbols-rounded icon-button-symbol" aria-hidden="true">more_vert</span>
+		</button>
+		{#if appMenuOpen}
+			<div class="app-menu" role="menu">
+				<button type="button" role="menuitem" onclick={handleVersionMenuSelection}>
+					バージョン情報
+				</button>
+				<button
+					type="button"
+					role="menuitem"
+					onclick={openOptionsFromMenu}
+					disabled={!optionEnabled}
+				>
+					オプション
+				</button>
+			</div>
+		{/if}
+	</div>
+</header>
 
 	{#if loading}
 		<p class="info-banner">データを読み込み中です...</p>
@@ -653,9 +695,8 @@ function handleUndo() {
 		</button>
 
 		<section class="segment-section">
-			<p class="section-title">経路区間</p>
 			{#if segments.length === 0}
-				<p class="placeholder">まだ区間が追加されていません</p>
+				<p class="placeholder">区間が追加されていません</p>
 			{:else}
 				<ul class="segment-cards">
 					{#each segments as segment, index}
@@ -687,7 +728,6 @@ function handleUndo() {
 			aria-disabled={!startStation}
 		>
 			<span>+ 経路を追加</span>
-			<p>路線 → 着駅の順で選択します</p>
 		</button>
 
 		{#if showFareSummary}
@@ -765,8 +805,55 @@ function handleUndo() {
 </div>
 
 <style>
+	:global(:root) {
+		--bg: #f4f5f7;
+		--text-main: #0f172a;
+		--text-sub: #6b7280;
+		--title-color: #1f2937;
+		--subtitle-color: #9ca3af;
+		--card-bg: #ffffff;
+		--card-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+		--info-bg: #eff6ff;
+		--info-text: #1d4ed8;
+		--error-bg: #fee2e2;
+		--error-text: #b91c1c;
+		--icon-bg: #f3e8ff;
+		--icon-fg: #6b21a8;
+		--nav-btn-bg: #ede9fe;
+		--nav-btn-text: #4c1d95;
+		--station-grad-start: #6b21a8;
+		--station-grad-end: #a855f7;
+		--menu-bg: #ffffff;
+		--menu-shadow: 0 8px 20px rgba(15, 23, 42, 0.18);
+		--overlay-dim: rgba(15, 23, 42, 0.2);
+	}
+
+	:global([data-theme='dark']) {
+		--bg: #0f172a;
+		--text-main: #e5e7eb;
+		--text-sub: #cbd5e1;
+		--title-color: #e5e7eb;
+		--subtitle-color: #c7d2fe;
+		--card-bg: #111827;
+		--card-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+		--info-bg: #1f2937;
+		--info-text: #c7d2fe;
+		--error-bg: #3f1d2e;
+		--error-text: #fecdd3;
+		--icon-bg: rgba(255, 255, 255, 0.08);
+		--icon-fg: #e0e7ff;
+		--nav-btn-bg: #312e81;
+		--nav-btn-text: #c4b5fd;
+		--station-grad-start: #5b21b6;
+		--station-grad-end: #6d28d9;
+		--menu-bg: #1f2937;
+		--menu-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+		--overlay-dim: rgba(15, 23, 42, 0.5);
+	}
+
 	:global(body) {
-		background: #f4f5f7;
+		background: var(--bg);
+		color: var(--text-main);
 		font-family: 'Noto Sans JP', system-ui, sans-serif;
 	}
 
@@ -793,6 +880,7 @@ function handleUndo() {
 		display: flex;
 		flex-direction: column;
 		gap: 1rem;
+		color: var(--text-main);
 	}
 
 	.top-bar {
@@ -800,6 +888,7 @@ function handleUndo() {
 		justify-content: space-between;
 		align-items: center;
 		padding: 0.5rem 0;
+		color: var(--text-main);
 	}
 
 	.icon-button {
@@ -807,8 +896,8 @@ function handleUndo() {
 		height: 48px;
 		border-radius: 50%;
 		border: none;
-		background: #f3e8ff;
-		color: #6b21a8;
+		background: var(--icon-bg);
+		color: var(--icon-fg);
 		cursor: pointer;
 		display: inline-flex;
 		align-items: center;
@@ -816,19 +905,47 @@ function handleUndo() {
 	}
 
 	.icon-button-symbol {
-		font-size: 1.5rem;
+		font-size: 1.7rem;
 	}
 
 	.title h1 {
 		margin: 0;
 		font-size: 1.4rem;
-		color: #1f2937;
+		color: var(--title-color);
+	}
+
+	.title-row {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+	}
+
+	.title {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+		justify-content: center;
+		text-align: center;
+	}
+
+	.title-icon {
+		width: 64px;
+		height: 64px;
+		object-fit: contain;
+	}
+
+	.title-text {
+		display: flex;
+		flex-direction: column;
+		gap: 0.1rem;
+		align-items: flex-start;
 	}
 
 	.title p {
 		margin: 0;
-		color: #9ca3af;
-		font-size: 0.85rem;
+		color: var(--subtitle-color);
+		font-size: 0.9rem;
 	}
 
 	.info-banner,
@@ -838,13 +955,13 @@ function handleUndo() {
 	}
 
 	.info-banner {
-		background: #eff6ff;
-		color: #1d4ed8;
+		background: var(--info-bg);
+		color: var(--info-text);
 	}
 
 	.error-banner {
-		background: #fee2e2;
-		color: #b91c1c;
+		background: var(--error-bg);
+		color: var(--error-text);
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
@@ -852,10 +969,10 @@ function handleUndo() {
 	}
 
 	.card {
-		background: #fff;
+		background: var(--card-bg);
 		border-radius: 1rem;
 		padding: 1rem 1.25rem;
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+		box-shadow: var(--card-shadow);
 		border: none;
 		text-align: left;
 		transition: transform 0.15s ease, box-shadow 0.15s ease;
@@ -875,7 +992,7 @@ function handleUndo() {
 		align-items: center;
 		justify-content: flex-start;
 		gap: 1rem;
-		background: linear-gradient(135deg, #2563eb, #38bdf8);
+		background: linear-gradient(135deg, var(--station-grad-start), var(--station-grad-end));
 		color: #fff;
 	}
 
@@ -923,7 +1040,7 @@ function handleUndo() {
 		margin: 0;
 		font-size: 1rem;
 		font-weight: 600;
-		color: #6b7280;
+		color: var(--text-sub);
 	}
 
 	.segment-cards {
@@ -966,12 +1083,12 @@ function handleUndo() {
 		margin: 0;
 		font-size: 1rem;
 		font-weight: 600;
-		color: #0f172a;
+		color: var(--text-main);
 	}
 
 	.route-station {
 		margin: 0;
-		color: #6b7280;
+		color: var(--text-sub);
 	}
 
 	.chevron {
@@ -1006,15 +1123,18 @@ function handleUndo() {
 
 	.menu-container {
 		position: relative;
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
 	}
 
 	.app-menu {
 		position: absolute;
 		top: calc(100% + 0.25rem);
 		right: 0;
-		background: #fff;
+		background: var(--menu-bg);
 		border-radius: 0.75rem;
-		box-shadow: 0 8px 20px rgba(15, 23, 42, 0.18);
+		box-shadow: var(--menu-shadow);
 		padding: 0.5rem 0;
 		min-width: 180px;
 		display: flex;
@@ -1048,8 +1168,8 @@ function handleUndo() {
 		border: none;
 		border-radius: 0.75rem;
 		padding: 0.75rem;
-		background: #ede9fe;
-		color: #4c1d95;
+		background: var(--nav-btn-bg);
+		color: var(--nav-btn-text);
 		font-weight: 600;
 		cursor: pointer;
 		display: flex;
@@ -1066,9 +1186,9 @@ function handleUndo() {
 		position: fixed;
 		right: 1rem;
 		bottom: 5rem;
-		background: #fff;
+		background: var(--card-bg);
 		border-radius: 1rem;
-		box-shadow: 0 16px 40px rgba(15, 23, 42, 0.25);
+		box-shadow: var(--card-shadow);
 		padding: 0.75rem;
 		width: min(360px, calc(100% - 2rem));
 		z-index: 30;
@@ -1113,7 +1233,7 @@ function handleUndo() {
 }
 
 	.menu-overlay.dim {
-		background: rgba(15, 23, 42, 0.2);
+		background: var(--overlay-dim);
 	}
 
 	.bottom-nav button:disabled {
