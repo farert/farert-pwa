@@ -22,7 +22,8 @@ farert-pwa リポジトリトップディレクトリで、
 # 依存関係のインストール
 pnpm install
 
-# WASMファイルのコピー（初回のみ）
+# WASMファイルのコピー（オプション：最新版を使いたい場合）
+# コミット済みのWASMファイルがあるため、通常は不要
 pnpm copy:wasm
 ```
 
@@ -45,6 +46,53 @@ pnpm build
 pnpm preview
 ```
 
+## デプロイ
+
+### Netlify / Cloudflare Pages
+
+このプロジェクトは静的サイトホスティングサービスに直接デプロイできます。
+
+#### ビルド設定
+
+- **Build command**: `pnpm build`
+- **Publish directory**: `build`
+- **Node version**: 20
+
+#### 環境変数
+
+CI環境では `CI=true` が自動的に設定されるため、`copy-wasm.sh` がスキップされ、リポジトリにコミット済みのWASMファイルが使用されます。
+
+#### WASMファイルの更新
+
+WASMファイルを更新する場合：
+
+```bash
+# ローカルで最新のWASMファイルをコピー
+pnpm copy:wasm
+
+# 変更をコミット
+git add static/farert.{wasm,js,data}
+git commit -m "chore: update WASM files"
+git push
+```
+
+#### Netlifyのリダイレクト設定
+
+`static/_redirects` ファイルがSPAルーティングのために設定されています：
+
+```
+/*    /index.html   200
+```
+
+### 手動デプロイ
+
+```bash
+# ビルド実行
+pnpm build
+
+# build/ ディレクトリの内容を任意の静的ホスティングにアップロード
+```
+
 ## プロジェクト構造
 
 ```
@@ -55,13 +103,16 @@ farert-pwa/
 │   ├── app.html           # HTMLテンプレート
 │   └── service-worker.ts  # Service Worker
 ├── static/                # 静的ファイル
-│   ├── farert.wasm        # WASMバイナリ（自動コピー）
-│   ├── farert.js          # Emscriptenローダー（自動コピー）
-│   └── farert.data        # データベース（自動コピー）
+│   ├── farert.wasm        # WASMバイナリ（コミット済み）
+│   ├── farert.js          # Emscriptenローダー（コミット済み）
+│   ├── farert.data        # データベース（コミット済み）
+│   └── _redirects         # Netlifyリダイレクト設定
 ├── specs/                 # 画面仕様
 └── scripts/               # ビルドスクリプト
-    └── copy-wasm.sh       # WASMファイルコピー
+    └── copy-wasm.sh       # WASMファイルコピー（ローカル開発用）
 ```
+
+**注**: WASMファイルはCI/デプロイ環境をサポートするためにリポジトリにコミットされています。ローカル開発では `pnpm copy:wasm` で最新版に更新できます。
 
 ## 技術スタック
 
