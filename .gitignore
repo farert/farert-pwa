@@ -24,10 +24,8 @@ Thumbs.db
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
-# WASM files (copied from ../farert-wasm/dist/ during build)
-static/farert.wasm
-static/farert.js
-static/farert.data
+# WASM files are now committed to support deploy builds
+# Local dev can update them via: pnpm copy:wasm
 
 # Personal settings
 .mcp.json

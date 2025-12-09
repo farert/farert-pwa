@@ -2,6 +2,13 @@
 # WASM files copy script
 # farert-wasmプロジェクトからWASMファイルをコピー
 
+# CI環境ではスキップ（デプロイ時は既存のコミット済みWASMファイルを使用）
+if [ "$CI" = "true" ] || [ "$SKIP_WASM_COPY" = "true" ]; then
+  echo "⏭️  Skipping WASM copy (CI environment detected)"
+  echo "Using existing WASM files in static/ directory"
+  exit 0
+fi
+
 # コンテナ内かどうかをチェック（/workspace ディレクトリの存在で判定）
 if [ -d "/workspace" ]; then
   # DevContainer内: ../workspace-wasm/dist を使用
