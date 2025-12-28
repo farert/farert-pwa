@@ -1,8 +1,11 @@
-# Farert PWA
+# 経路運賃営業キロ計算アプリ Farert　PWA版
 
-JR運賃計算アプリ - SvelteKit PWA版
+## すぐ使ってみたい
 
-## セットアップ
+-> [こちら](https://farert.github.io/farert-pwa/)です
+
+
+## 開発者向けセットアップ
 
 ### 前提条件
 
@@ -133,4 +136,4 @@ farert-pwa/
 
 ## ライセンス
 
-GPL-3.0
+AGPL-3.0
