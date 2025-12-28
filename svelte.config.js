@@ -16,6 +16,10 @@ const config = {
 		// SPAモード: クライアントサイドのみ
 		prerender: {
 			entries: []
+		},
+		// Github Pages: プロジェクトサイト用のbasePath設定
+		paths: {
+			base: process.env.NODE_ENV === 'production' ? '/farert-pwa' : ''
 		}
 	}
 };

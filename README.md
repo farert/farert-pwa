@@ -9,10 +9,12 @@ JR運賃計算アプリ - SvelteKit PWA版
 - Node.js 20+
 - pnpm
 - farert-wasmプロジェクトがビルド済み（`../farert-wasm/`）
+- Visual Stduio Code (Windowsの場合仮想環境使用せざる得ないので)
+- (作者はWindowsを使用しての検証はしていません)
 
 ### インストール
 
-farert-pwa リポジトリトップディレクトリで、
+farert-pwa リポジトリトップディレクトリで、Visual Studio Code を起動します。
 `code .`
 または、
 `code -n .`
@@ -48,19 +50,32 @@ pnpm preview
 
 ## デプロイ
 
-### Netlify / Cloudflare Pages
+### Github Pages
 
-このプロジェクトは静的サイトホスティングサービスに直接デプロイできます。
+プロジェクトサイトとして `https://<username>.github.io/farert-pwa/` にデプロイされます。
 
-#### ビルド設定
+#### 初回セットアップ
 
-- **Build command**: `pnpm build`
-- **Publish directory**: `build`
-- **Node version**: 20
+1. リポジトリの **Settings > Pages** を開く
+2. **Source**: "GitHub Actions" を選択
+3. `main` ブランチにpushすると自動デプロイが開始されます
 
-#### 環境変数
+#### 自動デプロイ
 
-CI環境では `CI=true` が自動的に設定されるため、`copy-wasm.sh` がスキップされ、リポジトリにコミット済みのWASMファイルが使用されます。
+`main` ブランチへのpush時に自動的にビルド・デプロイされます（`.github/workflows/deploy.yml`）。
+
+デプロイ状況は **Actions** タブで確認できます。
+
+#### ローカルでの本番ビルド確認
+
+```bash
+# 本番モードでビルド（basePath: /farert-pwa/）
+NODE_ENV=production pnpm build
+
+# プレビュー（本番と同じパスでアクセス）
+pnpm preview
+# http://localhost:4173/farert-pwa/ を開く
+```
 
 #### WASMファイルの更新
 
@@ -76,22 +91,12 @@ git commit -m "chore: update WASM files"
 git push
 ```
 
-#### Netlifyのリダイレクト設定
+#### デプロイ設定
 
-`static/_redirects` ファイルがSPAルーティングのために設定されています：
-
-```
-/*    /index.html   200
-```
-
-### 手動デプロイ
-
-```bash
-# ビルド実行
-pnpm build
-
-# build/ ディレクトリの内容を任意の静的ホスティングにアップロード
-```
+- **Build command**: `pnpm build`
+- **Publish directory**: `build`
+- **Node version**: 20
+- **Base path**: `/farert-pwa/`（本番ビルド時のみ）
 
 ## プロジェクト構造
 

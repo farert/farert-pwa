@@ -7,7 +7,7 @@
  * 仕様: specs/screen-flow-and-io.md (グローバル状態管理セクション)
  */
 
-import { writable, type Writable } from 'svelte/store';
+import { get, writable, type Writable } from 'svelte/store';
 import type { FaretClass } from '$lib/wasm/types';
 import type { TicketHolderItem, SavedRoute, StationHistory } from '$lib/types';
 import { STORAGE_KEYS } from '$lib/types';
@@ -50,47 +50,49 @@ export const stationHistory: Writable<StationHistory> = writable([]);
  * ブラウザ環境（window !== undefined）でのみ動作します。
  * SSR時は何もしません。
  */
+let persistenceReady = false;
+
+function persistSnapshot(force = false): void {
+	if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
+	if (!persistenceReady && !force) return;
+
+	try {
+		const route = get(mainRoute);
+		if (route && typeof route.routeScript === 'function') {
+			const routeStr = route.routeScript();
+			localStorage.setItem(STORAGE_KEYS.CURRENT_ROUTE, routeStr);
+		} else if (route === null) {
+			localStorage.removeItem(STORAGE_KEYS.CURRENT_ROUTE);
+		}
+	} catch (error) {
+		console.error('[STORE] mainRoute保存エラー:', error);
+	}
+
+	try {
+		localStorage.setItem(STORAGE_KEYS.SAVED_ROUTES, JSON.stringify(get(savedRoutes)));
+	} catch (error) {
+		console.error('[STORE] savedRoutes保存エラー:', error);
+	}
+
+	try {
+		localStorage.setItem(STORAGE_KEYS.TICKET_HOLDER, JSON.stringify(get(ticketHolder)));
+	} catch (error) {
+		console.error('[STORE] ticketHolder保存エラー:', error);
+	}
+
+	try {
+		localStorage.setItem(STORAGE_KEYS.STATION_HISTORY, JSON.stringify(get(stationHistory)));
+	} catch (error) {
+		console.error('[STORE] stationHistory保存エラー:', error);
+	}
+}
+
 if (typeof window !== 'undefined') {
-	// 現在の経路をlocalStorageに同期
-	mainRoute.subscribe((value) => {
-		try {
-			if (value && typeof value.routeScript === 'function') {
-				const routeStr = value.routeScript();
-				localStorage.setItem(STORAGE_KEYS.CURRENT_ROUTE, routeStr);
-			} else if (value === null) {
-				localStorage.removeItem(STORAGE_KEYS.CURRENT_ROUTE);
-			}
-		} catch (error) {
-			console.error('[STORE] mainRoute保存エラー:', error);
-		}
-	});
-
-	// 保存経路リストをlocalStorageに同期
-	savedRoutes.subscribe((value) => {
-		try {
-			localStorage.setItem(STORAGE_KEYS.SAVED_ROUTES, JSON.stringify(value));
-		} catch (error) {
-			console.error('[STORE] savedRoutes保存エラー:', error);
-		}
-	});
-
-	// きっぷホルダをlocalStorageに同期
-	ticketHolder.subscribe((value) => {
-		try {
-			localStorage.setItem(STORAGE_KEYS.TICKET_HOLDER, JSON.stringify(value));
-		} catch (error) {
-			console.error('[STORE] ticketHolder保存エラー:', error);
-		}
-	});
-
-	// 駅選択履歴をlocalStorageに同期
-	stationHistory.subscribe((value) => {
-		try {
-			localStorage.setItem(STORAGE_KEYS.STATION_HISTORY, JSON.stringify(value));
-		} catch (error) {
-			console.error('[STORE] stationHistory保存エラー:', error);
-		}
-	});
+	// 同期は初期化完了フラグが立ってから反映する（初期値で上書きしない）
+	mainRoute.subscribe(() => persistSnapshot());
+	savedRoutes.subscribe(() => persistSnapshot());
+	ticketHolder.subscribe(() => persistSnapshot());
+	stationHistory.subscribe(() => persistSnapshot());
 }
 
 /**
@@ -149,6 +151,8 @@ export function initStores(Farert: new () => FaretClass): void {
 		}
 
 		console.log('[STORE] ストアの初期化が完了しました');
+		persistenceReady = true;
+		persistSnapshot(true);
 	} catch (error) {
 		console.error('[STORE] ストアの初期化中にエラーが発生しました:', error);
 	}

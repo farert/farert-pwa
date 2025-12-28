@@ -191,4 +191,36 @@ pnpm test:watch
 常に新しいファイルを作成するよりも既存のファイルを編集することを優先してください。
 ユーザーが明示的に要求しない限り、ドキュメントファイル（*.md）やREADMEファイルを積極的に作成しないでください。
 
+# デプロイ
+
+## Github Pages
+
+プロジェクトサイトとして `https://<username>.github.io/farert-pwa/` にデプロイされます。
+
+### 自動デプロイ
+
+`main` ブランチへのpush時に自動的にビルド・デプロイされます（Github Actions使用）。
+
+### 初回セットアップ
+
+1. リポジトリの Settings > Pages を開く
+2. Source: "GitHub Actions" を選択
+3. `main` ブランチにpushすると自動デプロイが開始されます
+
+### 手動デプロイ
+
+```bash
+pnpm build
+# build/ ディレクトリの内容をGithub Pagesにデプロイ
+```
+
+### ローカルでの本番ビルド確認
+
+```bash
+NODE_ENV=production pnpm build
+pnpm preview
+# http://localhost:4173/farert-pwa/ でアクセス
+```
+
+
 

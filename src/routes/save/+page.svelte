@@ -15,8 +15,8 @@ import { pasteRouteFromClipboard } from '$lib/storage';
 	let currentRoute: FaretClass | null = null;
 	let currentRouteScript = $state('');
 	let savedList = $state<string[]>([]);
-let holderItems = $state<TicketHolderItem[]>([]);
-let warnDialog = $state('');
+    let holderItems = $state<TicketHolderItem[]>([]);
+    let warnDialog = $state('');
 
 	let unsubscribeRoute: (() => void) | null = null;
 	let unsubscribeSaved: (() => void) | null = null;
@@ -74,11 +74,11 @@ let warnDialog = $state('');
 		errorMessage = message;
 	}
 
-function clearMessages(): void {
-	errorMessage = '';
-	infoMessage = '';
-	warnDialog = '';
-}
+    function clearMessages(): void {
+        errorMessage = '';
+        infoMessage = '';
+        warnDialog = '';
+    }
 
 	function handleBack(): void {
 		goto('/');
@@ -102,25 +102,25 @@ function clearMessages(): void {
 		if (isCurrentSaved) {
 			showInfo('すでに保存済みです。');
 			return;
-	}
-	savedRoutes.update((list) => [currentRouteScript, ...list]);
-	showInfo('保存しました。');
-}
+	    }
+        savedRoutes.update((list) => [currentRouteScript, ...list]);
+        showInfo('保存しました。');
+    }
 
-function getCurrentRouteCount(): number {
-	try {
-		if (currentRoute?.getRouteCount) return currentRoute.getRouteCount();
-		const tokens = currentRouteScript ? currentRouteScript.split(',') : [];
-		return Math.max(0, (tokens.length - 1) / 2);
-	} catch (err) {
-		console.warn('経路本数取得に失敗しました', err);
-		return 0;
-	}
-}
+    function getCurrentRouteCount(): number {
+        try {
+            if (currentRoute?.getRouteCount) return currentRoute.getRouteCount();
+            const tokens = currentRouteScript ? currentRouteScript.split(',') : [];
+            return Math.max(0, (tokens.length - 1) / 2);
+        } catch (err) {
+            console.warn('経路本数取得に失敗しました', err);
+            return 0;
+        }
+    }
 
-function handleDeleteRoute(index: number): void {
-	savedRoutes.update((list) => list.filter((_, i) => i !== index));
-}
+    function handleDeleteRoute(index: number): void {
+        savedRoutes.update((list) => list.filter((_, i) => i !== index));
+    }
 
 	function handleDeleteCurrent(): void {
 		if (!currentRouteScript) return;
@@ -130,11 +130,11 @@ function handleDeleteRoute(index: number): void {
 		}
 	}
 
-function shouldConfirmOverride(targetScript: string): boolean {
-	if (!currentRouteScript || currentRouteScript === targetScript) return false;
-	const isInHolder = holderItems.some((item) => item.routeScript === currentRouteScript);
-	return !isCurrentSaved && !isInHolder;
-}
+    function shouldConfirmOverride(targetScript: string): boolean {
+        if (!currentRouteScript || currentRouteScript === targetScript) return false;
+        const isInHolder = holderItems.some((item) => item.routeScript === currentRouteScript);
+        return !isCurrentSaved && !isInHolder;
+    }
 
 	function isBuildSuccess(result: unknown): boolean {
 		if (typeof result === 'number') return result >= 0;
@@ -153,26 +153,26 @@ function shouldConfirmOverride(targetScript: string): boolean {
 		return false;
 	}
 
-function applyRoute(routeScript: string): void {
-	clearMessages();
-	if (shouldConfirmOverride(routeScript)) {
-		const ok = window.confirm('⚠️経路は保存されていません。上書きしてよろしいですか？');
-		if (!ok) return;
-	}
-	try {
-		const route = new Farert();
-			const result = route.buildRoute(routeScript);
-			if (!isBuildSuccess(result)) {
-				showError(`経路の復元に失敗しました (コード: ${result})`);
-				return;
-			}
-			mainRoute.set(route);
-			goto('/');
-		} catch (err) {
-			console.error('経路適用に失敗しました', err);
-			showError('経路の適用に失敗しました。');
-		}
-	}
+    function applyRoute(routeScript: string): void {
+        clearMessages();
+        if (shouldConfirmOverride(routeScript)) {
+            const ok = window.confirm('⚠️経路は保存されていません。上書きしてよろしいですか？');
+            if (!ok) return;
+        }
+        try {
+            const route = new Farert();
+            const result = route.buildRoute(routeScript);
+            if (!isBuildSuccess(result)) {
+                showError(`経路の復元に失敗しました (コード: ${result})`);
+                return;
+            }
+            mainRoute.set(route);
+            goto('/');
+        } catch (err) {
+            console.error('経路適用に失敗しました', err);
+            showError('経路の適用に失敗しました。');
+        }
+    }
 
 	async function handleImport(): Promise<void> {
 		clearMessages();

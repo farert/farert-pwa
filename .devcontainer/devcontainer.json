@@ -5,8 +5,8 @@
   "workspaceFolder": "/workspace",
 
   // 開発コンテナ起動後のコマンド
-  // SvelteKitプロジェクトがセットアップされたら "pnpm install" に変更
-  "postCreateCommand": "echo 'DevContainer ready. Run: pnpm create svelte@latest . to initialize SvelteKit project'",
+  // Playwright 依存ライブラリは Dockerfile で apt インストール済みのため --with-deps は不要
+  "postCreateCommand": "pnpm install --frozen-lockfile && pnpm exec playwright install",
 
     "features": {
         "ghcr.io/devcontainers/features/node:1": {},

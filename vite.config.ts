@@ -4,8 +4,10 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { SvelteKitPWA } from '@vite-pwa/sveltekit';
 
 const localHost = process.env.BIND_HOST ?? '127.0.0.1';
+const base = process.env.NODE_ENV === 'production' ? '/farert-pwa/' : '/';
 
 export default defineConfig({
+	base,
 	server: {
 		host: localHost,
 		port: 5173
@@ -19,8 +21,8 @@ export default defineConfig({
 		SvelteKitPWA({
 			mode: 'production',
 			strategies: 'injectManifest',
-			scope: '/',
-			base: '/',
+			scope: base,
+			base: base,
 			disable: process.env.NODE_ENV === 'development',
 			manifest: {
 				name: 'Farert - JR運賃計算',
@@ -29,7 +31,7 @@ export default defineConfig({
 				theme_color: '#9333ea',
 				background_color: '#ffffff',
 				display: 'standalone',
-				start_url: '/',
+				start_url: base,
 				icons: [
 					{
 						src: '/icon-192.png',
