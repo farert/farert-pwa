@@ -73,7 +73,9 @@ export async function initFarert(): Promise<void> {
 			// モジュールファクトリを実行
 			const module = await createFaretModule({
 				locateFile: (path: string) => {
-					const fullPath = path.endsWith('.wasm') || path.endsWith('.data') ? `/${path}` : path;
+					// Github Pagesなどのbase pathに対応
+					const base = import.meta.env.BASE_URL || '/';
+					const fullPath = path.endsWith('.wasm') || path.endsWith('.data') ? `${base}${path}` : path;
 					console.log(`[FARERT] ファイル位置: ${path} -> ${fullPath}`);
 					return fullPath;
 				},

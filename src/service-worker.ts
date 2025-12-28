@@ -91,7 +91,7 @@ sw.addEventListener('fetch', (event) => {
 			}
 
 			// フォールバック: index.htmlを返す（SPAルーティング用）
-			return cache.match('/');
+			return cache.match('/') || new Response('Not found', { status: 404 });
 		}
 	}
 

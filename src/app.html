@@ -11,7 +11,7 @@
 		%sveltekit.head%
 		<!-- WASM モジュールローダー -->
 		<script type="module">
-			import createFaretModule from '/farert.js';
+			import createFaretModule from '%sveltekit.assets%/farert.js';
 			window.__createFaretModule = createFaretModule;
 		</script>
 	</head>
