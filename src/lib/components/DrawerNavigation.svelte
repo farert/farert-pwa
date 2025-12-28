@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { base } from '$app/paths';
 	import TicketHolderCard from '$lib/components/TicketHolderCard.svelte';
 	import type { FareType, TicketHolderItem } from '$lib/types';
 
@@ -39,7 +40,7 @@
 
 <aside class={`drawer ${isOpen ? 'open' : ''}`}>
 	<div class="drawer-header">
-		<img src="/tickfolder3.png" alt="" class="icon" />
+		<img src="{base}/tickfolder3.png" alt="" class="icon" />
 		<h2>きっぷホルダ</h2>
 	</div>
 	<div class="summary">

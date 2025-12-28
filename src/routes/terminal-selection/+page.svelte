@@ -1,5 +1,6 @@
 <script lang="ts">
 import { goto } from '$app/navigation';
+import { base } from '$app/paths';
 import { onMount } from 'svelte';
 import {
 	initFarert,
@@ -375,7 +376,7 @@ function handleBack(): void {
 		return;
 	}
 	resetToInitialState();
-	goto('/');
+	goto(`${base}/');
 }
 
 async function openLinesFromGroup(company: string): Promise<void> {
@@ -703,7 +704,7 @@ async function handleStationSelect(station: string): Promise<void> {
 		mainRoute.set(route);
 		routeRef = route;
 		addToStationHistory(station);
-		await goto('/');
+		await goto(`${base}/');
 	} catch (err) {
 		handleError('発駅の設定に失敗しました', err);
 	} finally {
@@ -752,7 +753,7 @@ async function executeAutoRoute(useBulletTrain: boolean, destination: string): P
 			return;
 		}
 		mainRoute.set(route);
-		await goto('/');
+		await goto(`${base}/');
 	} catch (err) {
 		handleError('最短経路の計算に失敗しました', err);
 	} finally {

@@ -1,5 +1,6 @@
 <script lang="ts">
 import { goto } from '$app/navigation';
+import { base } from '$app/paths';
 import { onMount } from 'svelte';
 import { initFarert, getBranchStationsByLine, getStationsByLine, getKanaByStation } from '$lib/wasm';
 import { mainRoute } from '$lib/stores';
@@ -149,7 +150,7 @@ function goBack(): void {
 		window.history.back();
 		return;
 	}
-	goto('/');
+	goto(`${base}/');
 }
 
 function isDisabledStation(name: string): boolean {
@@ -177,7 +178,7 @@ function handleSelectStation(name: string): void {
 			return;
 		}
 		mainRoute.set(route);
-		goto('/');
+		goto(`${base}/');
 		return;
 	}
 
@@ -187,7 +188,7 @@ function handleSelectStation(name: string): void {
 	search.set('line', params.line);
 	if (params.prefecture) search.set('prefecture', params.prefecture);
 	if (params.group) search.set('group', params.group);
-	goto(`/terminal-selection?${search.toString()}`);
+	goto(`${base}/terminal-selection?${search.toString()}`);
 }
 
 const visibleStations = $derived(mode === 'branch' ? branchStations : destinationStations);

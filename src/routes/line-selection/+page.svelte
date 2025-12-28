@@ -1,5 +1,6 @@
 <script lang="ts">
 import { goto } from '$app/navigation';
+import { base } from '$app/paths';
 import { onMount } from 'svelte';
 import { initFarert, getLinesByStation, getLinesByCompany, getLinesByPrefect } from '$lib/wasm';
 
@@ -311,11 +312,11 @@ function goBack(): void {
 		window.history.back();
 		return;
 	}
-	goto('/');
+	goto(`${base}/');
 }
 
 function handleAutoRoute(): void {
-	goto('/terminal-selection?mode=destination');
+	goto(`${base}/terminal-selection?mode=destination');
 }
 
 function isDisabled(lineName: string): boolean {
@@ -330,7 +331,7 @@ function handleLineSelect(lineName: string): void {
 	if (params.station) search.set('station', params.station);
 	if (params.prefecture) search.set('prefecture', params.prefecture);
 	if (params.group) search.set('group', params.group);
-	goto(`/route-station-select?${search.toString()}`);
+	goto(`${base}/route-station-select?${search.toString()}`);
 }
 </script>
 

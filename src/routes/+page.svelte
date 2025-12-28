@@ -1,5 +1,6 @@
 <script lang="ts">
 import { goto } from '$app/navigation';
+import { base } from '$app/paths';
 import { onMount } from 'svelte';
 import FareSummaryCard from '$lib/components/FareSummaryCard.svelte';
 import DrawerNavigation from '$lib/components/DrawerNavigation.svelte';
@@ -300,7 +301,7 @@ function updateOptionAvailability(tokens: string[]) {
 	}
 
 	function openVersionInfo() {
-		goto('/version');
+		goto(`${base}/version');
 	}
 
 	function toggleAppMenu() {
@@ -327,7 +328,7 @@ function updateOptionAvailability(tokens: string[]) {
 	}
 
 	function openTerminalSelection() {
-		goto('/terminal-selection');
+		goto(`${base}/terminal-selection');
 	}
 
 	function openRouteAddition() {
@@ -347,14 +348,14 @@ function updateOptionAvailability(tokens: string[]) {
 		if (lastSegment?.line) {
 			params.set('line', lastSegment.line);
 		}
-		goto(`/line-selection?${params.toString()}`);
+		goto(`${base}/line-selection?${params.toString()}`);
 	}
 
 	function openSegmentDetail(segmentIndex: number) {
 		if (!route) return;
 		try {
 			const compressed = compressRouteForUrl(route, segmentIndex);
-			goto(`/detail?r=${compressed}`);
+			goto(`${base}/detail?r=${compressed}`);
 		} catch (err) {
 			error = `詳細画面を開けませんでした: ${err}`;
 		}
@@ -364,7 +365,7 @@ function updateOptionAvailability(tokens: string[]) {
 		if (!route) return;
 		try {
 			const compressed = compressRouteForUrl(route);
-			goto(`/detail?r=${compressed}`);
+			goto(`${base}/detail?r=${compressed}`);
 		} catch (err) {
 			error = `詳細画面を開けませんでした: ${err}`;
 		}
@@ -403,7 +404,7 @@ function handleUndo() {
 	}
 
 	function openSave() {
-		goto('/save');
+		goto(`${base}/save');
 	}
 
 	function toggleKokuraHakataLink() {
@@ -618,7 +619,7 @@ function handleUndo() {
 			<span class="material-symbols-rounded icon-button-symbol" aria-hidden="true">menu</span>
 		</button>
 	<div class="title">
-		<img src="/trade-icon.png" alt="" class="title-icon tall" />
+		<img src="{base}/trade-icon.png" alt="" class="title-icon tall" />
 		<div class="title-text">
 			<h1>経路運賃営業キロ計算</h1>
 			<p>Farert</p>

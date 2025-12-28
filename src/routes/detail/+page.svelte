@@ -1,5 +1,6 @@
 <script lang="ts">
 import { goto } from '$app/navigation';
+import { base } from '$app/paths';
 import { onDestroy, onMount } from 'svelte';
 import { initFarert } from '$lib/wasm';
 import { decompressRouteFromUrl } from '$lib/utils/urlRoute';
@@ -317,7 +318,7 @@ function handleBack(): void {
 		window.history.back();
 		return;
 	}
-	goto('/');
+	goto(`${base}/');
 }
 
 async function handleShare(): Promise<void> {
@@ -373,12 +374,12 @@ function closeMenu(): void {
 
 function openVersionInfo(): void {
 	closeMenu();
-	goto('/version');
+	goto(`${base}/version');
 }
 
 function openOptions(): void {
 	closeMenu();
-	goto('/');
+	goto(`${base}/');
 }
 
 async function copyFareExport(): Promise<void> {

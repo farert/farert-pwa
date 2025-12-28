@@ -1,5 +1,6 @@
 <script lang="ts">
 import { goto } from '$app/navigation';
+import { base } from '$app/paths';
 import { onDestroy, onMount } from 'svelte';
 import SavedRouteCard from '$lib/components/SavedRouteCard.svelte';
 import { initFarert, Farert } from '$lib/wasm';
@@ -81,7 +82,7 @@ import { pasteRouteFromClipboard } from '$lib/storage';
     }
 
 	function handleBack(): void {
-		goto('/');
+		goto(`${base}/');
 	}
 
 	function toggleEdit(): void {
@@ -167,7 +168,7 @@ import { pasteRouteFromClipboard } from '$lib/storage';
                 return;
             }
             mainRoute.set(route);
-            goto('/');
+            goto(`${base}/');
         } catch (err) {
             console.error('経路適用に失敗しました', err);
             showError('経路の適用に失敗しました。');

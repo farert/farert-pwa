@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+import { base } from '$app/paths';
 	import { onMount } from 'svelte';
 	import { initFarert, databaseInfo } from '$lib/wasm';
 	import { APP_VERSION } from '$lib/version';
@@ -76,7 +77,7 @@
 	}
 
 	function close(): void {
-		goto('/');
+		goto(`${base}/');
 	}
 
 	const taxText = $derived(
@@ -91,7 +92,7 @@
 		{#if error}
 			<p class="banner error" role="alert">{error}</p>
 		{/if}
-		<img src="/trade-icon.png" alt="Farert" class="hero-icon" />
+		<img src="{base}/trade-icon.png" alt="Farert" class="hero-icon" />
 		<h1>バージョン情報</h1>
 		<p class="app-version">Farert {appVersion}</p>
 
