@@ -3,6 +3,7 @@
 	"private": true,
 	"version": "25.11.0-alpha",
 	"type": "module",
+	"packageManager": "pnpm@10.26.2",
 	"scripts": {
 		"copy:wasm": "bash scripts/copy-wasm.sh",
 		"dev": "pnpm copy:wasm && vite dev",
