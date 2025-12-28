@@ -55,7 +55,7 @@ pnpm preview
 
 ### Github Pages
 
-プロジェクトサイトとして `https://<username>.github.io/farert-pwa/` にデプロイされます。
+プロジェクトサイトとして https://farert.github.io/farert-pwa/ にデプロイされます。
 
 #### 初回セットアップ
 
