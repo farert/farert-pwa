@@ -312,11 +312,11 @@ function goBack(): void {
 		window.history.back();
 		return;
 	}
-	goto(`${base}/');
+	goto(`${base}/`);
 }
 
 function handleAutoRoute(): void {
-	goto(`${base}/terminal-selection?mode=destination');
+	goto(`${base}/terminal-selection?mode=destination`);
 }
 
 function isDisabled(lineName: string): boolean {

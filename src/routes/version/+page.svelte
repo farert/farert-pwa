@@ -77,7 +77,7 @@ import { base } from '$app/paths';
 	}
 
 	function close(): void {
-		goto(`${base}/');
+		goto(`${base}/`);
 	}
 
 	const taxText = $derived(

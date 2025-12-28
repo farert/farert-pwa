@@ -1,7 +1,7 @@
 import { defineConfig } from 'vitest/config';
 import { playwright } from '@vitest/browser-playwright';
 import { sveltekit } from '@sveltejs/kit/vite';
-import { SvelteKitPWA } from '@vite-pwa/sveltekit';
+import { VitePWA } from 'vite-plugin-pwa';
 
 const localHost = process.env.BIND_HOST ?? '127.0.0.1';
 const base = process.env.NODE_ENV === 'production' ? '/farert-pwa/' : '/';
@@ -18,9 +18,12 @@ export default defineConfig({
 	},
 	plugins: [
 		sveltekit(),
-		SvelteKitPWA({
+		VitePWA({
 			mode: 'production',
 			strategies: 'injectManifest',
+			injectRegister: 'auto',
+			srcDir: 'src/lib',
+			filename: 'service-worker.js',
 			scope: base,
 			base: base,
 			disable: process.env.NODE_ENV === 'development',
@@ -46,7 +49,6 @@ export default defineConfig({
 				]
 			},
 			injectManifest: {
-				swSrc: 'src/service-worker.ts',
 				globPatterns: ['**/*.{js,css,html,svg,png,wasm}']
 			}
 		})

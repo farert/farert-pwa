@@ -301,7 +301,7 @@ function updateOptionAvailability(tokens: string[]) {
 	}
 
 	function openVersionInfo() {
-		goto(`${base}/version');
+		goto(`${base}/version`);
 	}
 
 	function toggleAppMenu() {
@@ -328,7 +328,7 @@ function updateOptionAvailability(tokens: string[]) {
 	}
 
 	function openTerminalSelection() {
-		goto(`${base}/terminal-selection');
+		goto(`${base}/terminal-selection`);
 	}
 
 	function openRouteAddition() {
@@ -404,7 +404,7 @@ function handleUndo() {
 	}
 
 	function openSave() {
-		goto(`${base}/save');
+		goto(`${base}/save`);
 	}
 
 	function toggleKokuraHakataLink() {
@@ -1109,12 +1109,6 @@ function handleUndo() {
 
 	.add-route-card span {
 		font-size: 1.1rem;
-	}
-
-	.add-route-card p {
-		margin: 0;
-		font-size: 0.85rem;
-		color: #b45309;
 	}
 
 	.add-route-card:disabled {

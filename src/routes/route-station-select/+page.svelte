@@ -150,7 +150,7 @@ function goBack(): void {
 		window.history.back();
 		return;
 	}
-	goto(`${base}/');
+	goto(`${base}/`);
 }
 
 function isDisabledStation(name: string): boolean {
@@ -178,7 +178,7 @@ function handleSelectStation(name: string): void {
 			return;
 		}
 		mainRoute.set(route);
-		goto(`${base}/');
+		goto(`${base}/`);
 		return;
 	}
 

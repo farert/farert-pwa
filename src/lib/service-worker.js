@@ -3,13 +3,8 @@
 /// <reference lib="esnext" />
 /// <reference lib="webworker" />
 
-import { build, files, version } from '$service-worker';
-
-declare const self: ServiceWorkerGlobalScope & {
-	__WB_MANIFEST?: Array<{ url: string; revision?: string }>;
-};
-
-const sw = self as unknown as ServiceWorkerGlobalScope;
+/** @type {ServiceWorkerGlobalScope & { __WB_MANIFEST?: Array<{ url: string; revision?: string }> }} */
+const sw = self;
 
 const precacheManifest = self.__WB_MANIFEST ?? [];
 const manifestUrls = precacheManifest.map((entry) => entry.url);
@@ -30,10 +25,10 @@ if (isDev) {
 	});
 } else {
 
-const CACHE_NAME = `farert-cache-${version}`;
+const CACHE_NAME = `farert-cache-${hashManifest(precacheManifest)}`;
 
 // キャッシュするファイル
-const assetSet = new Set<string>([...build, ...files, ...manifestUrls]);
+const assetSet = new Set([...manifestUrls]);
 const ASSETS = Array.from(assetSet);
 
 // インストール時
@@ -95,7 +90,23 @@ sw.addEventListener('fetch', (event) => {
 		}
 	}
 
-	event.respondWith(respond());
+event.respondWith(respond());
 });
 
 } // end else (production mode)
+
+/**
+ * @param {Array<{ url: string; revision?: string }>} manifest
+ * @returns {string}
+ */
+function hashManifest(manifest) {
+	let hash = 0;
+	for (const entry of manifest) {
+		const value = `${entry.url}:${entry.revision ?? ''}`;
+		for (let i = 0; i < value.length; i += 1) {
+			hash = (hash * 31 + value.charCodeAt(i)) >>> 0;
+		}
+	}
+
+	return hash.toString(16);
+}

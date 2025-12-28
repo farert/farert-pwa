@@ -82,7 +82,7 @@ import { pasteRouteFromClipboard } from '$lib/storage';
     }
 
 	function handleBack(): void {
-		goto(`${base}/');
+		goto(`${base}/`);
 	}
 
 	function toggleEdit(): void {
@@ -168,7 +168,7 @@ import { pasteRouteFromClipboard } from '$lib/storage';
                 return;
             }
             mainRoute.set(route);
-            goto(`${base}/');
+            goto(`${base}/`);
         } catch (err) {
             console.error('経路適用に失敗しました', err);
             showError('経路の適用に失敗しました。');

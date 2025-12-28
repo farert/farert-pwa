@@ -318,7 +318,7 @@ function handleBack(): void {
 		window.history.back();
 		return;
 	}
-	goto(`${base}/');
+	goto(`${base}/`);
 }
 
 async function handleShare(): Promise<void> {
@@ -374,12 +374,12 @@ function closeMenu(): void {
 
 function openVersionInfo(): void {
 	closeMenu();
-	goto(`${base}/version');
+	goto(`${base}/version`);
 }
 
 function openOptions(): void {
 	closeMenu();
-	goto(`${base}/');
+	goto(`${base}/`);
 }
 
 async function copyFareExport(): Promise<void> {
