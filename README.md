@@ -2,7 +2,8 @@
 
 ## すぐ使ってみたい
 
--> [こちら](https://farert.github.io/farert-pwa/)です
+- -> [こちら](https://farert.github.io/farert-pwa/)です
+- -> [アプリ](https://farert.blogspot.com/p/download.html)
 
 ## 概要
 [リポジトリ](https://github.com/farert)は3つに分けられています。
