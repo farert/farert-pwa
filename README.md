@@ -4,6 +4,33 @@
 
 -> [こちら](https://farert.github.io/farert-pwa/)です
 
+## 概要
+[リポジトリ](https://github.com/farert)は3つに分けられています。
+- [farert](https://github.com/farert/farert): Android, iOS, macOS, Windows, database すべてのソースが格納（Active)(下図-左)
+- [farert-wasm](https://github.com/farert/farert-wasm): WASM. [farert](https://github.com/farert/farert)の[コアロジック](https://github.com/farert/farert/tree/main/app/alps)に依存しています（参照しています)(Active)
+- [farert-pwa](https://github.com/farert/farert-pwa): このリポジトリで、[farert-wasm](https://github.com/farert/farert-wasm) に依存します。(下図-右)
+
+<table>
+<tr>
+    <th>
+        Farert 構成
+    </th>
+    <th>
+    PWA全体構成
+    </th>
+</tr>
+<tr>
+    <td>
+<a href="https://github.com/user-attachments/assets/f41168fc-86e5-4d22-bab6-c536f725bc1a">
+  <img src="https://github.com/user-attachments/assets/f41168fc-86e5-4d22-bab6-c536f725bc1a" width="300" />
+</a>
+</td><td>
+<a href="https://github.com/user-attachments/assets/1ba3325c-db60-405c-bb95-26019a8c8f91">
+<img alt="image" src="https://github.com/user-attachments/assets/1ba3325c-db60-405c-bb95-26019a8c8f91" width="300" />
+</a>            
+        </td>
+    </tr>
+</table>
 
 ## 開発者向けセットアップ
 
