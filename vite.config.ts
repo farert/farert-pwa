@@ -2,9 +2,23 @@ import { defineConfig } from 'vitest/config';
 import { playwright } from '@vitest/browser-playwright';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import { execSync } from 'node:child_process';
 
 const localHost = process.env.BIND_HOST ?? '127.0.0.1';
 const base = process.env.NODE_ENV === 'production' ? '/farert-pwa/' : '/';
+const buildAt = process.env.BUILD_AT ?? new Date().toISOString();
+const gitCommitAt =
+	process.env.GIT_COMMIT_AT ??
+	(readGitValue('git log -1 --format=%cI'));
+const gitSha = process.env.GIT_SHA ?? readGitValue('git rev-parse --short HEAD');
+
+function readGitValue(command: string): string {
+	try {
+		return execSync(command, { encoding: 'utf8' }).trim();
+	} catch {
+		return '';
+	}
+}
 
 export default defineConfig({
 	base,
@@ -54,7 +68,10 @@ export default defineConfig({
 		})
 	],
 	define: {
-		__APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? 'dev')
+		__APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? 'dev'),
+		__BUILD_AT__: JSON.stringify(buildAt),
+		__GIT_COMMIT_AT__: JSON.stringify(gitCommitAt),
+		__GIT_SHA__: JSON.stringify(gitSha)
 	},
 	test: {
 		expect: { requireAssertions: true },

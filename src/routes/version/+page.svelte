@@ -3,7 +3,7 @@
 import { base } from '$app/paths';
 	import { onMount } from 'svelte';
 	import { initFarert, databaseInfo } from '$lib/wasm';
-	import { APP_VERSION } from '$lib/version';
+	import { APP_VERSION, BUILD_AT, GIT_COMMIT_AT, GIT_SHA } from '$lib/version';
 
 	interface DbMeta {
 		name: string;
@@ -14,6 +14,9 @@ import { base } from '$app/paths';
 	let loading = $state(true);
 	let error = $state('');
 	let appVersion = $state(APP_VERSION);
+	let buildAt = $state(BUILD_AT);
+	let gitCommitAt = $state(GIT_COMMIT_AT);
+	let gitSha = $state(GIT_SHA);
 	let dbMeta = $state<DbMeta>({ name: '', createDate: '', tax: null });
 
 	onMount(() => {
@@ -83,6 +86,31 @@ import { base } from '$app/paths';
 	const taxText = $derived(
 		dbMeta.tax === null || Number.isNaN(dbMeta.tax) ? '—%' : `${dbMeta.tax}%`
 	);
+
+	function formatDateTime(value: string): string {
+		if (!value) return '—';
+		const date = new Date(value);
+		if (Number.isNaN(date.getTime())) return value;
+		return new Intl.DateTimeFormat('ja-JP', {
+			year: 'numeric',
+			month: '2-digit',
+			day: '2-digit',
+			hour: '2-digit',
+			minute: '2-digit',
+			second: '2-digit',
+			timeZone: 'Asia/Tokyo'
+		}).format(date);
+	}
+
+	const buildText = $derived(formatDateTime(buildAt));
+	const commitText = $derived.by(() => {
+		const commitDate = formatDateTime(gitCommitAt);
+		const shortSha = gitSha ? gitSha : '';
+		if (commitDate === '—' && !shortSha) return '—';
+		if (commitDate === '—') return shortSha;
+		if (!shortSha) return commitDate;
+		return `${commitDate} (${shortSha})`;
+	});
 </script>
 
 <div class="version-page">
@@ -95,6 +123,8 @@ import { base } from '$app/paths';
 		<img src="{base}/trade-icon.png" alt="Farert" class="hero-icon" />
 		<h1>バージョン情報</h1>
 		<p class="app-version">Farert {appVersion}</p>
+		<p class="build-at">ビルド日時: {buildText}</p>
+		<p class="commit-info">コミット: {commitText}</p>
 
 		<section class="block">
 			<p class="db">DB Rev. [{dbMeta.name || '—'}] ({dbMeta.createDate || '—'})</p>
@@ -136,6 +166,13 @@ import { base } from '$app/paths';
 		font-weight: 700;
 		font-size: 1.1rem;
 		color: #4c1d95;
+	}
+
+	.build-at,
+	.commit-info {
+		margin: 0;
+		font-weight: 600;
+		color: #64748b;
 	}
 
 	.hero-icon {

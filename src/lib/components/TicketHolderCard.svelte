@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { base } from '$app/paths';
 	import FarePicker from '$lib/components/FarePicker.svelte';
 	import type { FareType, TicketHolderItem } from '$lib/types';
 
@@ -32,7 +33,12 @@
 <div class="card" role="button" tabindex="0" onclick={handleSelect} onkeydown={handleKeydown}>
 	<header class="card-header">
 		<div class="title-group">
-			<span class="material-symbols-rounded" aria-hidden="true">folder_open</span>
+			<img
+				src={`${base}/mipmap-hdpi/ic_launcher.png`}
+				alt=""
+				class="holder-icon"
+				aria-hidden="true"
+			/>
 			<p>{title}</p>
 		</div>
 		<div class="meta">
@@ -74,6 +80,12 @@
 		display: flex;
 		align-items: center;
 		gap: 0.35rem;
+	}
+
+	.holder-icon {
+		width: 20px;
+		height: 20px;
+		object-fit: contain;
 	}
 
 	.title-group p {
