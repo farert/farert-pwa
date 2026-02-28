@@ -4,7 +4,8 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { execSync } from 'node:child_process';
 
-const localHost = process.env.BIND_HOST ?? '127.0.0.1';
+// DevContainer/WSL でも外部からアクセスできるように既定は 0.0.0.0
+const localHost = process.env.BIND_HOST ?? '0.0.0.0';
 const base = process.env.NODE_ENV === 'production' ? '/farert-pwa/' : '/';
 const buildAt = process.env.BUILD_AT ?? new Date().toISOString();
 const gitCommitAt =

@@ -119,6 +119,8 @@ export interface FareInfo {
 	jrCalcKm: number;
 	companySalesKm: number;
 	brtSalesKm: number;
+	salesKmForEast: number;
+	calcKmForEast: number;
 	salesKmForHokkaido: number;
 	calcKmForHokkaido: number;
 	salesKmForShikoku: number;

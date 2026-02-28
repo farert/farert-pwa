@@ -210,12 +210,14 @@ function buildKilometerRows(info: FareInfo | null): MetricRow[] {
 		rows.push({ label: 'BRT営業キロ', value: formatKilometer(info.brtSalesKm) });
 	}
 	const regionMetrics: { label: string; value?: number | null }[] = [
-		{ label: '北海道営業キロ', value: info.salesKmForHokkaido },
-		{ label: '北海道計算キロ', value: info.calcKmForHokkaido },
-		{ label: '四国営業キロ', value: info.salesKmForShikoku },
-		{ label: '四国計算キロ', value: info.calcKmForShikoku },
-		{ label: '九州営業キロ', value: info.salesKmForKyusyu },
-		{ label: '九州計算キロ', value: info.calcKmForKyusyu }
+		{ label: 'JR北海道 営業キロ', value: info.salesKmForHokkaido },
+		{ label: 'JR北海道 計算キロ', value: info.calcKmForHokkaido },
+		{ label: 'JR東日本 営業キロ', value: info.salesKmForEast },
+		{ label: 'JR東日本 計算キロ', value: info.calcKmForEast },
+		{ label: 'JR四国 営業キロ', value: info.salesKmForShikoku },
+		{ label: 'JR四国 計算キロ', value: info.calcKmForShikoku },
+		{ label: 'JR九州 営業キロ', value: info.salesKmForKyusyu },
+		{ label: 'JR九州 計算キロ', value: info.calcKmForKyusyu }
 	];
 	for (const metric of regionMetrics) {
 		if ((metric.value ?? 0) > 0) {
