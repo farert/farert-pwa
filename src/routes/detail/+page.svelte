@@ -36,7 +36,6 @@ let { initialCompressedRoute = null } = $props<{ initialCompressedRoute?: string
 const routeTitle = $derived(startStation && endStation ? `${startStation} → ${endStation}` : '経路詳細');
 const kilometerRows = $derived(buildKilometerRows(fareInfo));
 const fareRows = $derived(buildFareRows(fareInfo));
-const stockDiscounts = $derived(() => (fareInfo?.stockDiscounts ?? []).filter((item) => item && typeof item.stockDiscountFare === 'number'));
 const validityText = $derived(formatValidDays(fareInfo?.ticketAvailDays));
 const validityMessage = $derived(buildValidityMessage(fareInfo));
 let detailMessages = $state<string[]>([]);
@@ -47,6 +46,7 @@ const routeText = $derived(resolveRouteString(fareInfo, routeSegments));
 const icRouteText = $derived(resolveIcRouteString(fareInfo, routeText));
 const fareResultHint = $derived(resolveFareResultMessage(fareInfo?.fareResultCode));
 const shareEnabled = $derived(Boolean(shareUrl));
+const canToggleCityStation = $derived(Boolean(fareInfo?.isMeihanCityStartTerminalEnable));
 
 let shareFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
 let exportFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
@@ -66,12 +66,8 @@ onMount(() => {
 				return;
 			}
 			routeRef = route;
-			startStation = safeStationName(() => route.departureStationName());
-			endStation = safeStationName(() => route.arrivevalStationName());
-			routeSegments = parseRouteSegments(route);
-			fareInfo = parseFareInfo(route);
+			refreshResult(route);
 			shareUrl = buildShareUrl(encoded);
-			fareExportText = buildFareExportString(route);
 		} catch (err) {
 			console.error('詳細画面の初期化に失敗しました', err);
 			errorMessage = '詳細情報の初期化に失敗しました。';
@@ -161,6 +157,14 @@ function buildFareExportString(route: FaretClass): string {
 	}
 }
 
+function refreshResult(route: FaretClass): void {
+	startStation = safeStationName(() => route.departureStationName());
+	endStation = safeStationName(() => route.arrivevalStationName());
+	routeSegments = parseRouteSegments(route);
+	fareInfo = parseFareInfo(route);
+	fareExportText = buildFareExportString(route);
+}
+
 function buildShareUrl(token: string): string {
 	if (!token) return '';
 	const origin =
@@ -226,7 +230,7 @@ function buildKilometerRows(info: FareInfo | null): MetricRow[] {
 	}
 	if (info.isRule114Applied) {
 		rows.push({
-			label: '規程114条適用',
+			label: '規程114条適用 営業キロ / 計算キロ',
 			value: `${formatKilometer(info.rule114SalesKm)} / ${formatKilometer(info.rule114CalcKm)}`,
 			note: info.rule114ApplyTerminal ? `${info.rule114ApplyTerminal}で計算` : undefined
 		});
@@ -266,8 +270,29 @@ function buildFareRows(info: FareInfo | null): MetricRow[] {
 	if (info.isAcademicFare && (info.roundtripAcademicFare ?? 0) > 0) {
 		rows.push({ label: '学割往復運賃', value: formatCurrency(info.roundtripAcademicFare) });
 	}
+	const stockDiscounts = Array.isArray(info.stockDiscounts) ? info.stockDiscounts : [];
+	for (const stock of stockDiscounts) {
+		if (!stock || typeof stock.stockDiscountFare !== 'number' || stock.stockDiscountFare <= 0) {
+			continue;
+		}
+		const title = typeof stock.stockDiscountTitle === 'string' ? stock.stockDiscountTitle.trim() : '';
+		rows.push({
+			label: title ? `株主優待運賃（${title}）` : '株主優待運賃',
+			value: formatCurrency(stock.stockDiscountFare),
+			note:
+				typeof stock.rule114StockFare === 'number' && stock.rule114StockFare > 0
+					? `規程114条適用前: ${formatCurrency(stock.rule114StockFare)}`
+					: undefined
+		});
+	}
 	if (info.isRule114Applied && (info.farePriorRule114 ?? 0) > 0) {
 		rows.push({ label: '規程114条適用前', value: formatCurrency(info.farePriorRule114) });
+	}
+	if (info.isRule114Applied && (info.roundTripFareWithCompanyLinePriorRule114 ?? 0) > 0) {
+		rows.push({
+			label: '規程114条適用前（往復運賃）',
+			value: formatCurrency(info.roundTripFareWithCompanyLinePriorRule114)
+		});
 	}
 	return rows;
 }
@@ -282,9 +307,9 @@ function buildValidityMessage(info: FareInfo | null): string {
 		return '途中下車前途無効';
 	}
 	if (info.isBeginInCity || info.isEndInCity) {
-		return '発着駅の都区市内を除き途中下車可能';
+		return '発着駅の都区市内を除き途中下車できます';
 	}
-	return '途中下車可能';
+	return '途中下車できます';
 }
 
 function extractMessages(info: FareInfo | null): string[] {
@@ -379,9 +404,32 @@ function openVersionInfo(): void {
 	goto(`${base}/version`);
 }
 
-function openOptions(): void {
+function applyStartStationSingle(): void {
+	const route = routeRef;
+	if (!route || !canToggleCityStation) return;
+	try {
+		route.setStartAsCity();
+		refreshResult(route);
+		errorMessage = '';
+	} catch (err) {
+		console.warn('発駅単駅指定の適用に失敗しました', err);
+		errorMessage = '発駅単駅指定の適用に失敗しました。';
+	}
 	closeMenu();
-	goto(`${base}/`);
+}
+
+function applyArrivalStationSingle(): void {
+	const route = routeRef;
+	if (!route || !canToggleCityStation) return;
+	try {
+		route.setArrivalAsCity();
+		refreshResult(route);
+		errorMessage = '';
+	} catch (err) {
+		console.warn('着駅単駅指定の適用に失敗しました', err);
+		errorMessage = '着駅単駅指定の適用に失敗しました。';
+	}
+	closeMenu();
 }
 
 async function copyFareExport(): Promise<void> {
@@ -447,7 +495,22 @@ function closeExportDialog(): void {
 			{#if menuOpen}
 				<div class="app-menu" role="menu">
 					<button type="button" role="menuitem" onclick={openVersionInfo}>バージョン情報</button>
-					<button type="button" role="menuitem" onclick={openOptions}>オプション</button>
+					<button
+						type="button"
+						role="menuitem"
+						onclick={applyStartStationSingle}
+						disabled={!canToggleCityStation}
+					>
+						発駅を単駅にする
+					</button>
+					<button
+						type="button"
+						role="menuitem"
+						onclick={applyArrivalStationSingle}
+						disabled={!canToggleCityStation}
+					>
+						着駅を単駅にする
+					</button>
 				</div>
 			{/if}
 		</div>
@@ -516,19 +579,6 @@ function closeExportDialog(): void {
 								</li>
 							{/each}
 						</ul>
-					{/if}
-					{#if stockDiscounts.length}
-						<div class="stock-section">
-							<p class="metric-label">株主優待</p>
-							<ul>
-								{#each stockDiscounts as stock}
-									<li>
-										<span>{stock.stockDiscountTitle}</span>
-										<strong>{formatCurrency(stock.stockDiscountFare)}</strong>
-									</li>
-								{/each}
-							</ul>
-						</div>
 					{/if}
 				</section>
 
@@ -763,18 +813,10 @@ function closeExportDialog(): void {
 		font-size: 0.95rem;
 	}
 
-	.stock-section ul,
 	.note-card ul {
 		padding-left: 1.1rem;
 		margin: 0;
 		color: #374151;
-	}
-
-	.stock-section li {
-		display: flex;
-		justify-content: space-between;
-		gap: 0.5rem;
-		font-size: 0.95rem;
 	}
 
 	.validity-card .valid-days {

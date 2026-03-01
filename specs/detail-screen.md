@@ -113,7 +113,75 @@
 
 ## オプションメニュー内容（条件付き表示）
 
-`option-menu.md`で定義された経路オプションが提供されます。`ui-guidelines.md`のオプションメニューの実装例に従い、条件が満たされた場合のみ表示されます。
+`option-menu.md`で定義された経路オプションを、詳細画面から直接切り替え可能とします。  
+`/Users/ntake/priv/farert.repos/farert/test/unix/all/test_result.txt` の結果表記を参考に、以下を条件付きで表示します。
+
+実装根拠は `/Users/ntake/priv/farert.repos/farert/test/unix/common/test_exec.cpp` の `2694` 行付近（`CalcRoute` のオプション適用テスト）です。  
+同テストと同じく、各オプションは `route_flag` を更新して再計算し、結果を再描画します。
+
+### オプション表示条件とメニュー項目
+
+0. **共通動作**
+   - いずれのメニュー項目も、選択時に対象フラグを更新した後 `calcFare` 相当の再計算を行う
+   - 再計算後、詳細画面の以下を更新する
+     - キロ程
+     - 運賃
+     - 備考メッセージ
+     - 有効日数
+     - 経由
+
+1. **JR東海株主優待券使用オプション**
+   - 判定条件: `jrtokaistock_enable` が有効な場合（UI実装上は `fareInfo.isJRCentralStockEnable` を使用してよい）
+   - 表示条件の目安メッセージ: `JR東海株主優待券使用オプション選択可`
+   - メニュー項目:
+     - `JR東海株主優待券使用`
+     - `JR東海株主優待券未使用`
+   - 選択時動作:
+     - `JR東海株主優待券使用` 選択時: `setJrTokaiStockApply(true)` を適用して再計算
+     - `JR東海株主優待券未使用` 選択時: `setJrTokaiStockApply(false)` を適用して再計算
+
+2. **名阪都区市内（単駅指定）オプション**
+   - 判定条件: `isMeihanCityEnable` が `true` の場合（UI実装上は `fareInfo.isMeihanCityStartTerminalEnable` を使用してよい）
+   - メニュー項目:
+     - `発駅を単駅指定`
+     - `着駅を単駅指定`
+   - 選択時動作:
+     - `発駅を単駅指定` 選択時: `setStartAsCity()` を適用して再計算
+     - `着駅を単駅指定` 選択時: `setArriveAsCity()` を適用して再計算
+
+3. **大都市近郊区間 経路選択オプション**
+   - 判定条件: `isEnableLongRoute` が `true` の場合（UI実装上は `fareInfo.isEnableLongRoute`）
+   - メニュー項目:
+     - `指定経路`
+     - `最安経路`
+   - 選択時動作:
+     - `指定経路` 選択時: `setLongRoute(true)` を適用して再計算
+     - `最安経路` 選択時: `setLongRoute(false)` を適用して再計算
+   - 備考:
+     - テスト実装上、デフォルトは「最安経路」側として扱われる
+
+4. **旅客営業取扱基準規程115条オプション**
+   - 判定条件: `isEnableRule115` が `true` の場合（UI実装上は `fareInfo.isEnableRule115`）
+   - メニュー項目:
+     - `旅客営業取扱基準規程115条（特定都区市内発着）`
+     - `旅客営業取扱基準規程115条（単駅最安）`
+   - 選択時動作:
+     - `特定都区市内発着` 選択時: `setSpecificTermRule115(true)` を適用して再計算
+     - `単駅最安` 選択時: `setSpecificTermRule115(false)` を適用して再計算
+   - 備考:
+     - テスト実装上、デフォルトは `setSpecificTermRule115(false)`（単駅最安）
+
+5. **規則非適用オプション（デバッグ/開発向け）**
+   - 判定条件: `rule_en()` が `true` の場合
+   - メニュー項目:
+     - `規則適用`
+     - `規則非適用`
+   - 選択時動作:
+     - `規則非適用` 選択時: `setNoRule(true)` を適用して再計算
+     - `規則適用` 選択時: `setNoRule(false)` を適用して再計算
+   - 備考:
+     - `test_exec.cpp` の `///非適用` ケースに対応する検証項目
+     - 本項目を本番UIで露出するかは別途決定する
 
 ## エラー表示
 
