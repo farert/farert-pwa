@@ -2,7 +2,13 @@
 import { goto } from '$app/navigation';
 import { base } from '$app/paths';
 import { onMount } from 'svelte';
-import { initFarert, getBranchStationsByLine, getStationsByLine, getKanaByStation } from '$lib/wasm';
+import {
+	initFarert,
+	getBranchStationsByLine,
+	getStationsByLine,
+	getKanaByStation,
+	getLinesByStation
+} from '$lib/wasm';
 import { mainRoute } from '$lib/stores';
 import type { FaretClass } from '$lib/wasm/types';
 
@@ -23,7 +29,7 @@ let params = $state<StationSelectionParams>({ from: 'main' });
 let mode = $state<ScreenMode>('branch');
 let branchStations = $state<string[]>([]);
 let destinationStations = $state<string[]>([]);
-let stationDetails = $state<Record<string, { kana: string }>>({});
+let stationDetails = $state<Record<string, { kana: string; lines: string[] }>>({});
 let routeRef = $state<FaretClass | null>(null);
 let { presetParams = null } = $props<{ presetParams?: Partial<StationSelectionParams> | null }>();
 
@@ -128,15 +134,22 @@ function parseList(raw: string): string[] {
 	return [];
 }
 
-function buildStationDetails(stations: string[]): Record<string, { kana: string }> {
-	const info: Record<string, { kana: string }> = {};
+function buildStationDetails(stations: string[]): Record<string, { kana: string; lines: string[] }> {
+	const info: Record<string, { kana: string; lines: string[] }> = {};
 	for (const station of stations) {
+		let kana = '';
+		let lines: string[] = [];
 		try {
-			info[station] = { kana: getKanaByStation(station) };
+			kana = getKanaByStation(station);
 		} catch (err) {
 			console.warn('かな情報の取得に失敗しました', station, err);
-			info[station] = { kana: '' };
 		}
+		try {
+			lines = parseList(getLinesByStation(station));
+		} catch (err) {
+			console.warn('所属路線情報の取得に失敗しました', station, err);
+		}
+		info[station] = { kana, lines };
 	}
 	return info;
 }
@@ -202,8 +215,18 @@ const headerTitle = $derived(
 			: '着駅指定'
 );
 
-function stationKana(name: string): string {
-	return stationDetails[name]?.kana ?? '';
+function stationMeta(name: string): string {
+	const kana = stationDetails[name]?.kana ?? '';
+	const selectedLine = (params.line ?? '').trim();
+	const lines = (stationDetails[name]?.lines ?? []).filter((line) => line.trim() !== selectedLine);
+	const metaParts: string[] = [];
+	if (kana) {
+		metaParts.push(`(${kana})`);
+	}
+	if (lines.length > 0) {
+		metaParts.push(lines.join(' / '));
+	}
+	return metaParts.join(' / ');
 }
 </script>
 
@@ -242,8 +265,8 @@ function stationKana(name: string): string {
 								onclick={() => handleSelectStation(station)}
 							>
 								<span class="station-name">{station}</span>
-								{#if stationKana(station)}
-									<span class="station-meta">({stationKana(station)})</span>
+								{#if stationMeta(station)}
+									<span class="station-meta">{stationMeta(station)}</span>
 								{/if}
 							</button>
 						</li>
