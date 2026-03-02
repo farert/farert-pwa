@@ -61,8 +61,19 @@
 
 -   **営業キロ・計算キロ**: `fareInfo.totalSalesKm`, `fareInfo.jrCalcKm`
 -   **JR各社別キロ程**: `fareInfo`内の各JR会社の営業キロ・計算キロ (0でない場合)
--   **規程114条適用**: `fareInfo.rule114Km` (適用される場合)
+-   **規程114条適用 営業キロ / 計算キロ**: `fareInfo.rule114SalesKm`, `fareInfo.rule114CalcKm` (適用される場合)
 -   **JR線・会社線・BRT線の内訳**: `fareInfo.jrKm`, `fareInfo.companyKm`, `fareInfo.brtKm` (それぞれ0でない場合)
+
+### キロ値のスケール補正
+
+- WASM内部では営業キロ・計算キロが 10倍整数（0.1km単位）で返る場合がある
+- PWAでは `FareInfo` の復元直後に km系フィールドを正規化（`/10`）してから表示する
+- 対象:
+  - `totalSalesKm`, `jrSalesKm`, `jrCalcKm`, `companySalesKm`, `brtSalesKm`
+  - `salesKmForHokkaido`, `calcKmForHokkaido`, `salesKmForEast`, `calcKmForEast`
+  - `salesKmForShikoku`, `calcKmForShikoku`, `salesKmForKyusyu`, `calcKmForKyusyu`
+  - `rule114SalesKm`, `rule114CalcKm`
+- 既に小数を含む場合（例: `218.3`）は補正しない
 
 ## セクション3: 運賃 (FareCardコンポーネント)
 
@@ -75,8 +86,11 @@
 
 -   **普通運賃**: `fareInfo.fare`。会社線運賃、IC運賃、BRT運賃の内訳 (`fareInfo.companyFare`, `fareInfo.icFare`, `fareInfo.brtFare`)
 -   **往復運賃**: `fareInfo.roundTripFare` (片道営業キロ ≥ 601km かつ往復割引適用時)
--   **規程114条 適用しない運賃**: `fareInfo.fareExcludingRule114` (規程114条適用時)
+-   **規程114条適用前運賃**: `fareInfo.farePriorRule114` (規程114条適用時)
+-   **規程114条適用前（往復運賃）**: `fareInfo.roundTripFareWithCompanyLinePriorRule114` (規程114条適用時)
 -   **株主優待割引運賃**: `fareInfo`内のJR各社別割引運賃 (利用可能な場合)
+    - ラベル: `株主優待運賃（{stockDiscountTitle}）`
+    - `rule114StockFare` がある場合は注記 `規程114条適用前: ¥...` を表示
 -   **小児運賃**: `fareInfo.childFare`, `fareInfo.roundtripChildFare`
 -   **学割運賃**: `fareInfo.academicFare`, `fareInfo.roundtripAcademicFare` (片道営業キロ ≥ 101km の場合のみ表示)
 
@@ -95,8 +109,8 @@
 
 -   有効日数: `fareInfo.ticketAvailDays`
 -   途中下車情報: `fareInfo`内のフラグに基づいて以下のメッセージを表示。
-    -   片道営業キロ ≥ 101km の場合: 「(途中下車可能)」
-    -   発着駅が都区市内駅の場合: 「(発駅都区市内の駅を除き途中下車可能)」など。
+    -   片道営業キロ ≥ 101km の場合: 「途中下車できます」
+    -   発着駅が都区市内駅の場合: 「発着駅の都区市内を除き途中下車できます」
     -   片道営業キロ < 101km の場合: 「(途中下車前途無効)」
     -   近郊区間内の場合: 「近郊区間内ですので最安運賃の経路にしました(途中下車不可、有効日数当日限り)」
 
@@ -118,6 +132,18 @@
 
 実装根拠は `/Users/ntake/priv/farert.repos/farert/test/unix/common/test_exec.cpp` の `2694` 行付近（`CalcRoute` のオプション適用テスト）です。  
 同テストと同じく、各オプションは `route_flag` を更新して再計算し、結果を再描画します。
+
+### 現行実装（本日反映）
+
+- 右上メニューでは、従来の `オプション` 項目を置き換え、以下を直接表示する
+  - `発駅を単駅にする`
+  - `着駅を単駅にする`
+- 表示可否は `isMeihanCityEnable`（UI上は `fareInfo.isMeihanCityStartTerminalEnable`）で判定する
+- 選択時動作:
+  - `発駅を単駅にする` -> `setStartAsCity()` を呼び再計算
+  - `着駅を単駅にする` -> `setArrivalAsCity()` を呼び再計算
+- 再計算後は詳細画面の結果を即時更新する
+- `バージョン情報` メニューは継続表示する
 
 ### オプション表示条件とメニュー項目
 
@@ -147,7 +173,7 @@
      - `着駅を単駅指定`
    - 選択時動作:
      - `発駅を単駅指定` 選択時: `setStartAsCity()` を適用して再計算
-     - `着駅を単駅指定` 選択時: `setArriveAsCity()` を適用して再計算
+     - `着駅を単駅指定` 選択時: `setArrivalAsCity()` を適用して再計算
 
 3. **大都市近郊区間 経路選択オプション**
    - 判定条件: `isEnableLongRoute` が `true` の場合（UI実装上は `fareInfo.isEnableLongRoute`）

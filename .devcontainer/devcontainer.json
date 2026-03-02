@@ -5,12 +5,9 @@
   "workspaceFolder": "/workspace",
 
   // 開発コンテナ起動後のコマンド
-  // Playwright 依存ライブラリは Dockerfile で apt インストール済みのため --with-deps は不要
-  "postCreateCommand": "pnpm install --frozen-lockfile && pnpm exec playwright install",
-
-    "features": {
-        "ghcr.io/devcontainers/features/node:1": {},
-     },
+  // - pnpm storeをホーム配下に固定し、workspace配下の壊れたストア混入を防ぐ
+  // - Playwrightブラウザをインストール（依存ライブラリはDockerfileで導入済み）
+  "postCreateCommand": "pnpm config set store-dir /home/node/.pnpm-store && pnpm install --frozen-lockfile --store-dir /home/node/.pnpm-store && pnpm exec playwright install chromium",
 
 
   // VSCode拡張機能
