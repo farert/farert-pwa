@@ -121,6 +121,39 @@ function parseFareInfo(route: FaretClass): FareInfo | null {
 	if (!raw) return null;
 	const cleaned = raw.replace(/\u0000/g, '').trim();
 	if (!cleaned) return null;
+
+	const normalizeKilometers = (info: FareInfo): FareInfo => {
+		const kmKeys: Array<keyof FareInfo> = [
+			'totalSalesKm',
+			'jrSalesKm',
+			'jrCalcKm',
+			'companySalesKm',
+			'brtSalesKm',
+			'salesKmForHokkaido',
+			'calcKmForHokkaido',
+			'salesKmForEast',
+			'calcKmForEast',
+			'salesKmForShikoku',
+			'calcKmForShikoku',
+			'salesKmForKyusyu',
+			'calcKmForKyusyu',
+			'rule114SalesKm',
+			'rule114CalcKm'
+		];
+		const kmValues = kmKeys
+			.map((key) => info[key])
+			.filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+		if (!kmValues.length) return info;
+		if (!kmValues.every((value) => Number.isInteger(value))) return info;
+		const normalized = { ...info } as FareInfo;
+		for (const key of kmKeys) {
+			const value = normalized[key];
+			if (typeof value === 'number' && Number.isFinite(value)) {
+				(normalized as Record<string, unknown>)[key] = value / 10;
+			}
+		}
+		return normalized;
+	};
 	const collapseCommas = (input: string): string => {
 		let output = input.replace(/,\s*([}\]])/g, '$1').replace(/([\[{])\s*,/g, '$1');
 		while (/,(\s*,)+/.test(output)) {
@@ -137,8 +170,9 @@ function parseFareInfo(route: FaretClass): FareInfo | null {
 	for (const candidate of candidates) {
 		try {
 			const parsed = JSON.parse(candidate) as FareInfo;
-			parsed.messages = Array.isArray(parsed.messages) ? [...parsed.messages] : [];
-			return parsed;
+			const normalized = normalizeKilometers(parsed);
+			normalized.messages = Array.isArray(normalized.messages) ? [...normalized.messages] : [];
+			return normalized;
 		} catch (repairErr) {
 			continue;
 		}

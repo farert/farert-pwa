@@ -70,13 +70,13 @@ const { default: DetailPage } = await import('./+page.svelte');
 			getFareInfoObjectJson: () =>
 				JSON.stringify({
 					fareResultCode: 0,
-					totalSalesKm: 218.3,
-					jrSalesKm: 218.3,
-					jrCalcKm: 226.4,
-					salesKmForEast: 95.5,
+					totalSalesKm: 2183,
+					jrSalesKm: 2183,
+					jrCalcKm: 2264,
+					salesKmForEast: 955,
 					isRule114Applied: true,
-					rule114SalesKm: 200.5,
-					rule114CalcKm: 208.8,
+					rule114SalesKm: 2005,
+					rule114CalcKm: 2088,
 					rule114ApplyTerminal: '甲斐住吉',
 					fare: 3810,
 					farePriorRule114: 4170,
@@ -112,13 +112,15 @@ const { default: DetailPage } = await import('./+page.svelte');
 
 		await expect.element(page.getByRole('heading', { name: '長津田 → 国母' })).toBeInTheDocument();
 		await expect.element(page.getByText('キロ程')).toBeInTheDocument();
-		await expect.element(page.getByText('218.3km')).toBeInTheDocument();
-		await expect.element(page.getByText('226.4km')).toBeInTheDocument();
-		await expect.element(page.getByText('95.5km')).toBeInTheDocument();
+		const kilometerSection = page.getByRole('heading', { name: 'キロ程' }).locator('..');
+		await expect.element(kilometerSection.getByText('218.3km').first()).toBeInTheDocument();
+		await expect.element(kilometerSection.getByText('218.3km').nth(1)).toBeInTheDocument();
+		await expect.element(kilometerSection.getByText('226.4km')).toBeInTheDocument();
+		await expect.element(kilometerSection.getByText('95.5km')).toBeInTheDocument();
 		await expect
-			.element(page.getByText('規程114条適用 営業キロ / 計算キロ'))
+			.element(kilometerSection.getByText('規程114条適用 営業キロ / 計算キロ'))
 			.toBeInTheDocument();
-		await expect.element(page.getByText('200.5km / 208.8km')).toBeInTheDocument();
+		await expect.element(kilometerSection.getByText('200.5km / 208.8km')).toBeInTheDocument();
 		await expect.element(page.getByRole('heading', { name: '運賃' })).toBeInTheDocument();
 		await expect.element(page.getByText('¥3,810')).toBeInTheDocument();
 		await expect.element(page.getByText('¥7,620')).toBeInTheDocument();
@@ -170,9 +172,9 @@ const { default: DetailPage } = await import('./+page.svelte');
 			getFareInfoObjectJson: () =>
 				JSON.stringify({
 					fareResultCode: 0,
-					totalSalesKm: 120,
-					jrSalesKm: 120,
-					jrCalcKm: 120,
+					totalSalesKm: 1200,
+					jrSalesKm: 1200,
+					jrCalcKm: 1200,
 					fare: 1980,
 					ticketAvailDays: 2,
 					routeList: '[東海道線]熱海',

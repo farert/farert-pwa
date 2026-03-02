@@ -83,11 +83,45 @@ function parseFareInfoJson(raw: unknown): FareInfo | null {
 	const cleaned = raw.replace(/\u0000/g, '').trim();
 	if (!cleaned) return null;
 
+	const normalizeKilometers = (info: FareInfo): FareInfo => {
+		const kmKeys: Array<keyof FareInfo> = [
+			'totalSalesKm',
+			'jrSalesKm',
+			'jrCalcKm',
+			'companySalesKm',
+			'brtSalesKm',
+			'salesKmForHokkaido',
+			'calcKmForHokkaido',
+			'salesKmForEast',
+			'calcKmForEast',
+			'salesKmForShikoku',
+			'calcKmForShikoku',
+			'salesKmForKyusyu',
+			'calcKmForKyusyu',
+			'rule114SalesKm',
+			'rule114CalcKm'
+		];
+		const kmValues = kmKeys
+			.map((key) => info[key])
+			.filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+		if (!kmValues.length) return info;
+		if (!kmValues.every((value) => Number.isInteger(value))) return info;
+		const normalized = { ...info } as FareInfo;
+		for (const key of kmKeys) {
+			const value = normalized[key];
+			if (typeof value === 'number' && Number.isFinite(value)) {
+				(normalized as Record<string, unknown>)[key] = value / 10;
+			}
+		}
+		return normalized;
+	};
+
 	const tryParse = (text: string): FareInfo | null => {
 		try {
 			const parsed = JSON.parse(text) as FareInfo;
-			parsed.messages = Array.isArray(parsed.messages) ? [...parsed.messages] : [];
-			return parsed;
+			const normalized = normalizeKilometers(parsed);
+			normalized.messages = Array.isArray(normalized.messages) ? [...normalized.messages] : [];
+			return normalized;
 		} catch (err) {
 			return null;
 		}

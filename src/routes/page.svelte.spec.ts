@@ -10,7 +10,7 @@ class MockFarert implements FaretClass {
 	private notSameKokura = false;
 	fareInfoJson = JSON.stringify({
 		fare: 1520,
-		totalSalesKm: 120,
+		totalSalesKm: 1200,
 		ticketAvailDays: 3
 	});
 
