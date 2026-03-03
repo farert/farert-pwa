@@ -4,6 +4,7 @@ import { render } from 'vitest-browser-svelte';
 
 const initFarertMock = vi.fn();
 const decompressMock = vi.fn();
+const gotoMock = vi.fn();
 
 vi.mock('$lib/wasm', () => ({
 	initFarert: () => initFarertMock()
@@ -13,13 +14,23 @@ vi.mock('$lib/utils/urlRoute', () => ({
 	decompressRouteFromUrl: (...args: unknown[]) => decompressMock(...args)
 }));
 
+vi.mock('$app/navigation', () => ({
+	goto: (...args: unknown[]) => gotoMock(...args)
+}));
+
+vi.mock('$app/paths', () => ({
+	base: '/farert-pwa'
+}));
+
 const { default: DetailPage } = await import('./+page.svelte');
 
 	describe('/detail/+page.svelte', () => {
 		beforeEach(() => {
 			initFarertMock.mockReset();
 			decompressMock.mockReset();
+			gotoMock.mockReset();
 			initFarertMock.mockResolvedValue(undefined);
+			vi.unstubAllGlobals();
 		});
 
 	it('shows an error when route parameter is missing', async () => {
@@ -209,5 +220,61 @@ const { default: DetailPage } = await import('./+page.svelte');
 		await expect
 			.element(page.getByText('発着駅の都区市内を除き途中下車できます'))
 			.toBeInTheDocument();
+	});
+
+	it('copies fare export text when export button is clicked', async () => {
+		const writeTextMock = vi.fn(async () => undefined);
+		vi.stubGlobal('navigator', { clipboard: { writeText: writeTextMock } });
+		const fakeRoute = {
+			routeScript: () => '東京,東海道線,熱海',
+			departureStationName: () => '東京',
+			arrivevalStationName: () => '熱海',
+			showFare: () => 'EXPORT_FOR_CLIPBOARD',
+			getFareInfoObjectJson: () =>
+				JSON.stringify({
+					fareResultCode: 0,
+					fare: 1980,
+					totalSalesKm: 1045,
+					ticketAvailDays: 2,
+					messages: []
+				})
+		};
+		decompressMock.mockReturnValue(fakeRoute);
+
+		render(DetailPage, { initialCompressedRoute: 'encoded-copy' });
+		await page.getByRole('button', { name: '結果エクスポート' }).click();
+
+		expect(writeTextMock).toHaveBeenCalledTimes(1);
+		expect(writeTextMock).toHaveBeenCalledWith('EXPORT_FOR_CLIPBOARD');
+	});
+
+	it('shares URL with base path', async () => {
+		const shareMock = vi.fn(async () => undefined);
+		vi.stubGlobal('navigator', { share: shareMock });
+		const fakeRoute = {
+			routeScript: () => '東京,東海道線,熱海',
+			departureStationName: () => '東京',
+			arrivevalStationName: () => '熱海',
+			showFare: () => 'EXPORT_FOR_SHARE',
+			getFareInfoObjectJson: () =>
+				JSON.stringify({
+					fareResultCode: 0,
+					fare: 1980,
+					totalSalesKm: 1045,
+					ticketAvailDays: 2,
+					messages: []
+				})
+		};
+		decompressMock.mockReturnValue(fakeRoute);
+
+		render(DetailPage, { initialCompressedRoute: 'encoded-share' });
+		await page.getByRole('button', { name: '共有' }).click();
+
+		expect(shareMock).toHaveBeenCalledTimes(1);
+		expect(shareMock).toHaveBeenCalledWith(
+			expect.objectContaining({
+				url: expect.stringContaining('/farert-pwa/detail?r=encoded-share')
+			})
+		);
 	});
 });

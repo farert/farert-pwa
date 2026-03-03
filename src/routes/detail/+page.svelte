@@ -204,7 +204,15 @@ function buildShareUrl(token: string): string {
 	const origin =
 		typeof window !== 'undefined' && window.location?.origin ? window.location.origin : '';
 	const normalizedOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
-	return `${normalizedOrigin}/detail?r=${token}`;
+	const normalizedBase = normalizeBasePath(base);
+	return `${normalizedOrigin}${normalizedBase}/detail?r=${token}`;
+}
+
+function normalizeBasePath(path: string): string {
+	if (!path) return '';
+	const prefixed = path.startsWith('/') ? path : `/${path}`;
+	if (prefixed === '/') return '';
+	return prefixed.endsWith('/') ? prefixed.slice(0, -1) : prefixed;
 }
 
 function safeStationName(resolver: () => string): string {
@@ -480,8 +488,10 @@ async function copyFareExport(): Promise<void> {
 	showExportMessage('このブラウザではコピーに対応していません');
 }
 
-function openExportDialog(): void {
+async function openExportDialog(): Promise<void> {
 	exportDialogOpen = Boolean(fareExportText);
+	if (!exportDialogOpen) return;
+	await copyFareExport();
 }
 
 function closeExportDialog(): void {
