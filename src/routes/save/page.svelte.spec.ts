@@ -139,10 +139,15 @@ vi.mock('$app/navigation', () => ({
 }));
 
 const initFarertMock = vi.fn().mockResolvedValue(undefined);
+const pasteRouteFromClipboardMock = vi.fn();
 
 vi.mock('$lib/wasm', () => ({
 	initFarert: () => initFarertMock(),
 	Farert: MockFarert
+}));
+
+vi.mock('$lib/storage', () => ({
+	pasteRouteFromClipboard: (...args: unknown[]) => pasteRouteFromClipboardMock(...args)
 }));
 
 const mainRouteStore: Writable<FaretClass | null> = writable(null);
@@ -161,8 +166,10 @@ const { default: SavePage } = await import('./+page.svelte');
 
 describe('/save/+page.svelte', () => {
 	beforeEach(() => {
+		vi.unstubAllGlobals();
 		gotoMock.mockReset();
 		initFarertMock.mockResolvedValue(undefined);
+		pasteRouteFromClipboardMock.mockReset();
 		mainRouteStore.set(null);
 		savedRoutesStore.set([]);
 		ticketHolderStore.set([]);
@@ -200,6 +207,40 @@ describe('/save/+page.svelte', () => {
 		expect(get(savedRoutesStore)).toContain('東京,東海道線,熱海,伊東線,伊東,伊豆急行,伊豆急下田');
 	});
 
+	it('既存の保存経路重複を初期表示時に解消する', async () => {
+		savedRoutesStore.set(['東京,東海道線,熱海', ' 東京,東海道線,熱海 ', '', '仙台,東北線,盛岡']);
+		render(SavePage);
+
+		await expect.element(page.getByText('東京,東海道線,熱海')).toBeInTheDocument();
+		expect(get(savedRoutesStore)).toEqual(['東京,東海道線,熱海', '仙台,東北線,盛岡']);
+	});
+
+	it('同一経路が保存済みなら保存時に重複追加しない', async () => {
+		const current = new MockFarert();
+		current.buildRoute('東京,東海道線,熱海,伊東線,伊東');
+		mainRouteStore.set(current);
+		savedRoutesStore.set([' 東京,東海道線,熱海,伊東線,伊東 ']);
+		render(SavePage);
+
+		const saveButton = page.getByRole('button', { name: '保存', exact: true });
+		await saveButton.click();
+
+		expect(get(savedRoutesStore)).toEqual(['東京,東海道線,熱海,伊東線,伊東']);
+	});
+
+	it('現在経路と保存経路が同一でも表示は1行にする', async () => {
+		const current = new MockFarert();
+		current.buildRoute('東京,東海道線,熱海,伊東線,伊東');
+		mainRouteStore.set(current);
+		savedRoutesStore.set(['東京,東海道線,熱海,伊東線,伊東']);
+		render(SavePage);
+
+		const routeButton = page.getByRole('button', {
+			name: '経路 東京,東海道線,熱海,伊東線,伊東'
+		});
+		await expect.element(routeButton).toBeInTheDocument();
+	});
+
 	it('編集モードで削除できる', async () => {
 		savedRoutesStore.set(['R1', 'R2']);
 
@@ -212,5 +253,35 @@ describe('/save/+page.svelte', () => {
 		await deleteButton.click();
 
 		expect(get(savedRoutesStore)).toEqual(['R2']);
+	});
+
+	it('経路が2区間以上あるとき保存経路選択で確認し、Noなら何もしない', async () => {
+		const current = new MockFarert();
+		current.buildRoute('東京,東海道線,熱海,伊東線,伊東');
+		mainRouteStore.set(current);
+		savedRoutesStore.set(['仙台,東北線,盛岡']);
+
+		render(SavePage);
+
+		await page.getByText('仙台,東北線,盛岡').click();
+		await page.getByRole('button', { name: 'いいえ' }).click();
+
+		expect(gotoMock).not.toHaveBeenCalled();
+		expect(get(mainRouteStore)?.routeScript()).toBe('東京,東海道線,熱海,伊東線,伊東');
+	});
+
+	it('経路が2区間以上あるとき保存経路選択で確認し、Yesなら適用する', async () => {
+		const current = new MockFarert();
+		current.buildRoute('東京,東海道線,熱海,伊東線,伊東');
+		mainRouteStore.set(current);
+		savedRoutesStore.set(['仙台,東北線,盛岡']);
+
+		render(SavePage);
+
+		await page.getByText('仙台,東北線,盛岡').click();
+		await page.getByRole('button', { name: 'はい' }).click();
+
+		expect(gotoMock).toHaveBeenCalledWith('/');
+		expect(get(mainRouteStore)?.routeScript()).toBe('仙台,東北線,盛岡');
 	});
 });

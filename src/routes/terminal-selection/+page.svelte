@@ -112,6 +112,9 @@ const screenTitle = $derived(
 let { initialMode = '' } = $props<{ initialMode?: 'start' | 'destination' }>();
 let autoRouteDialogOpen = $state(false);
 let pendingDestinationStation = $state('');
+let confirmDialogOpen = $state(false);
+let confirmDialogMessage = $state('');
+let confirmResolver: ((result: boolean) => void) | null = null;
 
 interface ParseListOptions {
 	suppressError?: boolean;
@@ -695,6 +698,9 @@ async function handleStationSelect(station: string): Promise<void> {
 		if (!route) {
 			route = new Farert();
 		}
+		if (shouldConfirmRouteOverwrite(route) && !(await confirmRouteOverwrite())) {
+			return;
+		}
 		route.removeAll();
 		const result = route.addStartRoute(station);
 		if (result < 0) {
@@ -710,6 +716,40 @@ async function handleStationSelect(station: string): Promise<void> {
 	} finally {
 		panelLoading = false;
 	}
+}
+
+function shouldConfirmRouteOverwrite(route: FaretClass): boolean {
+	try {
+		const count = route.getRouteCount ? route.getRouteCount() : 0;
+		return typeof count === 'number' && count >= 2;
+	} catch (err) {
+		console.warn('[TERMINAL_SELECTION] 経路数の取得に失敗しました', err);
+		return false;
+	}
+}
+
+function confirmRouteOverwrite(): Promise<boolean> {
+	return openConfirmDialog('経路が消去されますがよろしいですか？');
+}
+
+function openConfirmDialog(message: string): Promise<boolean> {
+	if (confirmResolver) {
+		confirmResolver(false);
+		confirmResolver = null;
+	}
+	confirmDialogMessage = message;
+	confirmDialogOpen = true;
+	return new Promise((resolve) => {
+		confirmResolver = resolve;
+	});
+}
+
+function resolveConfirmDialog(result: boolean): void {
+	confirmDialogOpen = false;
+	confirmDialogMessage = '';
+	const resolver = confirmResolver;
+	confirmResolver = null;
+	resolver?.(result);
 }
 
 function cancelAutoRouteDialog(): void {
@@ -1143,6 +1183,21 @@ function showHistory(): boolean {
 					</button>
 					<button type="button" class="secondary" onclick={cancelAutoRouteDialog}>
 						キャンセル
+					</button>
+				</div>
+			</div>
+		</div>
+	{/if}
+
+	{#if confirmDialogOpen}
+		<div class="dialog-backdrop" role="dialog" aria-modal="true" aria-label="確認ダイアログ">
+			<div class="dialog-card">
+				<h2>確認</h2>
+				<p>{confirmDialogMessage}</p>
+				<div class="dialog-actions">
+					<button type="button" onclick={() => resolveConfirmDialog(true)}>はい</button>
+					<button type="button" class="secondary" onclick={() => resolveConfirmDialog(false)}>
+						いいえ
 					</button>
 				</div>
 			</div>

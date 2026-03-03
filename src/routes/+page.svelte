@@ -52,6 +52,10 @@ let holderView = $state<
 >([]);
 let info = $state('');
 let theme = $state<'light' | 'dark'>('light');
+let currentRouteScript = $state('');
+let confirmDialogOpen = $state(false);
+let confirmDialogMessage = $state('');
+let confirmResolver: ((result: boolean) => void) | null = null;
 const osakaMenuLabel = $derived(
 	osakaDetourSelected ? '大阪環状線近回り' : '大阪環状線遠回り'
 );
@@ -212,11 +216,12 @@ function parseFareInfoJson(raw: unknown): FareInfo | null {
 			return;
 		}
 
-		const script = current.routeScript().trim();
+		const script = safeRouteScript(current);
 		if (!script) {
 			resetView();
 			return;
 		}
+		currentRouteScript = script;
 
 	const tokens = script
 		.split(',')
@@ -288,6 +293,7 @@ function parseFareInfoJson(raw: unknown): FareInfo | null {
 }
 
 function resetView() {
+	currentRouteScript = '';
 	startStation = '';
 	segments = [];
 	fareInfo = null;
@@ -556,9 +562,12 @@ function handleUndo() {
 		updateHolderView();
 	}
 
-	function handleHolderSelect(drawerItem: { item: TicketHolderItem }): void {
+	async function handleHolderSelect(drawerItem: { item: TicketHolderItem }): Promise<void> {
 		const script = drawerItem.item.routeScript;
 		if (!script) return;
+		if (shouldConfirmRouteOverwrite(script) && !(await confirmRouteOverwrite())) {
+			return;
+		}
 		try {
 			const next = new Farert();
 			const rc = next.buildRoute(script);
@@ -573,6 +582,46 @@ function handleUndo() {
 			console.error('きっぷホルダの適用に失敗しました', err);
 			error = 'きっぷホルダの適用に失敗しました。';
 		}
+	}
+
+	function safeRouteScript(target: FaretClass | null): string {
+		try {
+			return target?.routeScript()?.trim() ?? '';
+		} catch (err) {
+			console.warn('経路スクリプト取得に失敗しました', err);
+			return '';
+		}
+	}
+
+	function shouldConfirmRouteOverwrite(nextScript: string): boolean {
+		const currentScript = safeRouteScript(route);
+		if (!currentScript || currentScript === nextScript) return false;
+		const count = resolveRouteCount(route, currentScript);
+		return count >= 2;
+	}
+
+	function confirmRouteOverwrite(): Promise<boolean> {
+		return openConfirmDialog('経路が消去されますがよろしいですか？');
+	}
+
+	function openConfirmDialog(message: string): Promise<boolean> {
+		if (confirmResolver) {
+			confirmResolver(false);
+			confirmResolver = null;
+		}
+		confirmDialogMessage = message;
+		confirmDialogOpen = true;
+		return new Promise((resolve) => {
+			confirmResolver = resolve;
+		});
+	}
+
+	function resolveConfirmDialog(result: boolean): void {
+		confirmDialogOpen = false;
+		confirmDialogMessage = '';
+		const resolver = confirmResolver;
+		confirmResolver = null;
+		resolver?.(result);
 	}
 
 	function resolveRouteCount(target: FaretClass | null, script: string): number {
@@ -824,6 +873,27 @@ function handleUndo() {
 			aria-label="メニューを閉じる"
 			onclick={closeMenus}
 		></button>
+	{/if}
+
+	{#if confirmDialogOpen}
+		<div class="confirm-overlay" role="dialog" aria-modal="true" aria-label="確認ダイアログ">
+			<section class="confirm-card">
+				<h3>確認</h3>
+				<p>{confirmDialogMessage}</p>
+				<div class="confirm-actions">
+					<button type="button" class="confirm-primary" onclick={() => resolveConfirmDialog(true)}>
+						はい
+					</button>
+					<button
+						type="button"
+						class="confirm-secondary"
+						onclick={() => resolveConfirmDialog(false)}
+					>
+						いいえ
+					</button>
+				</div>
+			</section>
+		</div>
 	{/if}
 
 	<DrawerNavigation
@@ -1263,6 +1333,60 @@ function handleUndo() {
 
 	.menu-overlay.dim {
 		background: var(--overlay-dim);
+	}
+
+	.confirm-overlay {
+		position: fixed;
+		inset: 0;
+		display: grid;
+		place-items: center;
+		background: rgba(2, 6, 23, 0.45);
+		backdrop-filter: blur(2px);
+		z-index: 60;
+	}
+
+	.confirm-card {
+		width: min(420px, calc(100% - 2rem));
+		background: var(--card-bg);
+		border-radius: 1rem;
+		padding: 1rem;
+		box-shadow: 0 24px 40px rgba(15, 23, 42, 0.35);
+	}
+
+	.confirm-card h3 {
+		margin: 0 0 0.5rem;
+		font-size: 1.05rem;
+		color: var(--title-color);
+	}
+
+	.confirm-card p {
+		margin: 0;
+		color: var(--text-main);
+	}
+
+	.confirm-actions {
+		margin-top: 1rem;
+		display: flex;
+		justify-content: flex-end;
+		gap: 0.5rem;
+	}
+
+	.confirm-actions button {
+		border: none;
+		border-radius: 0.65rem;
+		padding: 0.5rem 0.95rem;
+		font-weight: 700;
+		cursor: pointer;
+	}
+
+	.confirm-primary {
+		background: #2563eb;
+		color: #fff;
+	}
+
+	.confirm-secondary {
+		background: #e5e7eb;
+		color: #1f2937;
 	}
 
 	.bottom-nav button:disabled {

@@ -18,6 +18,9 @@ import { pasteRouteFromClipboard } from '$lib/storage';
 	let savedList = $state<string[]>([]);
     let holderItems = $state<TicketHolderItem[]>([]);
     let warnDialog = $state('');
+	let confirmDialogOpen = $state(false);
+	let confirmDialogMessage = $state('');
+	let confirmResolver: ((result: boolean) => void) | null = null;
 
 	let unsubscribeRoute: (() => void) | null = null;
 	let unsubscribeSaved: (() => void) | null = null;
@@ -33,7 +36,11 @@ import { pasteRouteFromClipboard } from '$lib/storage';
 					currentRouteScript = safeRouteScript(value);
 				});
 				unsubscribeSaved = savedRoutes.subscribe((value) => {
-					savedList = [...value];
+					const normalized = uniqueRouteScripts(value);
+					savedList = normalized;
+					if (!isSameRoutes(value, normalized)) {
+						savedRoutes.set(normalized);
+					}
 				});
 				unsubscribeHolder = ticketHolder.subscribe((value) => {
 					holderItems = [...value];
@@ -57,14 +64,41 @@ import { pasteRouteFromClipboard } from '$lib/storage';
 		currentRouteScript && savedList.some((route) => route === currentRouteScript)
 	);
 	const currentRouteCount = $derived(getCurrentRouteCount());
+	const visibleSavedList = $derived(
+		savedList.filter((route) => !(currentRouteCount > 1 && route === currentRouteScript))
+	);
 
 	function safeRouteScript(route: FaretClass | null): string {
 		try {
-			return route?.routeScript()?.trim() ?? '';
+			return normalizeRouteScript(route?.routeScript() ?? '');
 		} catch (err) {
 			console.warn('経路スクリプト取得に失敗しました', err);
 			return '';
 		}
+	}
+
+	function normalizeRouteScript(routeScript: string): string {
+		return (routeScript ?? '').trim();
+	}
+
+	function uniqueRouteScripts(routes: string[]): string[] {
+		const seen = new Set<string>();
+		const normalized: string[] = [];
+		for (const route of routes) {
+			const trimmed = normalizeRouteScript(route);
+			if (!trimmed || seen.has(trimmed)) continue;
+			seen.add(trimmed);
+			normalized.push(trimmed);
+		}
+		return normalized;
+	}
+
+	function isSameRoutes(left: string[], right: string[]): boolean {
+		if (left.length !== right.length) return false;
+		for (let i = 0; i < left.length; i += 1) {
+			if (left[i] !== right[i]) return false;
+		}
+		return true;
 	}
 
 	function showInfo(message: string): void {
@@ -91,7 +125,8 @@ import { pasteRouteFromClipboard } from '$lib/storage';
 
 	function handleSaveCurrent(): void {
 		clearMessages();
-		if (!currentRouteScript) {
+		const normalizedCurrent = normalizeRouteScript(currentRouteScript);
+		if (!normalizedCurrent) {
 			showError('保存する経路がありません。');
 			return;
 		}
@@ -100,13 +135,13 @@ import { pasteRouteFromClipboard } from '$lib/storage';
 			warnDialog = '1区間以下の経路は保存できません。';
 			return;
 		}
-		if (isCurrentSaved) {
+		if (savedList.includes(normalizedCurrent)) {
 			showInfo('すでに保存済みです。');
 			return;
 	    }
-        savedRoutes.update((list) => [currentRouteScript, ...list]);
-        showInfo('保存しました。');
-    }
+		savedRoutes.update((list) => uniqueRouteScripts([normalizedCurrent, ...list]));
+	        showInfo('保存しました。');
+	    }
 
     function getCurrentRouteCount(): number {
         try {
@@ -119,23 +154,41 @@ import { pasteRouteFromClipboard } from '$lib/storage';
         }
     }
 
-    function handleDeleteRoute(index: number): void {
-        savedRoutes.update((list) => list.filter((_, i) => i !== index));
-    }
+	    function handleDeleteRoute(routeScript: string): void {
+		const normalized = normalizeRouteScript(routeScript);
+		if (!normalized) return;
+	        savedRoutes.update((list) => list.filter((item) => normalizeRouteScript(item) !== normalized));
+	    }
 
 	function handleDeleteCurrent(): void {
 		if (!currentRouteScript) return;
-		const idx = savedList.findIndex((r) => r === currentRouteScript);
-		if (idx >= 0) {
-			handleDeleteRoute(idx);
-		}
+		handleDeleteRoute(currentRouteScript);
 	}
 
-    function shouldConfirmOverride(targetScript: string): boolean {
-        if (!currentRouteScript || currentRouteScript === targetScript) return false;
-        const isInHolder = holderItems.some((item) => item.routeScript === currentRouteScript);
-        return !isCurrentSaved && !isInHolder;
-    }
+	function shouldConfirmRouteOverwrite(targetScript: string): boolean {
+		if (!currentRouteScript || currentRouteScript === targetScript) return false;
+		return getCurrentRouteCount() >= 2;
+	}
+
+	function resolveConfirmDialog(result: boolean): void {
+		confirmDialogOpen = false;
+		confirmDialogMessage = '';
+		const resolver = confirmResolver;
+		confirmResolver = null;
+		resolver?.(result);
+	}
+
+	function requestConfirm(message: string): Promise<boolean> {
+		if (confirmResolver) {
+			confirmResolver(false);
+			confirmResolver = null;
+		}
+		confirmDialogMessage = message;
+		confirmDialogOpen = true;
+		return new Promise((resolve) => {
+			confirmResolver = resolve;
+		});
+	}
 
 	function isBuildSuccess(result: unknown): boolean {
 		if (typeof result === 'number') return result >= 0;
@@ -154,15 +207,22 @@ import { pasteRouteFromClipboard } from '$lib/storage';
 		return false;
 	}
 
-    function applyRoute(routeScript: string): void {
+    async function applyRoute(routeScript: string): Promise<void> {
         clearMessages();
-        if (shouldConfirmOverride(routeScript)) {
-            const ok = window.confirm('⚠️経路は保存されていません。上書きしてよろしいですか？');
-            if (!ok) return;
-        }
-        try {
-            const route = new Farert();
-            const result = route.buildRoute(routeScript);
+		const normalizedScript = normalizeRouteScript(routeScript);
+		if (!normalizedScript) {
+			showError('経路データが不正です。');
+			return;
+		}
+			if (
+				shouldConfirmRouteOverwrite(normalizedScript) &&
+				!(await requestConfirm('経路が消去されますがよろしいですか？'))
+			) {
+				return;
+			}
+	        try {
+	            const route = new Farert();
+	            const result = route.buildRoute(normalizedScript);
             if (!isBuildSuccess(result)) {
                 showError(`経路の復元に失敗しました (コード: ${result})`);
                 return;
@@ -177,23 +237,24 @@ import { pasteRouteFromClipboard } from '$lib/storage';
 
 	async function handleImport(): Promise<void> {
 		clearMessages();
-		const ok = window.confirm('経路をインポートしてよろしいですか？');
+		const ok = await requestConfirm('経路をインポートしてよろしいですか？');
 		if (!ok) return;
 		const text = await pasteRouteFromClipboard();
 		if (!text) {
 			showError('クリップボードから読み取れませんでした。');
 			return;
 		}
-		try {
-			const route = new Farert();
-			const result = route.buildRoute(text.trim());
-			if (result !== 0) {
-				showError(`経路の書式不正により、インポートに失敗しました: コード ${result}`);
-				return;
-			}
-			const script = route.routeScript();
-			savedRoutes.update((list) => [script, ...list]);
-			showInfo('インポートしました。');
+			try {
+				const route = new Farert();
+				const normalizedImported = normalizeRouteScript(text);
+				const result = route.buildRoute(normalizedImported);
+				if (result !== 0) {
+					showError(`経路の書式不正により、インポートに失敗しました: コード ${result}`);
+					return;
+				}
+				const script = normalizeRouteScript(route.routeScript());
+				savedRoutes.update((list) => uniqueRouteScripts([script, ...list]));
+				showInfo('インポートしました。');
 		} catch (err) {
 			console.error('インポートエラー', err);
 			showError('経路のインポートに失敗しました。');
@@ -274,12 +335,12 @@ import { pasteRouteFromClipboard } from '$lib/storage';
 			{#if savedList.length === 0 && !currentRouteScript}
 				<p class="placeholder">保存された経路はありません。</p>
 			{:else}
-				{#each savedList as route, index}
+				{#each visibleSavedList as route}
 					<SavedRouteCard
 						route={route}
 						showDelete={isEditing}
 						onSelect={() => applyRoute(route)}
-						onDelete={() => handleDeleteRoute(index)}
+						onDelete={() => handleDeleteRoute(route)}
 					/>
 				{/each}
 			{/if}
@@ -306,6 +367,27 @@ import { pasteRouteFromClipboard } from '$lib/storage';
 			<section class="modal">
 				<p>{warnDialog}</p>
 				<button type="button" class="modal-close" onclick={() => (warnDialog = '')}>OK</button>
+			</section>
+		</div>
+	{/if}
+
+	{#if confirmDialogOpen}
+		<div class="modal-backdrop" role="dialog" aria-modal="true" aria-label="確認ダイアログ">
+			<section class="modal">
+				<h3>確認</h3>
+				<p>{confirmDialogMessage}</p>
+				<div class="confirm-actions">
+					<button type="button" class="confirm-primary" onclick={() => resolveConfirmDialog(true)}>
+						はい
+					</button>
+					<button
+						type="button"
+						class="confirm-secondary"
+						onclick={() => resolveConfirmDialog(false)}
+					>
+						いいえ
+					</button>
+				</div>
 			</section>
 		</div>
 	{/if}
@@ -439,6 +521,11 @@ import { pasteRouteFromClipboard } from '$lib/storage';
 		color: #111827;
 	}
 
+	.modal h3 {
+		margin: 0 0 0.5rem;
+		color: #111827;
+	}
+
 	.modal-close {
 		border: none;
 		background: #2563eb;
@@ -446,5 +533,28 @@ import { pasteRouteFromClipboard } from '$lib/storage';
 		padding: 0.5rem 1.1rem;
 		border-radius: 0.6rem;
 		font-weight: 700;
+	}
+
+	.confirm-actions {
+		display: flex;
+		justify-content: flex-end;
+		gap: 0.5rem;
+	}
+
+	.confirm-actions button {
+		border: none;
+		border-radius: 0.6rem;
+		padding: 0.5rem 1rem;
+		font-weight: 700;
+	}
+
+	.confirm-primary {
+		background: #2563eb;
+		color: #fff;
+	}
+
+	.confirm-secondary {
+		background: #e5e7eb;
+		color: #1f2937;
 	}
 </style>

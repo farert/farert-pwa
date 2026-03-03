@@ -189,6 +189,7 @@ const { default: TerminalSelectionPage } = await import('./+page.svelte');
 
 describe('/terminal-selection/+page.svelte', () => {
 	beforeEach(() => {
+		vi.unstubAllGlobals();
 		gotoMock.mockReset();
 		addToStationHistorySpy.mockClear();
 		mainRouteStore.set(null);
@@ -399,6 +400,50 @@ describe('/terminal-selection/+page.svelte', () => {
 		const historyStationButton = page.getByRole('button', { name: '仙台' });
 		await expect.element(historyStationButton).toBeInTheDocument();
 		await historyStationButton.click();
+
+		expect(gotoMock).toHaveBeenCalledWith('/');
+		expect(addToStationHistorySpy).toHaveBeenCalledWith('仙台');
+		const selectedRoute = get(mainRouteStore);
+		expect(selectedRoute?.routeScript()).toBe('仙台');
+	});
+
+	it('shows confirmation and does nothing when user cancels start-station overwrite', async () => {
+		const seededRoute = new MockFarert();
+		seededRoute.addStartRoute('東京');
+		(seededRoute as unknown as { getRouteCount: () => number }).getRouteCount = () => 2;
+		mainRouteStore.set(seededRoute);
+
+		render(TerminalSelectionPage);
+
+		const companyButton = page.getByRole('button', { name: 'JR東日本' });
+		await companyButton.click();
+		const lineButton = page.getByRole('button', { name: '東北新幹線' });
+		await lineButton.click();
+		const stationButton = page.getByRole('button', { name: '仙台' });
+		await stationButton.click();
+		await page.getByRole('button', { name: 'いいえ' }).click();
+
+		expect(gotoMock).not.toHaveBeenCalled();
+		expect(addToStationHistorySpy).not.toHaveBeenCalled();
+		const selectedRoute = get(mainRouteStore);
+		expect(selectedRoute?.routeScript()).toBe('東京');
+	});
+
+	it('overwrites start station when user confirms on multi-route warning', async () => {
+		const seededRoute = new MockFarert();
+		seededRoute.addStartRoute('東京');
+		(seededRoute as unknown as { getRouteCount: () => number }).getRouteCount = () => 2;
+		mainRouteStore.set(seededRoute);
+
+		render(TerminalSelectionPage);
+
+		const companyButton = page.getByRole('button', { name: 'JR東日本' });
+		await companyButton.click();
+		const lineButton = page.getByRole('button', { name: '東北新幹線' });
+		await lineButton.click();
+		const stationButton = page.getByRole('button', { name: '仙台' });
+		await stationButton.click();
+		await page.getByRole('button', { name: 'はい' }).click();
 
 		expect(gotoMock).toHaveBeenCalledWith('/');
 		expect(addToStationHistorySpy).toHaveBeenCalledWith('仙台');

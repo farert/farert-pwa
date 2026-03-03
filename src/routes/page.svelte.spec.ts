@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
-import { writable, type Writable } from 'svelte/store';
+import { get, writable, type Writable } from 'svelte/store';
 import type { FaretClass } from '$lib/wasm/types';
 
 class MockFarert implements FaretClass {
@@ -197,7 +197,9 @@ const { default: Page } = await import('./+page.svelte');
 
 describe('/+page.svelte', () => {
 	beforeEach(() => {
+		vi.unstubAllGlobals();
 		mainRouteStore.set(null);
+		ticketHolderStore.set([]);
 		initFarertMock.mockClear();
 		initStoresMock.mockClear();
 		gotoMock.mockReset();
@@ -365,5 +367,36 @@ it('hides fare summary card before route selection', async () => {
 		await expect.element(osakaDisable).toBeInTheDocument();
 		const kokuraItem = page.getByRole('menuitem', { name: '小倉博多間新幹線・在来線同一視' });
 		await expect.element(kokuraItem).not.toBeDisabled();
+	});
+
+	it('shows overwrite confirmation when selecting ticket holder route and cancels on No', async () => {
+		const seededRoute = new MockFarert();
+		seededRoute.buildRoute('東京,東海道線,熱海,伊東線,伊東');
+		mainRouteStore.set(seededRoute);
+		ticketHolderStore.set([{ order: 1, routeScript: '仙台,東北線,盛岡', fareType: 0 }]);
+
+		render(Page);
+
+		await page.getByRole('button', { name: 'きっぷホルダ', exact: true }).click();
+		await page.getByText('仙台 - 盛岡').click();
+		await page.getByRole('button', { name: 'いいえ' }).click();
+
+		expect(gotoMock).not.toHaveBeenCalled();
+		expect((seededRoute as MockFarert).routeScript()).toBe('東京,東海道線,熱海,伊東線,伊東');
+	});
+
+	it('applies ticket holder route when overwrite is confirmed', async () => {
+		const seededRoute = new MockFarert();
+		seededRoute.buildRoute('東京,東海道線,熱海,伊東線,伊東');
+		mainRouteStore.set(seededRoute);
+		ticketHolderStore.set([{ order: 1, routeScript: '仙台,東北線,盛岡', fareType: 0 }]);
+
+		render(Page);
+
+		await page.getByRole('button', { name: 'きっぷホルダ', exact: true }).click();
+		await page.getByText('仙台 - 盛岡').click();
+		await page.getByRole('button', { name: 'はい' }).click();
+
+		expect(get(mainRouteStore)?.routeScript()).toBe('仙台,東北線,盛岡');
 	});
 });
