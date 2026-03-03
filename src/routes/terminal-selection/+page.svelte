@@ -1248,6 +1248,9 @@ function showHistory(): boolean {
 		padding: 0.75rem 1rem;
 		border-radius: 0.75rem;
 		box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+		position: sticky;
+		top: 0;
+		z-index: 20;
 	}
 
 	.title h1 {

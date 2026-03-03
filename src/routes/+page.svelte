@@ -1106,6 +1106,9 @@ function handleUndo() {
 		gap: 1rem;
 		background: linear-gradient(135deg, var(--station-grad-start), var(--station-grad-end));
 		color: #fff;
+		position: sticky;
+		top: 0.75rem;
+		z-index: 12;
 	}
 
 	.station-card-text {
