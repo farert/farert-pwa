@@ -180,6 +180,7 @@ const initStoresMock = vi.fn();
 const mainRouteStore: Writable<FaretClass | null> = writable(null);
 const ticketHolderStore: Writable<unknown[]> = writable([]);
 const savedRoutesStore: Writable<string[]> = writable([]);
+const mainScreenErrorMessageStore: Writable<string> = writable('');
 
 vi.mock('$lib/wasm', () => ({
 	initFarert: () => initFarertMock(),
@@ -188,6 +189,7 @@ vi.mock('$lib/wasm', () => ({
 
 vi.mock('$lib/stores', () => ({
 	mainRoute: mainRouteStore,
+	mainScreenErrorMessage: mainScreenErrorMessageStore,
 	savedRoutes: savedRoutesStore,
 	ticketHolder: ticketHolderStore,
 	initStores: (...args: unknown[]) => initStoresMock(...args)
@@ -199,6 +201,7 @@ describe('/+page.svelte', () => {
 	beforeEach(() => {
 		vi.unstubAllGlobals();
 		mainRouteStore.set(null);
+		mainScreenErrorMessageStore.set('');
 		ticketHolderStore.set([]);
 		initFarertMock.mockClear();
 		initStoresMock.mockClear();
@@ -210,6 +213,16 @@ describe('/+page.svelte', () => {
 
 		const placeholder = page.getByText('発駅を指定してください');
 		await expect.element(placeholder).toBeInTheDocument();
+	});
+
+	it('shows deferred error message from transition store on main screen', async () => {
+		mainScreenErrorMessageStore.set('最短経路の計算に失敗しました: autoRoute rc=-2');
+		render(Page);
+
+		await expect
+			.element(page.getByText('最短経路の計算に失敗しました: autoRoute rc=-2'))
+			.toBeInTheDocument();
+		expect(get(mainScreenErrorMessageStore)).toBe('');
 	});
 
 it('hides fare summary card before route selection', async () => {

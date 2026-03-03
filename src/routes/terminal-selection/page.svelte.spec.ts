@@ -172,6 +172,7 @@ vi.mock('$lib/wasm', () => ({
 
 const mainRouteStore: Writable<FaretClass | null> = writable(null);
 const stationHistoryStore: Writable<string[]> = writable([]);
+const mainScreenErrorMessageStore: Writable<string> = writable('');
 const addToStationHistorySpy = vi.fn((station: string) => {
 	stationHistoryStore.update((history) => {
 		const filtered = history.filter((item) => item !== station);
@@ -181,6 +182,7 @@ const addToStationHistorySpy = vi.fn((station: string) => {
 
 vi.mock('$lib/stores', () => ({
 	mainRoute: mainRouteStore,
+	mainScreenErrorMessage: mainScreenErrorMessageStore,
 	stationHistory: stationHistoryStore,
 	addToStationHistory: (station: string) => addToStationHistorySpy(station)
 }));
@@ -193,6 +195,7 @@ describe('/terminal-selection/+page.svelte', () => {
 		gotoMock.mockReset();
 		addToStationHistorySpy.mockClear();
 		mainRouteStore.set(null);
+		mainScreenErrorMessageStore.set('');
 		stationHistoryStore.set([]);
 		wasmApi.initFarert.mockReset();
 		wasmApi.getCompanys.mockReset();
@@ -363,6 +366,41 @@ describe('/terminal-selection/+page.svelte', () => {
 
 		expect(seededRoute.autoRouteMock).toHaveBeenCalledWith(0, '仙台');
 		expect(gotoMock).toHaveBeenCalledWith('/');
+	});
+
+	it('treats autoRoute rc=1 as success and navigates to main', async () => {
+		const seededRoute = new MockFarert();
+		seededRoute.addStartRoute('柏木平');
+		seededRoute.autoRouteMock.mockReturnValue(1);
+		mainRouteStore.set(seededRoute);
+
+		render(TerminalSelectionPage, { initialMode: 'destination' });
+
+		await page.getByRole('button', { name: 'JR東日本' }).click();
+		await page.getByRole('button', { name: '東北新幹線' }).click();
+		await page.getByRole('button', { name: '仙台' }).click();
+		await page.getByRole('button', { name: '在来線のみ' }).click();
+
+		expect(seededRoute.autoRouteMock).toHaveBeenCalledWith(0, '仙台');
+		expect(gotoMock).toHaveBeenCalledWith('/');
+		expect(get(mainScreenErrorMessageStore)).toBe('');
+	});
+
+	it('navigates to main and sets message when autoRoute returns negative error', async () => {
+		const seededRoute = new MockFarert();
+		seededRoute.addStartRoute('柏木平');
+		seededRoute.autoRouteMock.mockReturnValue(-2);
+		mainRouteStore.set(seededRoute);
+
+		render(TerminalSelectionPage, { initialMode: 'destination' });
+
+		await page.getByRole('button', { name: 'JR東日本' }).click();
+		await page.getByRole('button', { name: '東北新幹線' }).click();
+		await page.getByRole('button', { name: '仙台' }).click();
+		await page.getByRole('button', { name: '在来線のみ' }).click();
+
+		expect(gotoMock).toHaveBeenCalledWith('/');
+		expect(get(mainScreenErrorMessageStore)).toContain('autoRoute rc=-2');
 	});
 
 	it('allows selecting a station via company → line → station flow', async () => {

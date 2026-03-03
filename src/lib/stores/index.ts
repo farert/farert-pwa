@@ -45,6 +45,13 @@ export const ticketHolder: Writable<TicketHolderItem[]> = writable([]);
 export const stationHistory: Writable<StationHistory> = writable([]);
 
 /**
+ * 画面遷移後にメイン画面へ表示する一時メッセージ
+ *
+ * localStorageには保存しません。
+ */
+export const mainScreenErrorMessage: Writable<string> = writable('');
+
+/**
  * localStorageへの自動同期を設定
  *
  * ブラウザ環境（window !== undefined）でのみ動作します。

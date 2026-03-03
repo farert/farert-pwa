@@ -7,7 +7,7 @@ import DrawerNavigation from '$lib/components/DrawerNavigation.svelte';
 import { initFarert, Farert } from '$lib/wasm';
 import type { FaretClass } from '$lib/wasm/types';
 import { FareType, type FareInfo, type TicketHolderItem } from '$lib/types';
-import { initStores, mainRoute, ticketHolder } from '$lib/stores';
+import { initStores, mainRoute, mainScreenErrorMessage, ticketHolder } from '$lib/stores';
 import { generateShareUrl, compressRouteForUrl } from '$lib/utils/urlRoute';
 
 	interface RouteSegment {
@@ -156,6 +156,7 @@ function parseFareInfoJson(raw: unknown): FareInfo | null {
 	onMount(() => {
 		let unsubscribe: (() => void) | null = null;
 		let unsubscribeHolder: (() => void) | null = null;
+		let unsubscribeMainError: (() => void) | null = null;
 
 		(async () => {
 			try {
@@ -166,6 +167,11 @@ function parseFareInfoJson(raw: unknown): FareInfo | null {
 				unsubscribe = mainRoute.subscribe((value) => {
 					route = value;
 					refreshRouteState(value);
+				});
+				unsubscribeMainError = mainScreenErrorMessage.subscribe((message) => {
+					if (!message) return;
+					error = message;
+					mainScreenErrorMessage.set('');
 				});
 				unsubscribeHolder = ticketHolder.subscribe((value) => {
 					holderItems = [...value].sort((a, b) => a.order - b.order);
@@ -182,6 +188,7 @@ function parseFareInfoJson(raw: unknown): FareInfo | null {
 		return () => {
 			unsubscribe?.();
 			unsubscribeHolder?.();
+			unsubscribeMainError?.();
 		};
 	});
 

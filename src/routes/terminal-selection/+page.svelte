@@ -16,7 +16,7 @@ import {
 	getKanaByStation,
 	getPrefectureByStation
 } from '$lib/wasm';
-import { addToStationHistory, mainRoute, stationHistory } from '$lib/stores';
+import { addToStationHistory, mainRoute, mainScreenErrorMessage, stationHistory } from '$lib/stores';
 import type { FaretClass } from '$lib/wasm/types';
 
 type Tab = 'group' | 'prefecture' | 'history';
@@ -788,17 +788,36 @@ async function executeAutoRoute(useBulletTrain: boolean, destination: string): P
 			return;
 		}
 		const autoRouteResult = route.autoRoute(useBulletTrain ? 1 : 0, destination);
-		if (autoRouteResult !== 0) {
-			handleError('最短経路の計算に失敗しました', new Error(`autoRoute rc=${autoRouteResult}`));
+		if (!isRouteOperationSuccess(autoRouteResult)) {
+			mainScreenErrorMessage.set(`最短経路の計算に失敗しました: autoRoute rc=${autoRouteResult}`);
+			await goto(`${base}/`);
 			return;
 		}
 		mainRoute.set(route);
 		await goto(`${base}/`);
 	} catch (err) {
-		handleError('最短経路の計算に失敗しました', err);
+		mainScreenErrorMessage.set('最短経路の計算に失敗しました。');
+		await goto(`${base}/`);
 	} finally {
 		panelLoading = false;
 	}
+}
+
+function isRouteOperationSuccess(result: unknown): boolean {
+	if (typeof result === 'number') return result >= 0;
+	if (typeof result === 'string') {
+		const trimmed = result.trim().replace(/\0/g, '');
+		const numeric = Number(trimmed);
+		if (!Number.isNaN(numeric)) return numeric >= 0;
+		try {
+			const parsed = JSON.parse(trimmed) as { rc?: number };
+			return typeof parsed.rc === 'number' ? parsed.rc >= 0 : false;
+		} catch {
+			const match = trimmed.match(/"rc"\s*:\s*(-?\d+)/);
+			return match ? Number(match[1]) >= 0 : false;
+		}
+	}
+	return false;
 }
 
 function removeHistoryItem(station: string): void {
