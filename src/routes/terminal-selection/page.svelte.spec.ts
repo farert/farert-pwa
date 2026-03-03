@@ -389,6 +389,23 @@ describe('/terminal-selection/+page.svelte', () => {
 		expect(selectedRoute?.routeScript()).toBe('仙台');
 	});
 
+	it('allows selecting a station from history tab', async () => {
+		stationHistoryStore.set(['仙台', '盛岡']);
+		render(TerminalSelectionPage);
+
+		const historyTab = page.getByRole('tab', { name: '履歴' });
+		await historyTab.click();
+
+		const historyStationButton = page.getByRole('button', { name: '仙台' });
+		await expect.element(historyStationButton).toBeInTheDocument();
+		await historyStationButton.click();
+
+		expect(gotoMock).toHaveBeenCalledWith('/');
+		expect(addToStationHistorySpy).toHaveBeenCalledWith('仙台');
+		const selectedRoute = get(mainRouteStore);
+		expect(selectedRoute?.routeScript()).toBe('仙台');
+	});
+
 	it('filters stations via search input and shows metadata', async () => {
 		render(TerminalSelectionPage);
 

@@ -849,10 +849,6 @@ function resetSwipe(station: string): void {
 
 function handleSwipeStart(station: string, event: PointerEvent): void {
 	if (!event.isPrimary) return;
-	const target = event.currentTarget as HTMLElement | null;
-	if (target) {
-		target.setPointerCapture(event.pointerId);
-	}
 	swipeSession = {
 		station,
 		startX: event.clientX,
@@ -872,10 +868,6 @@ function handleSwipeMove(station: string, event: PointerEvent): void {
 
 function handleSwipeEnd(station: string, event: PointerEvent): void {
 	if (!swipeSession || swipeSession.station !== station) return;
-	const target = event.currentTarget as HTMLElement | null;
-	if (target) {
-		target.releasePointerCapture(swipeSession.pointerId);
-	}
 	const current = getSwipeOffset(station);
 	const shouldOpen = Math.abs(current) > OPEN_THRESHOLD;
 	updateSwipeOffset(station, shouldOpen ? -MAX_SWIPE_DISTANCE : 0);
@@ -887,10 +879,6 @@ function handleSwipeEnd(station: string, event: PointerEvent): void {
 
 function handleSwipeCancel(station: string, event: PointerEvent): void {
 	if (!swipeSession || swipeSession.station !== station) return;
-	const target = event.currentTarget as HTMLElement | null;
-	if (target) {
-		target.releasePointerCapture(swipeSession.pointerId);
-	}
 	updateSwipeOffset(station, 0);
 	activeSwipeStation = null;
 	swipeSession = null;
@@ -1122,7 +1110,7 @@ function showHistory(): boolean {
 								class="history-content"
 								style={`transform: translateX(${getSwipeOffset(item)}px); transition: ${
 									activeSwipeStation === item ? 'none' : 'transform 0.2s ease'
-								}; pointer-events: ${getSwipeOffset(item) === 0 ? 'auto' : 'none'};`}
+								}; pointer-events: ${getSwipeOffset(item) <= -OPEN_THRESHOLD ? 'none' : 'auto'};`}
 							>
 								<button
 									type="button"
