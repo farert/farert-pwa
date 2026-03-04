@@ -8,7 +8,7 @@
 ## 概要
 [リポジトリ](https://github.com/farert)は3つに分けられています。
 - [farert](https://github.com/farert/farert): Android, iOS, macOS, Windows, database すべてのソースが格納（Active)(下図-左)
-- [farert-wasm](https://github.com/farert/farert-wasm): WASM. [farert](https://github.com/farert/farert)の[コアロジック](https://github.com/farert/farert/tree/main/app/alps)に依存しています（参照しています)(Active)
+- [farert-wasm](https://github.com/farert/farert-wasm): WebAssembly. [farert](https://github.com/farert/farert)の[コアロジック](https://github.com/farert/farert/tree/main/app/alps)に依存しています（参照しています)(Active-ほぼ確)
 - [farert-pwa](https://github.com/farert/farert-pwa): このリポジトリで、[farert-wasm](https://github.com/farert/farert-wasm) に依存します。(下図-右)
 
 <table>
@@ -40,7 +40,8 @@
 - Node.js 20+
 - pnpm
 - farert-wasmプロジェクトがビルド済み（`../farert-wasm/`）
-- Visual Stduio Code (Windowsの場合仮想環境使用せざる得ないので)
+- Docker Desktop (Windowsの場合仮想環境使用せざる得ないので)
+- Visual Stduio Code + DevContainer plug-in (同上)
 - (作者はWindowsを使用しての検証はしていません)
 
 ### インストール
