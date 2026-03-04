@@ -40,7 +40,8 @@
 - Node.js 20+
 - pnpm
 - farert-wasmプロジェクトがビルド済み（`../farert-wasm/`）
-- Visual Stduio Code (Windowsの場合仮想環境使用せざる得ないので)
+- Docker Desktop (Windowsの場合仮想環境使用せざる得ないので)
+- Visual Stduio Code + DevContainer plug-in (同上)
 - (作者はWindowsを使用しての検証はしていません)
 
 ### インストール
