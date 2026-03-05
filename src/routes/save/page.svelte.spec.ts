@@ -6,6 +6,7 @@ import type { FaretClass } from '$lib/wasm/types';
 
 class MockFarert implements FaretClass {
 	script = '';
+	static buildRouteMock = vi.fn<[string], number>(() => 0);
 
 	addStartRoute(station: string): number {
 		this.script = station;
@@ -40,7 +41,7 @@ class MockFarert implements FaretClass {
 
 	buildRoute(routeStr: string): number {
 		this.script = routeStr;
-		return 0;
+		return MockFarert.buildRouteMock(routeStr);
 	}
 
 	routeScript(): string {
@@ -170,6 +171,8 @@ describe('/save/+page.svelte', () => {
 		gotoMock.mockReset();
 		initFarertMock.mockResolvedValue(undefined);
 		pasteRouteFromClipboardMock.mockReset();
+		MockFarert.buildRouteMock.mockReset();
+		MockFarert.buildRouteMock.mockReturnValue(0);
 		mainRouteStore.set(null);
 		savedRoutesStore.set([]);
 		ticketHolderStore.set([]);
@@ -283,5 +286,30 @@ describe('/save/+page.svelte', () => {
 
 		expect(gotoMock).toHaveBeenCalledWith('/');
 		expect(get(mainRouteStore)?.routeScript()).toBe('仙台,東北線,盛岡');
+	});
+
+	it('インポート時に buildRoute rc=1 を成功扱いにする', async () => {
+		pasteRouteFromClipboardMock.mockResolvedValueOnce('東京,東海道線,熱海');
+		MockFarert.buildRouteMock.mockReturnValueOnce(1);
+		render(SavePage);
+
+		await page.getByRole('button', { name: 'インポート' }).click();
+		await page.getByRole('button', { name: 'はい' }).click();
+
+		expect(get(savedRoutesStore)).toContain('東京,東海道線,熱海');
+		await expect.element(page.getByText('インポートしました。')).toBeInTheDocument();
+	});
+
+	it('インポート時に改行区切りの複数経路を取り込む', async () => {
+		pasteRouteFromClipboardMock.mockResolvedValueOnce(
+			'東京,東海道線,熱海\n仙台,東北線,盛岡\n'
+		);
+		render(SavePage);
+
+		await page.getByRole('button', { name: 'インポート' }).click();
+		await page.getByRole('button', { name: 'はい' }).click();
+
+		expect(get(savedRoutesStore)).toEqual(['東京,東海道線,熱海', '仙台,東北線,盛岡']);
+		await expect.element(page.getByText('2件インポートしました。')).toBeInTheDocument();
 	});
 });

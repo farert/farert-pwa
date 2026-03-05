@@ -245,16 +245,46 @@ import { pasteRouteFromClipboard } from '$lib/storage';
 			return;
 		}
 			try {
-				const route = new Farert();
-				const normalizedImported = normalizeRouteScript(text);
-				const result = route.buildRoute(normalizedImported);
-				if (result !== 0) {
-					showError(`経路の書式不正により、インポートに失敗しました: コード ${result}`);
+				const candidates = text
+					.split(/\r?\n/u)
+					.map((line) => normalizeRouteScript(line))
+					.filter((line) => line.length > 0);
+				if (!candidates.length) {
+					showError('インポート対象の経路がありません。');
 					return;
 				}
-				const script = normalizeRouteScript(route.routeScript());
-				savedRoutes.update((list) => uniqueRouteScripts([script, ...list]));
-				showInfo('インポートしました。');
+
+				const imported: string[] = [];
+				let failed = 0;
+				for (const candidate of candidates) {
+					const route = new Farert();
+					const result = route.buildRoute(candidate);
+					if (!isBuildSuccess(result)) {
+						failed += 1;
+						continue;
+					}
+					const script = normalizeRouteScript(route.routeScript());
+					if (!script) {
+						failed += 1;
+						continue;
+					}
+					imported.push(script);
+				}
+
+				if (!imported.length) {
+					showError('経路の書式不正により、インポートに失敗しました。');
+					return;
+				}
+
+				savedRoutes.update((list) => uniqueRouteScripts([...imported, ...list]));
+				if (imported.length === 1) {
+					showInfo('インポートしました。');
+				} else {
+					showInfo(`${imported.length}件インポートしました。`);
+				}
+				if (failed > 0) {
+					showError(`${failed}件は書式不正のためインポートできませんでした。`);
+				}
 		} catch (err) {
 			console.error('インポートエラー', err);
 			showError('経路のインポートに失敗しました。');
