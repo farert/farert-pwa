@@ -71,6 +71,7 @@ export interface FaretModule {
 	getPrefectureByStation: (stationName: string) => string;
 	getKanaByStation: (stationName: string) => string;
 	searchStationByKeyword: (keyword: string) => string;
+	searchStationFuzzy?: (keyword: string, limit: number) => string;
 	getBranchStationsByLine: (lineName: string, stationName: string) => string;
 	getStationsByLine: (lineName: string) => string;
 	getPrefectId: (prefecture: string) => number;

@@ -76,8 +76,8 @@ pnpm dev
 # 本番ビルド（WASMファイルを自動コピー）
 pnpm build
 
-# プレビュー
-pnpm preview
+# ローカル動作確認（開発サーバー）
+pnpm dev
 ```
 
 ## デプロイ
@@ -104,9 +104,9 @@ pnpm preview
 # 本番モードでビルド（basePath: /farert-pwa/）
 NODE_ENV=production pnpm build
 
-# プレビュー（本番と同じパスでアクセス）
-pnpm preview
-# http://localhost:4173/farert-pwa/ を開く
+# ローカル確認（開発サーバー）
+pnpm dev
+# http://localhost:5173/ を開く
 ```
 
 #### WASMファイルの更新

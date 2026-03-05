@@ -12,7 +12,7 @@ import {
 	getStationsByCompanyAndLine,
 	getStationsByPrefectureAndLine,
 	getStationsByLine,
-	searchStationByKeyword,
+	searchStationFuzzy,
 	getKanaByStation,
 	getPrefectureByStation
 } from '$lib/wasm';
@@ -27,6 +27,17 @@ interface SearchResultItem {
 	name: string;
 	kana: string;
 	prefecture: string;
+}
+
+interface SearchMeta {
+	kana: string;
+	prefecture: string;
+}
+
+interface FuzzySearchItem {
+	name: string;
+	kana?: string;
+	score?: number;
 }
 
 const START_SCREEN_TITLE = '発駅選択';
@@ -857,23 +868,61 @@ function handleSearchInput(value: string): void {
 	performSearch(keyword);
 }
 
+function readStationMeta(station: string): SearchMeta {
+	try {
+		return {
+			kana: getKanaByStation(station) ?? '',
+			prefecture: getPrefectureByStation(station) ?? ''
+		};
+	} catch (err) {
+		console.warn('[TERMINAL_SELECTION] 駅メタデータ取得失敗', err);
+		return { kana: '', prefecture: '' };
+	}
+}
+
+function parseFuzzySearchItems(payload: string): FuzzySearchItem[] {
+	try {
+		if (!payload) return [];
+		const parsed = JSON.parse(payload) as { results?: unknown };
+		if (!Array.isArray(parsed.results)) return [];
+		const items: FuzzySearchItem[] = [];
+		for (const entry of parsed.results) {
+			if (!entry || typeof entry !== 'object') continue;
+			const record = entry as Record<string, unknown>;
+			const name = typeof record.name === 'string' ? record.name.trim() : '';
+			if (!name) continue;
+			const kana = typeof record.kana === 'string' ? record.kana.trim() : '';
+			const score = typeof record.score === 'number' ? record.score : undefined;
+			items.push({ name, kana, score });
+		}
+		return items;
+	} catch (err) {
+		console.warn('[TERMINAL_SELECTION] あいまい検索結果の解析に失敗しました', err);
+		return [];
+	}
+}
+
 async function performSearch(keyword: string): Promise<void> {
 	const token = ++searchToken;
 	searchLoading = true;
 	try {
-		const results = parseList(searchStationByKeyword(keyword), '駅検索に失敗しました', 'stations');
-		const enriched: SearchResultItem[] = [];
-		for (const station of results.slice(0, 50)) {
-			let kana = '';
-			let prefecture = '';
-			try {
-				kana = getKanaByStation(station) ?? '';
-				prefecture = getPrefectureByStation(station) ?? '';
-			} catch (err) {
-				console.warn('[TERMINAL_SELECTION] 駅メタデータ取得失敗', err);
-			}
-			enriched.push({ name: station, kana, prefecture });
-		}
+		const fuzzyItems = parseFuzzySearchItems(searchStationFuzzy(keyword, 50));
+		const enriched = fuzzyItems
+			.map((item) => {
+				const { kana, prefecture } = readStationMeta(item.name);
+				return {
+					name: item.name,
+					kana: item.kana && item.kana.length > 0 ? item.kana : kana,
+					prefecture,
+					score: item.score ?? 99
+				};
+			})
+			.sort((a, b) => {
+				if (a.score !== b.score) return a.score - b.score;
+				return a.name.localeCompare(b.name, 'ja');
+			})
+			.slice(0, 50)
+			.map(({ name, kana, prefecture }) => ({ name, kana, prefecture }));
 		if (token === searchToken) {
 			searchResults = enriched;
 		}
