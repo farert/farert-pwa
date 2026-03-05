@@ -148,7 +148,7 @@ const wasmApi = {
 	getStationsByLine: vi.fn<[string], string>(),
 	getStationsByCompanyAndLine: vi.fn<[string, string], string>(),
 	getStationsByPrefectureAndLine: vi.fn<[string, string], string>(),
-	searchStationByKeyword: vi.fn<[string], string>(),
+	searchStationFuzzy: vi.fn<[string, number], string>(),
 	getKanaByStation: vi.fn<[string], string>(),
 	getPrefectureByStation: vi.fn<[string], string>()
 };
@@ -165,7 +165,7 @@ vi.mock('$lib/wasm', () => ({
 		wasmApi.getStationsByCompanyAndLine(company, line),
 	getStationsByPrefectureAndLine: (prefecture: string, line: string) =>
 		wasmApi.getStationsByPrefectureAndLine(prefecture, line),
-	searchStationByKeyword: (keyword: string) => wasmApi.searchStationByKeyword(keyword),
+	searchStationFuzzy: (keyword: string, limit: number) => wasmApi.searchStationFuzzy(keyword, limit),
 	getKanaByStation: (station: string) => wasmApi.getKanaByStation(station),
 	getPrefectureByStation: (station: string) => wasmApi.getPrefectureByStation(station)
 }));
@@ -205,7 +205,7 @@ describe('/terminal-selection/+page.svelte', () => {
 		wasmApi.getStationsByLine.mockReset();
 		wasmApi.getStationsByCompanyAndLine.mockReset();
 		wasmApi.getStationsByPrefectureAndLine.mockReset();
-		wasmApi.searchStationByKeyword.mockReset();
+		wasmApi.searchStationFuzzy.mockReset();
 		wasmApi.getKanaByStation.mockReset();
 		wasmApi.getPrefectureByStation.mockReset();
 
@@ -241,7 +241,9 @@ describe('/terminal-selection/+page.svelte', () => {
 			}
 			return JSON.stringify(['立川']);
 		});
-		wasmApi.searchStationByKeyword.mockReturnValue(JSON.stringify(['東京', '品川']));
+		wasmApi.searchStationFuzzy.mockReturnValue(
+			JSON.stringify({ results: [{ name: '東京', score: 0 }, { name: '品川', score: 1 }] })
+		);
 		wasmApi.getKanaByStation.mockImplementation((station: string) => `${station}かな`);
 		wasmApi.getPrefectureByStation.mockImplementation((station: string) =>
 			station === '品川' ? '東京都' : '宮城県'
@@ -506,6 +508,55 @@ describe('/terminal-selection/+page.svelte', () => {
 		await clearButton.click();
 
 		await expect.element(tokyoButton).not.toBeInTheDocument();
+	});
+
+	it('accepts whitespace and notation variants when searching station names', async () => {
+		wasmApi.searchStationFuzzy.mockImplementation((keyword: string) => {
+			if (keyword === 'おち ゃの水') {
+				return JSON.stringify({ results: [{ name: '御茶ノ水', score: 0 }] });
+			}
+			return JSON.stringify({ results: [] });
+		});
+		wasmApi.getKanaByStation.mockImplementation((station: string) =>
+			station === '御茶ノ水' ? 'おちゃのみず' : `${station}かな`
+		);
+		wasmApi.getPrefectureByStation.mockImplementation((station: string) =>
+			station === '御茶ノ水' ? '東京都' : '宮城県'
+		);
+
+		render(TerminalSelectionPage);
+
+		const searchField = page.getByPlaceholder('駅名を検索');
+		await searchField.click();
+		await searchField.fill('おち ゃの水');
+
+		const stationButton = page.getByRole('button', { name: /^御茶ノ水$/ });
+		await expect.element(stationButton).toBeInTheDocument();
+	});
+
+	it('searches with ケヶが and 竜龍 variant expansion', async () => {
+		wasmApi.searchStationFuzzy.mockImplementation((keyword: string) => {
+			if (keyword === '竜が崎') {
+				return JSON.stringify({
+					results: [
+						{ name: '龍ヶ崎', score: 1 },
+						{ name: '竜ケ崎', score: 2 }
+					]
+				});
+			}
+			return JSON.stringify({ results: [] });
+		});
+		wasmApi.getKanaByStation.mockImplementation((station: string) => `${station}かな`);
+		wasmApi.getPrefectureByStation.mockImplementation(() => '茨城県');
+
+		render(TerminalSelectionPage);
+
+		const searchField = page.getByPlaceholder('駅名を検索');
+		await searchField.click();
+		await searchField.fill('竜が崎');
+
+		await expect.element(page.getByRole('button', { name: /^龍ヶ崎$/ })).toBeInTheDocument();
+		await expect.element(page.getByRole('button', { name: /^竜ケ崎$/ })).toBeInTheDocument();
 	});
 
 	it('shows prefecture based line labels on station list title', async () => {

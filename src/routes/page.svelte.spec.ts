@@ -389,9 +389,11 @@ it('hides fare summary card before route selection', async () => {
 		ticketHolderStore.set([{ order: 1, routeScript: '仙台,東北線,盛岡', fareType: 0 }]);
 
 		render(Page);
+		await expect.element(page.getByText('伊東線')).toBeInTheDocument();
 
 		await page.getByRole('button', { name: 'きっぷホルダ', exact: true }).click();
 		await page.getByText('仙台 - 盛岡').click();
+		await expect.element(page.getByRole('heading', { name: '確認' })).toBeInTheDocument();
 		await page.getByRole('button', { name: 'いいえ' }).click();
 
 		expect(gotoMock).not.toHaveBeenCalled();
@@ -405,9 +407,11 @@ it('hides fare summary card before route selection', async () => {
 		ticketHolderStore.set([{ order: 1, routeScript: '仙台,東北線,盛岡', fareType: 0 }]);
 
 		render(Page);
+		await expect.element(page.getByText('伊東線')).toBeInTheDocument();
 
 		await page.getByRole('button', { name: 'きっぷホルダ', exact: true }).click();
 		await page.getByText('仙台 - 盛岡').click();
+		await expect.element(page.getByRole('heading', { name: '確認' })).toBeInTheDocument();
 		await page.getByRole('button', { name: 'はい' }).click();
 
 		expect(get(mainRouteStore)?.routeScript()).toBe('仙台,東北線,盛岡');

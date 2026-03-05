@@ -304,6 +304,14 @@ export function searchStationByKeyword(keyword: string): string {
 	return getModule().searchStationByKeyword(keyword);
 }
 
+export function searchStationFuzzy(keyword: string, limit = 50): string {
+	const module = getModule();
+	if (typeof module.searchStationFuzzy === 'function') {
+		return module.searchStationFuzzy(keyword, limit);
+	}
+	return module.searchStationByKeyword(keyword);
+}
+
 export function getBranchStationsByLine(lineName: string, stationName: string): string {
 	return getModule().getBranchStationsByLine(lineName, stationName);
 }
