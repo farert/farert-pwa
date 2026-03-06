@@ -434,7 +434,7 @@ function handleUndo() {
 	function handleReverse() {
 		if (!route || !canReverse) return;
 		const result = route.reverse();
-		if (result !== 0) {
+		if (!isBuildSuccess(result)) {
 			error = '経路の反転に失敗しました。';
 			return;
 		}

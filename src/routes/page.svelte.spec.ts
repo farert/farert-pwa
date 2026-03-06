@@ -170,6 +170,13 @@ class MockFarert implements FaretClass {
 	}
 }
 
+class ReverseReturnOneFarert extends MockFarert {
+	override reverse(): number {
+		const rc = super.reverse();
+		return rc < 0 ? rc : 1;
+	}
+}
+
 const gotoMock = vi.fn();
 
 vi.mock('$app/navigation', () => ({
@@ -370,6 +377,20 @@ it('hides fare summary card before route selection', async () => {
 		expect(parsed.searchParams.get('from')).toBe('main');
 		expect(parsed.searchParams.get('station')).toBe('北上');
 		expect(parsed.searchParams.get('line')).toBe('北上線');
+	});
+
+	it('treats reverse rc=1 as success', async () => {
+		const seededRoute = new ReverseReturnOneFarert();
+		seededRoute.addStartRoute('夜ノ森');
+		seededRoute.addRoute('常磐線', '日暮里');
+		seededRoute.addRoute('東北線', '赤羽');
+		mainRouteStore.set(seededRoute);
+
+		render(Page);
+
+		await page.getByRole('button', { name: '反転' }).click();
+		await expect.element(page.getByRole('button', { name: '発駅 赤羽' })).toBeInTheDocument();
+		expect(get(mainRouteStore)?.routeScript()).toContain('赤羽');
 	});
 
 	it('opens the app menu and navigates to version info from the menu item', async () => {
