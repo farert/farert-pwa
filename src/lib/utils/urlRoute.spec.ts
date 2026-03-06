@@ -312,6 +312,28 @@ describe('urlRoute utilities', () => {
 		expect(url.startsWith('https://app.test/detail?r=')).toBe(true);
 	});
 
+	it('generates a share URL with the provided base path', () => {
+		const route = new FakeFarert('東京,東海道線,新大阪');
+
+		const url = generateShareUrl(route, -1, {
+			baseUrl: 'https://app.test',
+			basePath: '/farert-pwa',
+			ctor: FakeFarert
+		});
+		expect(url.startsWith('https://app.test/farert-pwa/detail?r=')).toBe(true);
+	});
+
+	it('normalizes base path delimiters when generating share URL', () => {
+		const route = new FakeFarert('東京,東海道線,新大阪');
+
+		const url = generateShareUrl(route, -1, {
+			baseUrl: 'https://app.test',
+			basePath: '/farert-pwa/',
+			ctor: FakeFarert
+		});
+		expect(url.startsWith('https://app.test/farert-pwa/detail?r=')).toBe(true);
+	});
+
 	it('falls back to window.location.origin when base URL is omitted', () => {
 		const route = new FakeFarert('東京,東海道線,新大阪');
 		globalThis.window = { location: { origin: 'https://farert.example' } } as Window;

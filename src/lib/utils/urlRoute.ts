@@ -103,6 +103,8 @@ function isSuccessfulBuild(result: unknown): boolean {
 interface ShareUrlOptions {
 	/** 明示的に指定するベースURL（未指定ならwindow.origin） */
 	baseUrl?: string;
+	/** SvelteKit の base path */
+	basePath?: string;
 	/** Farert互換コンストラクタ（テスト用） */
 	ctor?: FarertConstructor;
 }
@@ -125,7 +127,15 @@ export function generateShareUrl(
 		(typeof window !== 'undefined' && window.location?.origin ? window.location.origin : '');
 
 	const normalizedOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
-	return `${normalizedOrigin}/detail?r=${compressed}`;
+	const normalizedBase = normalizeBasePath(options?.basePath);
+	return `${normalizedOrigin}${normalizedBase}/detail?r=${compressed}`;
+}
+
+function normalizeBasePath(path: string | undefined): string {
+	if (!path) return '';
+	const prefixed = path.startsWith('/') ? path : `/${path}`;
+	if (prefixed === '/') return '';
+	return prefixed.endsWith('/') ? prefixed.slice(0, -1) : prefixed;
 }
 
 function selectRouteScript(routeScript: string, segmentCount: number): string {

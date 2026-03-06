@@ -272,7 +272,7 @@ function parseFareInfoJson(raw: unknown): FareInfo | null {
 	}
 
 	try {
-		detailLink = generateShareUrl(current);
+		detailLink = generateShareUrl(current, -1, { basePath: base });
 	} catch (err) {
 		console.error('シェアURLの生成に失敗しました', err);
 		detailLink = '';
