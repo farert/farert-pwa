@@ -401,7 +401,7 @@ function updateOptionAvailability(tokens: string[]) {
 	function openSegmentDetail(segmentIndex: number) {
 		if (!route) return;
 		try {
-			const compressed = compressRouteForUrl(route, segmentIndex);
+			const compressed = compressRouteForUrl(route, segmentIndex + 1);
 			goto(`${base}/detail?r=${compressed}`);
 		} catch (err) {
 			error = `詳細画面を開けませんでした: ${err}`;

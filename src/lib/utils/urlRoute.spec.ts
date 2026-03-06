@@ -185,6 +185,19 @@ class JsonNullFarert extends FakeFarert {
 	}
 }
 
+class StickyStateFarert extends FakeFarert {
+	override buildRoute(routeStr: string): number {
+		this.script = this.script ? `${this.script},${routeStr}` : routeStr;
+		return 0;
+	}
+}
+
+class AssignThrowFarert extends FakeFarert {
+	override assign(): void {
+		throw new Error('assign should not be called');
+	}
+}
+
 describe('urlRoute utilities', () => {
 	const originalWindow = globalThis.window;
 
@@ -212,11 +225,28 @@ describe('urlRoute utilities', () => {
 		expect(decompressed).toBe('東京,東海道線,名古屋');
 	});
 
+	it('does not depend on assign even when segmentCount is provided', () => {
+		const route = new AssignThrowFarert('東京,東海道線,名古屋,東海道線,新大阪');
+		const compressed = compressRouteForUrl(route, 1, AssignThrowFarert);
+		const decompressed = LZString.decompressFromEncodedURIComponent(compressed);
+
+		expect(decompressed).toBe('東京,東海道線,名古屋');
+	});
+
 	it('decompresses a route successfully', () => {
 		const script = '東京,東海道線,新大阪';
 		const compressed = LZString.compressToEncodedURIComponent(script);
 
 		const result = decompressRouteFromUrl(compressed, FakeFarert);
+		expect(result).not.toBeNull();
+		expect(result?.routeScript()).toBe(script);
+	});
+
+	it('clears existing route state before restoring from URL', () => {
+		const script = '夜ノ森,常磐線,日暮里';
+		const compressed = LZString.compressToEncodedURIComponent(script);
+
+		const result = decompressRouteFromUrl(compressed, StickyStateFarert);
 		expect(result).not.toBeNull();
 		expect(result?.routeScript()).toBe(script);
 	});

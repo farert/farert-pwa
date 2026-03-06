@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
+import LZString from 'lz-string';
 import { get, writable, type Writable } from 'svelte/store';
 import type { FaretClass } from '$lib/wasm/types';
 
@@ -312,6 +313,28 @@ it('hides fare summary card before route selection', async () => {
 			name: '区間 1 (東海道新幹線 → 新大阪)'
 		});
 		await expect.element(segmentButton).toBeInTheDocument();
+	});
+
+	it('opens detail with route up to the tapped intermediate station', async () => {
+		const seededRoute = new MockFarert();
+		seededRoute.addStartRoute('夜ノ森');
+		seededRoute.addRoute('常磐線', '日暮里');
+		seededRoute.addRoute('東北線', '赤羽');
+		mainRouteStore.set(seededRoute);
+
+		render(Page);
+
+		const segmentButton = page.getByRole('button', {
+			name: '区間 1 (常磐線 → 日暮里)'
+		});
+		await segmentButton.click();
+
+		const calledUrl = gotoMock.mock.calls.at(-1)?.[0] as string;
+		const parsed = new URL(calledUrl, 'https://example.com');
+		const compressed = parsed.searchParams.get('r') ?? '';
+		const decompressed = LZString.decompressFromEncodedURIComponent(compressed);
+		expect(parsed.pathname).toBe('/detail');
+		expect(decompressed).toBe('夜ノ森,常磐線,日暮里');
 	});
 
 	it('shows FareSummaryCard with detail action once fare info is available', async () => {

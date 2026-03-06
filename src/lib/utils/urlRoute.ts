@@ -14,20 +14,13 @@ export type FarertConstructor = new () => FaretClass;
 export function compressRouteForUrl(
 	route: FaretClass,
 	segmentCount = -1,
-	ctor?: FarertConstructor
+	_ctor?: FarertConstructor
 ): string {
 	if (!route) {
 		throw new Error('routeが指定されていません');
 	}
 
-	const RouteCtor = ctor ?? Farert;
-
-	let script = route.routeScript();
-	if (segmentCount >= 0) {
-		const clone = new RouteCtor();
-		clone.assign(route, segmentCount);
-		script = clone.routeScript();
-	}
+	const script = selectRouteScript(route.routeScript(), segmentCount);
 
 	if (!script || script.trim() === '') {
 		throw new Error('経路スクリプトが空です');
@@ -61,9 +54,9 @@ export function decompressRouteFromUrl(
 		}
 
 		const route = new RouteCtor();
-		const buildResult = route.buildRoute(script);
-		if (!isSuccessfulBuild(buildResult)) {
-			console.error('[URL_ROUTE] route.buildRouteが失敗しました:', buildResult, 'スクリプト:', script);
+		const restored = restoreRouteStrict(route, script);
+		if (!restored) {
+			console.error('[URL_ROUTE] route.buildRouteが失敗しました。スクリプト:', script);
 			return null;
 		}
 
@@ -133,4 +126,80 @@ export function generateShareUrl(
 
 	const normalizedOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
 	return `${normalizedOrigin}/detail?r=${compressed}`;
+}
+
+function selectRouteScript(routeScript: string, segmentCount: number): string {
+	if (segmentCount < 0) {
+		return routeScript;
+	}
+
+	const tokens = routeScript.split(',');
+	const sliceLength = Math.min(tokens.length, 1 + segmentCount * 2);
+	return tokens.slice(0, sliceLength).join(',');
+}
+
+function restoreRouteStrict(route: FaretClass, script: string): boolean {
+	try {
+		route.removeAll?.();
+	} catch (err) {
+		console.warn('[URL_ROUTE] route.removeAllに失敗しました', err);
+	}
+
+	const buildResult = route.buildRoute(script);
+	if (!isSuccessfulBuild(buildResult)) {
+		console.error('[URL_ROUTE] route.buildRouteが失敗しました:', buildResult, 'スクリプト:', script);
+		return false;
+	}
+
+	if (isSameRouteScript(route.routeScript(), script)) {
+		return true;
+	}
+
+	return rebuildByAddRoute(route, script);
+}
+
+function rebuildByAddRoute(route: FaretClass, script: string): boolean {
+	const tokens = tokenizeRouteScript(script);
+	if (!tokens.length || tokens.length % 2 === 0) {
+		return false;
+	}
+
+	try {
+		route.removeAll?.();
+	} catch (err) {
+		console.warn('[URL_ROUTE] route.removeAllに失敗しました', err);
+	}
+
+	const startResult = route.addStartRoute(tokens[0] ?? '');
+	if (!isSuccessfulBuild(startResult)) {
+		return false;
+	}
+
+	for (let i = 1; i < tokens.length; i += 2) {
+		const line = tokens[i];
+		const station = tokens[i + 1];
+		if (!line || !station) return false;
+		const addResult = route.addRoute(line, station);
+		if (!isSuccessfulBuild(addResult)) {
+			return false;
+		}
+	}
+
+	return isSameRouteScript(route.routeScript(), script);
+}
+
+function isSameRouteScript(actual: string, expected: string): boolean {
+	const actualTokens = tokenizeRouteScript(actual);
+	const expectedTokens = tokenizeRouteScript(expected);
+	if (actualTokens.length !== expectedTokens.length) {
+		return false;
+	}
+	return actualTokens.every((token, index) => token === expectedTokens[index]);
+}
+
+function tokenizeRouteScript(script: string): string[] {
+	return (script ?? '')
+		.split(/[,\s]+/)
+		.map((token) => token.trim())
+		.filter((token) => token.length > 0);
 }
