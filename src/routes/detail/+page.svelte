@@ -189,8 +189,10 @@ function parseFareInfo(route: FaretClass): FareInfo | null {
 
 function buildFareExportString(route: FaretClass): string {
 	try {
-		const exportText = route.showFare ? route.showFare() : '';
-		return typeof exportText === 'string' ? exportText : '';
+		const fareText = route.showFare ? route.showFare() : '';
+		const fareTextValue = typeof fareText === 'string' ? fareText : '';
+		const routeText = route.routeScript ? route.routeScript() : '';
+		return `${fareTextValue}[指定経路]\n${routeText}`;
 	} catch (err) {
 		console.warn('結果エクスポート文字列の生成に失敗しました', err);
 		return '';
@@ -938,8 +940,10 @@ function closeExportDialog(): void {
 	.export-card {
 		max-width: 640px;
 		width: calc(100% - 2rem);
-		max-height: 80vh;
+		max-height: min(90vh, 540px);
 		overflow: hidden;
+		display: flex;
+		flex-direction: column;
 	}
 
 	.export-card-header {
@@ -959,7 +963,7 @@ function closeExportDialog(): void {
 		font-size: 0.95rem;
 		white-space: pre-wrap;
 		word-break: break-word;
-		max-height: 40vh;
+		max-height: min(72vh, 420px);
 		overflow: auto;
 	}
 
