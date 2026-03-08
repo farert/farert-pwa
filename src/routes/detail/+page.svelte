@@ -33,7 +33,13 @@ let fareExportText = $state('');
 let exportDialogOpen = $state(false);
 let { initialCompressedRoute = null } = $props<{ initialCompressedRoute?: string | null }>();
 
-const routeTitle = $derived(startStation && endStation ? `${startStation} → ${endStation}` : '経路詳細');
+const routeTitle = $derived(
+	startStation && endStation ? `${startStation} → ${endStation}` : '経路詳細'
+);
+const routeIntervalTitle = $derived(resolveRouteTitle());
+const routeHeaderTitle = $derived(
+	startStation && endStation ? `${startStation} → ${endStation}` : '発駅未設定 → 到着駅未設定'
+);
 const kilometerRows = $derived(buildKilometerRows(fareInfo));
 const fareRows = $derived(buildFareRows(fareInfo));
 const validityText = $derived(formatValidDays(fareInfo?.ticketAvailDays));
@@ -222,6 +228,20 @@ function safeStationName(resolver: () => string): string {
 		console.warn('駅名の取得に失敗しました', err);
 		return '';
 	}
+}
+
+function resolveRouteTitle(): string {
+	const begin = (fareInfo?.beginStation ?? '').trim();
+	const end = (fareInfo?.endStation ?? '').trim();
+	if (begin || end) {
+		const from = begin || '発駅未設定';
+		const to = end || '到着駅未設定';
+		return `${from} → ${to}`;
+	}
+	if (startStation && endStation) {
+		return `${startStation} → ${endStation}`;
+	}
+	return '経路詳細';
 }
 
 function formatCurrency(value?: number | null): string {
@@ -505,8 +525,8 @@ function closeExportDialog(): void {
 			<span class="material-symbols-rounded" aria-hidden="true">arrow_back</span>
 		</button>
 		<div class="title-group">
-			<p>{startStation || '発駅未設定'}</p>
-			<h1>{routeTitle}</h1>
+			<p>運賃詳細</p>
+			<h1>{routeHeaderTitle}</h1>
 		</div>
 		<div class="actions">
 			<button
@@ -579,8 +599,8 @@ function closeExportDialog(): void {
 			{/if}
 
 			<section class="card route-header-card">
-				<p class="label">区間</p>
-				<p class="route-title">{routeTitle}</p>
+					<p class="label">区間</p>
+				<p class="route-title">{routeIntervalTitle}</p>
 			</section>
 
 			{#if fareInfo}

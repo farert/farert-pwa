@@ -21,6 +21,9 @@ import { pasteRouteFromClipboard } from '$lib/storage';
 	let confirmDialogOpen = $state(false);
 	let confirmDialogMessage = $state('');
 	let confirmResolver: ((result: boolean) => void) | null = null;
+	let importDialogOpen = $state(false);
+	let importDialogText = $state('');
+	let importDialogResolver: ((result: string | null) => void) | null = null;
 
 	let unsubscribeRoute: (() => void) | null = null;
 	let unsubscribeSaved: (() => void) | null = null;
@@ -190,6 +193,72 @@ import { pasteRouteFromClipboard } from '$lib/storage';
 		});
 	}
 
+	function openImportDialog(defaultText = ''): Promise<string | null> {
+		if (importDialogResolver) {
+			importDialogResolver(null);
+		}
+		importDialogText = defaultText;
+		importDialogOpen = true;
+		return new Promise((resolve) => {
+			importDialogResolver = resolve;
+		});
+	}
+
+	function resolveImportDialog(result: string | null): void {
+		importDialogOpen = false;
+		const resolver = importDialogResolver;
+		importDialogResolver = null;
+		resolver?.(result);
+	}
+
+	async function importRoutesFromText(rawText: string): Promise<void> {
+		try {
+			const candidates = rawText
+				.split(/\r?\n/u)
+				.map((line) => normalizeRouteScript(line))
+				.filter((line) => line.length > 0);
+			if (!candidates.length) {
+				showError('インポート対象の経路がありません。');
+				return;
+			}
+
+			const imported: string[] = [];
+			let failed = 0;
+			for (const candidate of candidates) {
+				const route = new Farert();
+				const result = route.buildRoute(candidate);
+				if (!isBuildSuccess(result)) {
+					failed += 1;
+					continue;
+				}
+				const script = normalizeRouteScript(route.routeScript());
+				if (!script) {
+					failed += 1;
+					continue;
+				}
+				imported.push(script);
+			}
+
+			if (!imported.length) {
+				showError('経路の書式不正により、インポートに失敗しました。');
+				return;
+			}
+
+			savedRoutes.update((list) => uniqueRouteScripts([...imported, ...list]));
+			if (imported.length === 1) {
+				showInfo('インポートしました。');
+			} else {
+				showInfo(`${imported.length}件インポートしました。`);
+			}
+			if (failed > 0) {
+				showError(`${failed}件は書式不正のためインポートできませんでした。`);
+			}
+		} catch (err) {
+			console.error('インポートエラー', err);
+			showError('経路のインポートに失敗しました。');
+		}
+	}
+
 	function isBuildSuccess(result: unknown): boolean {
 		if (typeof result === 'number') return result >= 0;
 		if (typeof result === 'string') {
@@ -237,58 +306,24 @@ import { pasteRouteFromClipboard } from '$lib/storage';
 
 	async function handleImport(): Promise<void> {
 		clearMessages();
-		const ok = await requestConfirm('経路をインポートしてよろしいですか？');
-		if (!ok) return;
-		const text = await pasteRouteFromClipboard();
-		if (!text) {
-			showError('クリップボードから読み取れませんでした。');
+		let text: string | null = null;
+		try {
+			text = await pasteRouteFromClipboard();
+		} catch (err) {
+			console.warn('クリップボードの読み取りに失敗しました', err);
+		}
+
+		const input = await openImportDialog(text ?? '');
+		if (input === null) {
 			return;
 		}
-			try {
-				const candidates = text
-					.split(/\r?\n/u)
-					.map((line) => normalizeRouteScript(line))
-					.filter((line) => line.length > 0);
-				if (!candidates.length) {
-					showError('インポート対象の経路がありません。');
-					return;
-				}
 
-				const imported: string[] = [];
-				let failed = 0;
-				for (const candidate of candidates) {
-					const route = new Farert();
-					const result = route.buildRoute(candidate);
-					if (!isBuildSuccess(result)) {
-						failed += 1;
-						continue;
-					}
-					const script = normalizeRouteScript(route.routeScript());
-					if (!script) {
-						failed += 1;
-						continue;
-					}
-					imported.push(script);
-				}
-
-				if (!imported.length) {
-					showError('経路の書式不正により、インポートに失敗しました。');
-					return;
-				}
-
-				savedRoutes.update((list) => uniqueRouteScripts([...imported, ...list]));
-				if (imported.length === 1) {
-					showInfo('インポートしました。');
-				} else {
-					showInfo(`${imported.length}件インポートしました。`);
-				}
-				if (failed > 0) {
-					showError(`${failed}件は書式不正のためインポートできませんでした。`);
-				}
-		} catch (err) {
-			console.error('インポートエラー', err);
-			showError('経路のインポートに失敗しました。');
+		if (!input) {
+			showError('インポート対象の経路がありません。');
+			return;
 		}
+
+		await importRoutesFromText(input);
 	}
 
 	async function handleExport(): Promise<void> {
@@ -421,6 +456,35 @@ import { pasteRouteFromClipboard } from '$lib/storage';
 			</section>
 		</div>
 	{/if}
+
+	{#if importDialogOpen}
+		<div class="modal-backdrop" role="dialog" aria-modal="true" aria-label="経路インポート">
+			<section class="modal">
+				<h3>経路テキストを貼り付け</h3>
+				<p class="placeholder small">
+					経路はカンマまたはスペース区切りで1行1経路で複数行指定可能です
+				</p>
+				<textarea
+					class="route-textarea"
+					aria-label="経路テキスト"
+					rows="8"
+					bind:value={importDialogText}
+				></textarea>
+				<div class="confirm-actions">
+					<button type="button" class="confirm-primary" onclick={() => resolveImportDialog(importDialogText)}>
+						インポート実行
+					</button>
+					<button
+						type="button"
+						class="confirm-secondary"
+						onclick={() => resolveImportDialog(null)}
+					>
+						キャンセル
+					</button>
+				</div>
+			</section>
+		</div>
+	{/if}
 </div>
 
 <style>
@@ -502,6 +566,10 @@ import { pasteRouteFromClipboard } from '$lib/storage';
 		font-size: 0.95rem;
 	}
 
+	.placeholder.small {
+		font-size: 0.85rem;
+	}
+
 	.action-bar {
 		position: fixed;
 		left: 0;
@@ -542,7 +610,7 @@ import { pasteRouteFromClipboard } from '$lib/storage';
 		background: #fff;
 		padding: 1rem;
 		border-radius: 0.9rem;
-		width: min(360px, calc(100% - 2rem));
+		width: min(90vw, calc(100% - 1rem));
 		box-shadow: 0 14px 30px rgba(15, 23, 42, 0.2);
 	}
 
@@ -554,6 +622,18 @@ import { pasteRouteFromClipboard } from '$lib/storage';
 	.modal h3 {
 		margin: 0 0 0.5rem;
 		color: #111827;
+	}
+
+	.route-textarea {
+		width: 100%;
+		min-height: 130px;
+		resize: vertical;
+		padding: 0.6rem;
+		border: 1px solid #cbd5e1;
+		border-radius: 0.6rem;
+		font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+			monospace;
+		margin-bottom: 0.75rem;
 	}
 
 	.modal-close {

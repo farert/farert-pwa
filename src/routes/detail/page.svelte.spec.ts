@@ -58,7 +58,7 @@ const { default: DetailPage } = await import('./+page.svelte');
 
 		render(DetailPage, { initialCompressedRoute: 'dummy' });
 
-		const heading = page.getByRole('heading', { name: '東京 → 新大阪' });
+		const heading = page.getByRole('heading', { name: '運賃詳細' });
 		await expect.element(heading).toBeInTheDocument();
 
 		const fare = page.getByText('¥8,910');
@@ -70,6 +70,32 @@ const { default: DetailPage } = await import('./+page.svelte');
 		await page.getByRole('button', { name: '結果エクスポート' }).click();
 		const exportText = page.getByTestId('fare-export-text');
 		await expect.element(exportText).toHaveTextContent('FARE_EXPORT_TEXT');
+	});
+
+	it('uses beginStation and endStation from FareInfo when available', async () => {
+		const fakeRoute = {
+			routeScript: () => '東京都心,東海道線,熱海',
+			departureStationName: () => '東京',
+			arrivevalStationName: () => '熱海',
+			showFare: () => 'EXPORT_CITY_INFO',
+			getFareInfoObjectJson: () =>
+				JSON.stringify({
+					fare: 1980,
+					totalSalesKm: 1200,
+					ticketAvailDays: 2,
+					beginStation: '都区内',
+					endStation: '勝田',
+					messages: [],
+					isMeihanCityStartTerminalEnable: false
+				}),
+			getRoutesJson: () => JSON.stringify([{ line: '東海道線', station: '熱海' }])
+		};
+		decompressMock.mockReturnValue(fakeRoute);
+
+		render(DetailPage, { initialCompressedRoute: 'encoded-city-info' });
+
+		await expect.element(page.getByRole('heading', { name: '運賃詳細' })).toBeInTheDocument();
+		await expect.element(page.getByText('都区内 → 勝田')).toBeInTheDocument();
 	});
 
 	it('displays kilometer, fare and route details from FareInfo', async () => {
@@ -121,7 +147,7 @@ const { default: DetailPage } = await import('./+page.svelte');
 
 		render(DetailPage, { initialCompressedRoute: 'encoded' });
 
-		await expect.element(page.getByRole('heading', { name: '長津田 → 国母' })).toBeInTheDocument();
+		await expect.element(page.getByRole('heading', { name: '運賃詳細' })).toBeInTheDocument();
 		await expect.element(page.getByText('キロ程')).toBeInTheDocument();
 		const kilometerSection = page.getByRole('heading', { name: 'キロ程' }).locator('..');
 		await expect.element(kilometerSection.getByText('218.3km').first()).toBeInTheDocument();

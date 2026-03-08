@@ -294,7 +294,7 @@ describe('/save/+page.svelte', () => {
 		render(SavePage);
 
 		await page.getByRole('button', { name: 'インポート' }).click();
-		await page.getByRole('button', { name: 'はい' }).click();
+		await page.getByRole('button', { name: 'インポート実行', exact: true }).click();
 
 		expect(get(savedRoutesStore)).toContain('東京,東海道線,熱海');
 		await expect.element(page.getByText('インポートしました。')).toBeInTheDocument();
@@ -307,9 +307,26 @@ describe('/save/+page.svelte', () => {
 		render(SavePage);
 
 		await page.getByRole('button', { name: 'インポート' }).click();
-		await page.getByRole('button', { name: 'はい' }).click();
+		await page.getByRole('button', { name: 'インポート実行', exact: true }).click();
 
 		expect(get(savedRoutesStore)).toEqual(['東京,東海道線,熱海', '仙台,東北線,盛岡']);
 		await expect.element(page.getByText('2件インポートしました。')).toBeInTheDocument();
+	});
+
+	it('クリップボード取得不可時にテキスト入力ダイアログでインポートできる', async () => {
+		pasteRouteFromClipboardMock.mockResolvedValueOnce('');
+		render(SavePage);
+
+		await page.getByRole('button', { name: 'インポート' }).click();
+		const dialog = page.getByRole('dialog', { name: '経路インポート' });
+		await expect.element(dialog).toBeInTheDocument();
+
+		const textArea = page.getByRole('textbox', { name: '経路テキスト' });
+		await textArea.fill('横浜,相鉄本線,町田');
+		const importButton = page.getByRole('button', { name: 'インポート実行', exact: true });
+		await importButton.click();
+
+		expect(get(savedRoutesStore)).toEqual(['横浜,相鉄本線,町田']);
+		await expect.element(page.getByText('インポートしました。')).toBeInTheDocument();
 	});
 });
