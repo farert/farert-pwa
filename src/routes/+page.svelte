@@ -510,7 +510,7 @@ function handleUndo() {
 		return `${value.toFixed(1)}km`;
 	}
 
-	function updateHolderView(): void {
+function updateHolderView(): void {
 		const views: {
 			key: string;
 			item: TicketHolderItem;
@@ -540,7 +540,7 @@ function handleUndo() {
 				console.warn('きっぷホルダ項目の計算に失敗しました', err);
 			}
 			views.push({
-				key: `${item.order}-${index}`,
+				key: String(item.order),
 				item,
 				title: deriveTitle(item.routeScript),
 				fareText: formatFare(fare),
@@ -552,21 +552,46 @@ function handleUndo() {
 		holderView = views;
 	}
 
-	function handleHolderDelete(key: string): void {
-		const [, idxStr] = key.split('-');
-		const idx = Number(idxStr);
-		if (Number.isNaN(idx)) return;
-		ticketHolder.update((list) => list.filter((_, i) => i !== idx));
+	function handleHolderDelete(order: number): void {
+		if (!Number.isFinite(order)) return;
+		ticketHolder.update((list) => list.filter((item) => item.order !== order));
 	}
 
-	function handleHolderFareChange(key: string, fareType: FareType): void {
-		const [, idxStr] = key.split('-');
-		const idx = Number(idxStr);
-		if (Number.isNaN(idx)) return;
+	function handleHolderFareChange(order: number, fareType: FareType): void {
+		if (!Number.isFinite(order)) return;
 		ticketHolder.update((list) =>
-			list.map((item, i) => (i === idx ? { ...item, fareType } : item))
+			list.map((item) => (item.order === order ? { ...item, fareType } : item))
 		);
 		updateHolderView();
+	}
+
+	function handleHolderMove(
+		fromOrder: number,
+		toOrder: number,
+		insertBefore = true
+	): void {
+		if (!Number.isFinite(fromOrder) || !Number.isFinite(toOrder)) return;
+		if (fromOrder <= 0 || toOrder <= 0) return;
+		ticketHolder.update((list) => {
+			const sorted = [...list].sort((a, b) => a.order - b.order);
+			const fromIndex = sorted.findIndex((item) => item.order === fromOrder);
+			const toIndex = sorted.findIndex((item) => item.order === toOrder);
+			if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) return sorted;
+			const nextItems = [...sorted];
+			const [moved] = nextItems.splice(fromIndex, 1);
+			let insertIndex = toIndex;
+			if (fromIndex < toIndex) {
+				insertIndex += insertBefore ? -1 : 0;
+			} else {
+				insertIndex += insertBefore ? 0 : 1;
+			}
+			insertIndex = Math.max(0, Math.min(nextItems.length, insertIndex));
+			nextItems.splice(insertIndex, 0, moved);
+			return nextItems.map((item, index) => ({
+				...item,
+				order: index + 1
+			}));
+		});
 	}
 
 	async function handleHolderSelect(drawerItem: { item: TicketHolderItem }): Promise<void> {
@@ -913,6 +938,7 @@ function handleUndo() {
 		onItemClick={handleHolderSelect}
 		onItemDelete={handleHolderDelete}
 		onFareTypeChange={handleHolderFareChange}
+		onMoveItem={handleHolderMove}
 	/>
 </div>
 
