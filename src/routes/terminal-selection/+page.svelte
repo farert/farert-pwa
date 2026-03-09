@@ -193,6 +193,9 @@ function parseList(
 		if (Array.isArray(parsed)) {
 			return dedupe(normalizeStringList(parsed));
 		}
+		if (parsed && typeof parsed === 'object' && Object.keys(parsed).length === 0) {
+			return [];
+		}
 		const hints = Array.isArray(keyHints) ? keyHints : keyHints ? [keyHints] : [];
 		for (const hint of hints) {
 			if (hint && Array.isArray((parsed as Record<string, unknown>)[hint])) {

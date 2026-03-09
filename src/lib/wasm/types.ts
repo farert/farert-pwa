@@ -74,8 +74,6 @@ export interface FaretModule {
 	searchStationFuzzy?: (keyword: string, limit: number) => string;
 	getBranchStationsByLine: (lineName: string, stationName: string) => string;
 	getStationsByLine: (lineName: string) => string;
-	getPrefectId: (prefecture: string) => number;
-	getCompanyId: (company: string) => number;
 
 	// Developer tools
 	executeSql: (sql: string) => string;

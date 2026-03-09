@@ -320,14 +320,6 @@ export function getStationsByLine(lineName: string): string {
 	return getModule().getStationsByLine(lineName);
 }
 
-export function getPrefectId(prefecture: string): number {
-	return getModule().getPrefectId(prefecture);
-}
-
-export function getCompanyId(company: string): number {
-	return getModule().getCompanyId(company);
-}
-
 // 開発者ツール
 export function executeSql(sql: string): string {
 	return getModule().executeSql(sql);

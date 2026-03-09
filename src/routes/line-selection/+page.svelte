@@ -119,6 +119,9 @@ function parseList(raw: string): string[] {
 		if (Array.isArray(parsed)) {
 			return dedupe(normalizeStringList(parsed));
 		}
+		if (parsed && typeof parsed === 'object' && Object.keys(parsed).length === 0) {
+			return [];
+		}
 		if (parsed && typeof parsed === 'object') {
 			const firstArrayKey = Object.keys(parsed).find((key) => Array.isArray((parsed as Record<string, unknown>)[key]));
 			if (firstArrayKey) {
