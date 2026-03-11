@@ -188,24 +188,24 @@ const { default: DetailPage } = await import('./+page.svelte');
 		await expect.element(page.getByTestId('fare-export-text')).toHaveTextContent('EXPORT_SAMPLE');
 	});
 
-	it('replaces option menu item with city-station toggles and recalculates', async () => {
+	it('toggles city-station option and recalculates', async () => {
 		let startAsCity = false;
 		let arrivalAsCity = false;
-		const setStartAsCityMock = vi.fn(() => {
-			startAsCity = true;
-			arrivalAsCity = false;
-		});
 		const setArrivalAsCityMock = vi.fn(() => {
 			startAsCity = false;
 			arrivalAsCity = true;
+		});
+		const setStartAsCityMock = vi.fn(() => {
+			startAsCity = true;
+			arrivalAsCity = false;
 		});
 		const fakeRoute = {
 			routeScript: () => '東京,東海道線,熱海',
 			departureStationName: () => '東京',
 			arrivevalStationName: () => '熱海',
 			showFare: () => 'EXPORT_CITY',
-			setStartAsCity: () => setStartAsCityMock(),
 			setArrivalAsCity: () => setArrivalAsCityMock(),
+			setStartAsCity: () => setStartAsCityMock(),
 			getFareInfoObjectJson: () =>
 				JSON.stringify({
 					fareResultCode: 0,
@@ -217,6 +217,8 @@ const { default: DetailPage } = await import('./+page.svelte');
 					routeList: '[東海道線]熱海',
 					routeListForTOICA: '',
 					isMeihanCityStartTerminalEnable: true,
+					isMeihanCityTerminal: false,
+					isFareOptEnabled: true,
 					isBeginInCity: startAsCity,
 					isEndInCity: arrivalAsCity,
 					messages: []
@@ -230,22 +232,120 @@ const { default: DetailPage } = await import('./+page.svelte');
 		await expect.element(page.getByText('途中下車できます')).toBeInTheDocument();
 
 		await page.getByRole('button', { name: 'メニュー' }).click();
-		await expect.element(page.getByRole('menuitem', { name: '発駅を単駅にする' })).toBeInTheDocument();
-		await expect.element(page.getByRole('menuitem', { name: '着駅を単駅にする' })).toBeInTheDocument();
-		await expect.element(page.getByRole('menuitem', { name: 'オプション' })).not.toBeInTheDocument();
+		await expect.element(page.getByRole('menuitem', { name: '発駅を単駅指定' })).toBeInTheDocument();
 
-		await page.getByRole('menuitem', { name: '発駅を単駅にする' }).click();
-		expect(setStartAsCityMock).toHaveBeenCalledTimes(1);
-		await expect
-			.element(page.getByText('発着駅の都区市内を除き途中下車できます'))
-			.toBeInTheDocument();
-
-		await page.getByRole('button', { name: 'メニュー' }).click();
-		await page.getByRole('menuitem', { name: '着駅を単駅にする' }).click();
+		await page.getByRole('menuitem', { name: '発駅を単駅指定' }).click();
 		expect(setArrivalAsCityMock).toHaveBeenCalledTimes(1);
 		await expect
 			.element(page.getByText('発着駅の都区市内を除き途中下車できます'))
 			.toBeInTheDocument();
+	});
+
+	it('does not show fare option menu items when option control is disabled', async () => {
+		const fakeRoute = {
+			routeScript: () => '東京,東海道線,熱海',
+			departureStationName: () => '東京',
+			arrivevalStationName: () => '熱海',
+			showFare: () => 'EXPORT_DISABLED_OPTION',
+			getFareInfoObjectJson: () =>
+				JSON.stringify({
+					fareResultCode: 0,
+					fare: 1980,
+					totalSalesKm: 1200,
+					ticketAvailDays: 2,
+					isFareOptEnabled: false,
+					isMeihanCityStartTerminalEnable: true,
+					isMeihanCityTerminal: false,
+					messages: []
+				}),
+			getRoutesJson: () => JSON.stringify([{ line: '東海道線', station: '熱海' }])
+		};
+		decompressMock.mockReturnValue(fakeRoute);
+
+		render(DetailPage, { initialCompressedRoute: 'encoded-no-options' });
+
+		await page.getByRole('button', { name: 'メニュー' }).click();
+		await expect.element(page.getByRole('menuitem', { name: '発駅を単駅指定' })).not.toBeInTheDocument();
+		await expect.element(page.getByRole('menuitem', { name: '着駅を単駅指定' })).not.toBeInTheDocument();
+		await expect.element(page.getByRole('menuitem', { name: 'オプション' })).not.toBeInTheDocument();
+	});
+
+	it('shows fare option menu when isFareOptEnabled is omitted but option flag is available', async () => {
+		const fakeRoute = {
+			routeScript: () => '大高,東海道線,大阪,大阪環状線,天王寺,阪和線,杉本町',
+			departureStationName: () => '大高',
+			arrivevalStationName: () => '杉本町',
+			showFare: () => 'EXPORT_MEIHAN',
+			setArrivalAsCity: vi.fn(),
+			getFareInfoObjectJson: () =>
+				JSON.stringify({
+					fareResultCode: 0,
+					fare: 1980,
+					totalSalesKm: 1200,
+					ticketAvailDays: 2,
+					isMeihanCityStartTerminalEnable: true,
+					isMeihanCityTerminal: false,
+					messages: []
+				}),
+			getRoutesJson: () =>
+				JSON.stringify([
+					{ line: '東海道線', station: '大阪' },
+					{ line: '大阪環状線', station: '天王寺' },
+					{ line: '阪和線', station: '杉本町' }
+				])
+		};
+		decompressMock.mockReturnValue(fakeRoute);
+
+		render(DetailPage, { initialCompressedRoute: 'encoded-meihan-legacy' });
+
+		await page.getByRole('button', { name: 'メニュー' }).click();
+		await expect.element(page.getByRole('menuitem', { name: '発駅を単駅指定' })).toBeInTheDocument();
+		await expect.element(page.getByRole('menuitem', { name: 'バージョン情報' })).toBeInTheDocument();
+	});
+
+	it('shows fare options for legacy route output including fare opt flags', async () => {
+		let noRuleCalled = 0;
+		let arrivalAsCityCalled = 0;
+		const fakeRoute = {
+			routeScript: () => '大高,東海道線,大阪,大阪環状線,天王寺,阪和線,杉本町',
+			departureStationName: () => '大高',
+			arrivevalStationName: () => '杉本町',
+			showFare: () => 'EXPORT_LEGACY_FLAGS',
+			setNoRule: () => noRuleCalled++,
+			setArrivalAsCity: () => arrivalAsCityCalled++,
+			getFareInfoObjectJson: () =>
+				JSON.stringify({
+					fareResultCode: 0,
+					fare: 3740,
+					totalSalesKm: 2028,
+					ticketAvailDays: 3,
+					isMeihanCityStartTerminalEnable: true,
+					isMeihanCityTerminal: true,
+					isRuleAppliedEnable: true,
+					isRuleApplied: true,
+					isFareOptEnabled: true
+				}),
+			getRoutesJson: () =>
+				JSON.stringify([
+					{ line: '東海道線', station: '大阪' },
+					{ line: '大阪環状線', station: '天王寺' },
+					{ line: '阪和線', station: '杉本町' }
+				])
+		};
+		decompressMock.mockReturnValue(fakeRoute);
+
+		render(DetailPage, { initialCompressedRoute: 'encoded-legacy-json' });
+
+		await page.getByRole('button', { name: 'メニュー' }).click();
+		const terminalMenu = page.getByRole('menuitem', { name: '着駅を単駅指定' });
+		const ruleMenu = page.getByRole('menuitem', { name: '特例を適用しない' });
+		await expect.element(terminalMenu).toBeInTheDocument();
+		await expect.element(ruleMenu).toBeInTheDocument();
+
+		await terminalMenu.click();
+		expect(arrivalAsCityCalled).toBe(1);
+		await ruleMenu.click();
+		expect(noRuleCalled).toBe(1);
 	});
 
 	it('copies fare export text when export button is clicked', async () => {

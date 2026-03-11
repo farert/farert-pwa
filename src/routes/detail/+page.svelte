@@ -52,7 +52,142 @@ const routeText = $derived(resolveRouteString(fareInfo, routeSegments));
 const icRouteText = $derived(resolveIcRouteString(fareInfo, routeText));
 const fareResultHint = $derived(resolveFareResultMessage(fareInfo?.fareResultCode));
 const shareEnabled = $derived(Boolean(shareUrl));
-const canToggleCityStation = $derived(Boolean(fareInfo?.isMeihanCityStartTerminalEnable));
+
+function toBoolean(value: unknown, fallback: boolean = false): boolean {
+	if (value === undefined || value === null) {
+		return fallback;
+	}
+	if (typeof value === 'boolean') return value;
+	if (typeof value === 'number') return value !== 0;
+	if (typeof value === 'string') {
+		const normalized = value.trim().toLowerCase();
+		if (normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on') {
+			return true;
+		}
+		if (normalized === 'false' || normalized === '0' || normalized === 'no' || normalized === 'off') {
+			return false;
+		}
+	}
+	return Boolean(value);
+}
+
+function pickBoolean(
+	obj: unknown,
+	keys: string[],
+	fallback: boolean = false
+): boolean {
+	if (!obj || typeof obj !== 'object') {
+		return fallback;
+	}
+	const source = obj as Record<string, unknown>;
+	for (const key of keys) {
+		if (Object.prototype.hasOwnProperty.call(source, key)) {
+			return toBoolean(source[key], fallback);
+		}
+	}
+	return fallback;
+}
+
+type FareOptionMenuItem = {
+	label: string;
+	state: boolean;
+	setOption: () => void;
+	clearOption: () => void;
+};
+let fareOptionMenus = $state<FareOptionMenuItem[]>([]);
+
+function buildFareOptionMenus(info: FareInfo | null, route: FaretClass | null): FareOptionMenuItem[] {
+	if (!route || !info) return [];
+
+	const isFareOptEnabled = pickBoolean(info, ['isFareOptEnabled'], true);
+	const isMeihanCityStartTerminalEnable = pickBoolean(
+		info,
+		[
+			'isMeihanCityStartTerminalEnable',
+			'isMeihanCityStartTerminal',
+			'isMeihanCityEnable',
+			'isMeihanCityStart',
+			'isMeihanCity'
+		],
+		false
+	);
+	const isRuleAppliedEnable = pickBoolean(info, ['isRuleAppliedEnable', 'isRuleApplied'], false);
+	const isEnableLongRoute = pickBoolean(info, ['isEnableLongRoute'], false);
+	const isEnableRule115 = pickBoolean(info, ['isEnableRule115', 'enableRule115'], false);
+	const isJRCentralStockEnable = pickBoolean(
+		info,
+		['isJRCentralStockEnable', 'isEnableTokaiStockSelect'],
+		false
+	);
+	const isRuleApplied = pickBoolean(info, ['isRuleApplied'], false);
+	const isMeihanCityTerminal = pickBoolean(
+		info,
+		['isMeihanCityTerminal', 'isMeihanCityEnd', 'isArrivalAsCity', 'isMeihanCityAsArrival'],
+		false
+	);
+	const isLongRoute = pickBoolean(info, ['isLongRoute'], false);
+	const isRule115specificTerm = pickBoolean(info, ['isRule115specificTerm', 'rule115SpecificTerm'], false);
+	const isJRCentralStock = pickBoolean(info, ['isJRCentralStock'], false);
+
+	const hasAnyOptionEnable = isRuleAppliedEnable || isMeihanCityStartTerminalEnable || isEnableLongRoute || isEnableRule115 || isJRCentralStockEnable;
+	if (!isFareOptEnabled && !hasAnyOptionEnable) return [];
+
+	const options: FareOptionMenuItem[] = [];
+	if (isRuleAppliedEnable) {
+		options.push({
+			label: isRuleApplied ? '特例を適用しない' : '特例を適用する',
+			state: isRuleApplied,
+			setOption: () => route.setNoRule(false),
+			clearOption: () => route.setNoRule(true)
+		});
+	}
+	if (isMeihanCityStartTerminalEnable) {
+		options.push({
+			label: isMeihanCityTerminal ? '着駅を単駅指定' : '発駅を単駅指定',
+			state: isMeihanCityTerminal,
+			setOption: () => route.setArrivalAsCity(),
+			clearOption: () => route.setStartAsCity()
+		});
+	}
+	if (isEnableLongRoute) {
+		options.push({
+			label: isLongRoute ? '最安経路で運賃計算' : '指定した経路で運賃計算',
+			state: isLongRoute,
+			setOption: () => route.setLongRoute(false),
+			clearOption: () => route.setLongRoute(true)
+		});
+	}
+	if (isEnableRule115) {
+		options.push({
+			label: isRule115specificTerm
+				? '旅客営業取扱基準規程115条(単駅最安)'
+				: '旅客営業取扱基準規程115条(特定都区市内発着)',
+			state: isRule115specificTerm,
+			setOption: () => route.setSpecificTermRule115(true),
+			clearOption: () => route.setSpecificTermRule115(false)
+		});
+	}
+	if (isJRCentralStockEnable) {
+		options.push({
+			label: isJRCentralStock ? 'JR東海株主優待券を適用しない' : 'JR東海株主優待券を適用する',
+			state: isJRCentralStock,
+			setOption: () => route.setJrTokaiStockApply(true),
+			clearOption: () => route.setJrTokaiStockApply(false)
+		});
+	}
+
+	console.log(
+		'[debug] fareOptionMenus',
+		options.map((option) => option.label)
+	);
+	if (typeof window !== 'undefined') {
+		(window as Window & { __fareOptionMenusDebug?: string[] }).__fareOptionMenusDebug = options.map(
+			(option) => option.label
+		);
+	}
+
+	return options;
+}
 
 let shareFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
 let exportFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
@@ -203,8 +338,14 @@ function refreshResult(route: FaretClass): void {
 	startStation = safeStationName(() => route.departureStationName());
 	endStation = safeStationName(() => route.arrivevalStationName());
 	routeSegments = parseRouteSegments(route);
-	fareInfo = parseFareInfo(route);
+	const parsedFareInfo = parseFareInfo(route);
+	fareInfo = parsedFareInfo;
+	fareOptionMenus = buildFareOptionMenus(parsedFareInfo, route);
 	fareExportText = buildFareExportString(route);
+	console.log('[debug] fareInfo', parsedFareInfo);
+	if (typeof window !== 'undefined') {
+		(window as Window & { __fareInfoDebug?: typeof parsedFareInfo }).__fareInfoDebug = parsedFareInfo;
+	}
 }
 
 function buildShareUrl(token: string): string {
@@ -468,30 +609,20 @@ function openVersionInfo(): void {
 	goto(`${base}/version`);
 }
 
-function applyStartStationSingle(): void {
+function applyFareOption(option: FareOptionMenuItem): void {
 	const route = routeRef;
-	if (!route || !canToggleCityStation) return;
+	if (!route) return;
 	try {
-		route.setStartAsCity();
+		if (option.state) {
+			option.clearOption();
+		} else {
+			option.setOption();
+		}
 		refreshResult(route);
 		errorMessage = '';
 	} catch (err) {
-		console.warn('発駅単駅指定の適用に失敗しました', err);
-		errorMessage = '発駅単駅指定の適用に失敗しました。';
-	}
-	closeMenu();
-}
-
-function applyArrivalStationSingle(): void {
-	const route = routeRef;
-	if (!route || !canToggleCityStation) return;
-	try {
-		route.setArrivalAsCity();
-		refreshResult(route);
-		errorMessage = '';
-	} catch (err) {
-		console.warn('着駅単駅指定の適用に失敗しました', err);
-		errorMessage = '着駅単駅指定の適用に失敗しました。';
+		console.warn('オプション設定の適用に失敗しました', err);
+		errorMessage = 'オプション設定の適用に失敗しました。';
 	}
 	closeMenu();
 }
@@ -561,22 +692,11 @@ function closeExportDialog(): void {
 			{#if menuOpen}
 				<div class="app-menu" role="menu">
 					<button type="button" role="menuitem" onclick={openVersionInfo}>バージョン情報</button>
-					<button
-						type="button"
-						role="menuitem"
-						onclick={applyStartStationSingle}
-						disabled={!canToggleCityStation}
-					>
-						発駅を単駅にする
-					</button>
-					<button
-						type="button"
-						role="menuitem"
-						onclick={applyArrivalStationSingle}
-						disabled={!canToggleCityStation}
-					>
-						着駅を単駅にする
-					</button>
+					{#each fareOptionMenus as option (option.label)}
+						<button type="button" role="menuitem" onclick={() => applyFareOption(option)}>
+							{option.label}
+						</button>
+					{/each}
 				</div>
 			{/if}
 		</div>
@@ -989,7 +1109,7 @@ function closeExportDialog(): void {
 		box-shadow: 0 8px 20px rgba(15, 23, 42, 0.15);
 		border-radius: 0.75rem;
 		padding: 0.5rem;
-		z-index: 10;
+		z-index: 20;
 		display: flex;
 		flex-direction: column;
 		min-width: 160px;
@@ -1002,6 +1122,8 @@ function closeExportDialog(): void {
 		text-align: left;
 		border-radius: 0.5rem;
 		font-size: 0.95rem;
+		color: #111827;
+		background-color: transparent;
 		cursor: pointer;
 	}
 
@@ -1017,5 +1139,6 @@ function closeExportDialog(): void {
 		padding: 0;
 		margin: 0;
 		cursor: pointer;
+		z-index: 10;
 	}
 </style>
