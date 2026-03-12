@@ -135,8 +135,22 @@ import { base } from '$app/paths';
 
 		<section class="eula">
 			<p>
-本アプリで表示される結果は必ずしも正確な情報ではないことがありえます。実際のご旅行での費用とは異なることがありえますことをご理解の上ご利用ください.<br/>
-複製・2次使用は許可なく利用できますが、アプリにより発生したあらゆる損害は作者は負いません<br/>
+				本アプリで表示される結果は必ずしも正確な情報ではないことがありえます。<br />
+				実際のご旅行での費用とは異なることがありえますことをご理解の上ご利用ください。<br />
+				複製・2次使用は許可なく利用できますが、アプリにより発生したあらゆる損害は作者は負いません。<br />
+				免責・ライセンスの詳細は
+				<a
+					href="https://github.com/farert/farert-pwa/blob/main/README.md"
+					target="_blank"
+					rel="noopener noreferrer"
+				>
+					README.md
+				</a>
+				の「免責・利用上の注意」と
+				<a href="https://github.com/farert/farert-pwa/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">
+					<code>LICENSE</code>
+				</a>
+				をご確認ください。  
 			</p>
 		</section>
 

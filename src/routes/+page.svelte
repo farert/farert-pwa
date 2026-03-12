@@ -989,10 +989,13 @@ function updateHolderView(): void {
 		max-width: 960px;
 		margin: 0 auto;
 		padding: 1.5rem;
+		padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
+		box-sizing: border-box;
 		display: flex;
 		flex-direction: column;
 		gap: 1rem;
 		color: var(--text-main);
+		min-height: 100vh;
 	}
 
 	.top-bar {
@@ -1267,10 +1270,18 @@ function updateHolderView(): void {
 	}
 
 	.bottom-nav {
+		position: fixed;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background: var(--menu-bg);
+		border-top: 1px solid color-mix(in srgb, var(--text-sub) 20%, transparent);
+		padding: 0.5rem 0.75rem max(0.5rem, env(safe-area-inset-bottom, 0));
+		z-index: 28;
 		display: grid;
 		grid-template-columns: repeat(4, minmax(0, 1fr));
 		gap: 0.75rem;
-		margin-top: 1rem;
+		margin-top: 0;
 	}
 
 	.bottom-nav button {
