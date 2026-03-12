@@ -6,9 +6,9 @@ import FareSummaryCard from '$lib/components/FareSummaryCard.svelte';
 import DrawerNavigation from '$lib/components/DrawerNavigation.svelte';
 import { initFarert, Farert } from '$lib/wasm';
 import type { FaretClass } from '$lib/wasm/types';
-import { FareType, type FareInfo, type TicketHolderItem } from '$lib/types';
-import { initStores, mainRoute, mainScreenErrorMessage, ticketHolder } from '$lib/stores';
-import { generateShareUrl, compressRouteForUrl } from '$lib/utils/urlRoute';
+	import { FareType, type FareInfo, type TicketHolderItem } from '$lib/types';
+	import { initStores, mainRoute, mainScreenErrorMessage, ticketHolder } from '$lib/stores';
+	import { generateShareUrl, compressRouteForUrl } from '$lib/utils/urlRoute';
 
 	interface RouteSegment {
 		id: number;
@@ -17,8 +17,6 @@ import { generateShareUrl, compressRouteForUrl } from '$lib/utils/urlRoute';
 	}
 
 	const OSAKA_LOOP_LINE = '大阪環状線';
-	const KOKURA_STATION = '小倉';
-	const HAKATA_STATION = '博多';
 
 	let loading = $state(true);
 	let error = $state('');
@@ -32,7 +30,6 @@ let canReverse = $state(false);
 let optionEnabled = $state(false);
 let showFareSummary = $state(false);
 let appMenuOpen = $state(false);
-let optionMenuOpen = $state(false);
 let hasOsakakanOption = $state(false);
 let hasKokuraOption = $state(false);
 let osakaDetourSelected = $state(false);
@@ -58,6 +55,11 @@ let confirmDialogMessage = $state('');
 let confirmResolver: ((result: boolean) => void) | null = null;
 const osakaMenuLabel = $derived(
 	osakaDetourSelected ? '大阪環状線近回り' : '大阪環状線遠回り'
+);
+const kokuraMenuLabel = $derived(
+	treatKokuraAsSame
+		? '小倉-博多間新幹線在来線別線扱い（無効）'
+		: '小倉-博多間新幹線在来線別線扱い（有効）'
 );
 const canAddToHolder = $derived(() => {
 	const script = route ? safeRouteScript(route) : currentRouteScript;
@@ -296,7 +298,7 @@ function parseFareInfoJson(raw: unknown): FareInfo | null {
 	}
 
 	canReverse = current.isAvailableReverse ? current.isAvailableReverse() : parsedSegments.length > 0;
-	updateOptionAvailability(tokens);
+	updateOptionAvailability(fareInfo);
 }
 
 function resetView() {
@@ -307,32 +309,33 @@ function resetView() {
 	detailLink = '';
 	canUndo = false;
 	canReverse = false;
-	optionEnabled = false;
+	optionEnabled = true;
 	hasOsakakanOption = false;
-	hasKokuraOption = false;
+	hasKokuraOption = true;
 	osakaDetourSelected = false;
 	treatKokuraAsSame = true;
 	appMenuOpen = false;
-	optionMenuOpen = false;
 	showFareSummary = false;
 }
 
-function updateOptionAvailability(tokens: string[]) {
-	const stationTokens: string[] = [];
-	for (let i = 0; i < tokens.length; i += 2) {
-		if (tokens[i]) stationTokens.push(tokens[i]);
-	}
-
-	const hasOsakaLoop = segments.some((segment) => segment.line === OSAKA_LOOP_LINE);
-	const hasKokuraHakata =
-		stationTokens.includes(KOKURA_STATION) && stationTokens.includes(HAKATA_STATION);
-
-	hasOsakakanOption = hasOsakaLoop;
-	hasKokuraOption = hasKokuraHakata;
-	optionEnabled = hasOsakaLoop || hasKokuraHakata;
-	if (!optionEnabled) {
-		optionMenuOpen = false;
-	}
+function updateOptionAvailability(_info: FareInfo | null) {
+	const tokens = currentRouteScript
+		.split(',')
+		.map((token) => token.trim())
+		.filter(Boolean);
+	const lineTokens = tokens.filter((_, index) => index > 0 && index % 2 === 1);
+	const hasRouteScriptOsaka = lineTokens.some(
+		(line) => line === OSAKA_LOOP_LINE || line === `r${OSAKA_LOOP_LINE}` || line.includes(OSAKA_LOOP_LINE)
+	);
+	const hasRdetourOsaka = segments.some(
+		(segment) => segment.line === `r${OSAKA_LOOP_LINE}` || segment.line.includes(`r${OSAKA_LOOP_LINE}`)
+	);
+	const hasOsakaLoop = segments.some(
+		(segment) => segment.line === OSAKA_LOOP_LINE || segment.line.includes(OSAKA_LOOP_LINE)
+	);
+	hasOsakakanOption = hasOsakaLoop || hasRdetourOsaka || hasRouteScriptOsaka;
+	hasKokuraOption = true;
+	optionEnabled = true;
 }
 
 	function ensureRoute(): FaretClass {
@@ -353,25 +356,19 @@ function updateOptionAvailability(tokens: string[]) {
 
 	function toggleAppMenu() {
 		appMenuOpen = !appMenuOpen;
-		if (appMenuOpen) {
-			optionMenuOpen = false;
+		if (!appMenuOpen) return;
+		if (!optionEnabled) {
+			return;
 		}
 	}
 
 	function closeMenus() {
 		appMenuOpen = false;
-		optionMenuOpen = false;
 	}
 
 	function handleVersionMenuSelection() {
 		closeMenus();
 		openVersionInfo();
-	}
-
-	function openOptionsFromMenu() {
-		if (!optionEnabled) return;
-		optionMenuOpen = true;
-		appMenuOpen = false;
 	}
 
 	function openTerminalSelection() {
@@ -443,11 +440,7 @@ function handleUndo() {
 	}
 
 	function openOptions() {
-		if (!optionEnabled) return;
-		optionMenuOpen = !optionMenuOpen;
-		if (optionMenuOpen) {
-			appMenuOpen = false;
-		}
+		appMenuOpen = true;
 	}
 
 	function openSave() {
@@ -455,13 +448,14 @@ function handleUndo() {
 	}
 
 	function toggleKokuraHakataLink() {
-		if (!route || !hasKokuraOption) return;
+		if (!hasKokuraOption) return;
 		const next = !treatKokuraAsSame;
+		treatKokuraAsSame = next;
+		if (!route) return;
 		try {
 			route.setNotSameKokuraHakataShinZai(!next);
-			treatKokuraAsSame = next;
 			mainRoute.set(route);
-			optionMenuOpen = false;
+			appMenuOpen = false;
 		} catch (err) {
 			console.error('小倉-博多オプションの切り替えに失敗しました', err);
 		}
@@ -720,7 +714,7 @@ function updateHolderView(): void {
 			}
 			osakaDetourSelected = next;
 			mainRoute.set(route);
-			optionMenuOpen = false;
+			appMenuOpen = false;
 		} catch (err) {
 			console.error('大阪環状線オプションの切り替えに失敗しました', err);
 			error = '大阪環状線オプションの切り替えに失敗しました。';
@@ -766,14 +760,21 @@ function updateHolderView(): void {
 				<button type="button" role="menuitem" onclick={handleVersionMenuSelection}>
 					バージョン情報
 				</button>
-				<button
-					type="button"
-					role="menuitem"
-					onclick={openOptionsFromMenu}
-					disabled={!optionEnabled}
-				>
-					オプション
-				</button>
+				{#if optionEnabled}
+					<hr class="menu-divider" />
+					<div class="menu-section-title">経路オプション</div>
+					<button
+						type="button"
+						role="menuitem"
+						onclick={toggleOsakaDetourOption}
+						disabled={!hasOsakakanOption}
+					>
+						<span>{osakaMenuLabel}</span>
+						{#if osakaDetourSelected}
+							<span class="material-symbols-rounded" aria-hidden="true">check</span>
+						{/if}
+					</button>
+				{/if}
 			</div>
 		{/if}
 	</div>
@@ -869,39 +870,12 @@ function updateHolderView(): void {
 			</button>
 		</nav>
 
-		{#if optionMenuOpen}
-			<div class="option-menu" role="menu">
-				<p class="menu-title">経路オプション</p>
-				<button
-					type="button"
-					role="menuitem"
-					onclick={toggleKokuraHakataLink}
-					disabled={!hasKokuraOption}
-				>
-					<span>小倉博多間新幹線・在来線同一視</span>
-					{#if treatKokuraAsSame}
-						<span class="material-symbols-rounded" aria-hidden="true">check</span>
-					{/if}
-				</button>
-				<button
-					type="button"
-					role="menuitem"
-					onclick={toggleOsakaDetourOption}
-					disabled={!hasOsakakanOption}
-				>
-					<span>{osakaMenuLabel}</span>
-					{#if osakaDetourSelected}
-						<span class="material-symbols-rounded" aria-hidden="true">check</span>
-					{/if}
-				</button>
-			</div>
-		{/if}
 	{/if}
 
-	{#if appMenuOpen || optionMenuOpen}
+	{#if appMenuOpen}
 		<button
 			type="button"
-			class={`menu-overlay ${optionMenuOpen ? 'dim' : ''}`}
+			class="menu-overlay dim"
 			aria-label="メニューを閉じる"
 			onclick={closeMenus}
 		></button>
@@ -1317,45 +1291,19 @@ function updateHolderView(): void {
 		font-size: 1.6rem;
 	}
 
-	.option-menu {
-		position: fixed;
-		right: 1rem;
-		bottom: 5rem;
-		background: var(--card-bg);
-		border-radius: 1rem;
-		box-shadow: var(--card-shadow);
-		padding: 0.75rem;
-		width: min(360px, calc(100% - 2rem));
-		z-index: 30;
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
+	.menu-section-title {
+		padding: 0.2rem 1rem 0.2rem;
+		font-size: 0.78rem;
+		font-weight: 700;
+		color: var(--text-sub);
+		letter-spacing: 0.02em;
 	}
 
-	.menu-title {
-		margin: 0 0 0.25rem;
-		font-weight: 600;
-		font-size: 1rem;
-		color: #111827;
-	}
-
-	.option-menu button {
-		width: 100%;
+	.menu-divider {
 		border: none;
-		background: transparent;
-		padding: 0.75rem 1rem;
-		border-radius: 0.75rem;
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		font-size: 0.95rem;
-		cursor: pointer;
-		color: #1f2937;
-	}
-
-	.option-menu button:disabled {
-		opacity: 0.4;
-		cursor: not-allowed;
+		height: 1px;
+		margin: 0.2rem 0.35rem;
+		background: color-mix(in srgb, var(--text-sub) 25%, transparent);
 	}
 
 	.menu-overlay {
