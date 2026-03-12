@@ -224,7 +224,7 @@ pnpm add @mdi/js svelte-material-icons
 |--------|----------|
 | 戻る | 経路が1つ以上存在 |
 | リバース | 経路が2つ以上存在 |
-| オプション | 大阪環状線または小倉-博多間が経路に含まれる |
+| オプション | 大阪環状線が経路に含まれる、または fareInfo.isFareOptEnabled が true |
 | 保存 | 常に有効 |
 
 ### 実装例
@@ -238,10 +238,10 @@ pnpm add @mdi/js svelte-material-icons
 
   function checkRouteOptions(route) {
     if (!route) return false;
-    // 大阪環状線または小倉-博多間チェック
+    // 大阪環状線または fareInfo.isFareOptEnabled チェック
     return route.segments.some(s =>
       s.line.name === '大阪環状線' ||
-      (s.line.name === '山陽新幹線' && /* 小倉-博多間チェック */)
+      fareInfo?.isFareOptEnabled === true
     );
   }
 </script>
@@ -273,7 +273,7 @@ pnpm add @mdi/js svelte-material-icons
 
 ### 表示条件
 - 大阪環状線が経路に含まれる
-- 小倉-博多間が経路に含まれる
+- `fareInfo.isFareOptEnabled` が true
 
 ### メニュー形式
 - **Android風**: ボトムシート

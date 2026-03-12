@@ -1,6 +1,7 @@
 import LZString from 'lz-string';
 import { Farert } from '$lib/wasm';
 import type { FaretClass } from '$lib/wasm/types';
+import { getSerializedRouteScript } from './routeScriptPersistence';
 
 export type FarertConstructor = new () => FaretClass;
 
@@ -20,7 +21,8 @@ export function compressRouteForUrl(
 		throw new Error('routeが指定されていません');
 	}
 
-	const script = selectRouteScript(route.routeScript(), segmentCount);
+	const serialized = getSerializedRouteScript(route);
+	const script = selectRouteScript(serialized, segmentCount);
 
 	if (!script || script.trim() === '') {
 		throw new Error('経路スクリプトが空です');

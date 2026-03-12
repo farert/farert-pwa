@@ -61,6 +61,39 @@ pnpm install
 pnpm copy:wasm
 ```
 
+### Docker運用（VSCode不要）
+
+`.devcontainer` の設定をそのまま使って、次のヘルパーでコンテナを操作できます。
+
+```bash
+./docker.sh build
+./docker.sh start
+./docker.sh shell
+./docker.sh clean
+./docker.sh ci
+./docker.sh dev
+./docker.sh test
+./docker.sh test-unit
+./docker.sh test-e2e
+```
+
+各コマンドの説明:
+
+- `build`: `.devcontainer/docker-compose.yml` からイメージをビルドする
+- `start`: `app` サービスをバックグラウンド起動する
+- `shell`: `app` サービスのシェルに接続する
+- `clean`: `app` を停止・削除し、匿名ボリュームも削除する
+- `ci`: 依存関係インストールとPlaywrightインストールまで実施する
+- `dev`: 開発サーバーをコンテナ内で `pnpm dev -- --host 0.0.0.0` で起動する
+- `test`: `pnpm test` をコンテナ内で実行する
+- `test-unit`: `pnpm test:unit` をコンテナ内で実行する
+- `test-e2e`: `pnpm test:e2e` をコンテナ内で実行する
+
+注意:
+
+- `docker` と `docker compose` が利用可能であることが必要です
+- `shell` とテスト系コマンドは、必要時に自動でコンテナ起動します
+
 ### 開発
 
 ```bash

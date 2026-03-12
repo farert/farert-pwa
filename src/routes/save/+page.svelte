@@ -8,6 +8,7 @@ import { initStores, mainRoute, savedRoutes, ticketHolder } from '$lib/stores';
 import type { FaretClass } from '$lib/wasm/types';
 import type { TicketHolderItem } from '$lib/types';
 import { pasteRouteFromClipboard } from '$lib/storage';
+import { getSerializedRouteScript } from '$lib/utils/routeScriptPersistence';
 
 	let loading = $state(true);
 	let errorMessage = $state('');
@@ -73,7 +74,8 @@ import { pasteRouteFromClipboard } from '$lib/storage';
 
 	function safeRouteScript(route: FaretClass | null): string {
 		try {
-			return normalizeRouteScript(route?.routeScript() ?? '');
+			if (!route) return '';
+			return normalizeRouteScript(getSerializedRouteScript(route));
 		} catch (err) {
 			console.warn('経路スクリプト取得に失敗しました', err);
 			return '';

@@ -11,6 +11,7 @@ import { get, writable, type Writable } from 'svelte/store';
 import type { FaretClass } from '$lib/wasm/types';
 import type { TicketHolderItem, SavedRoute, StationHistory } from '$lib/types';
 import { STORAGE_KEYS } from '$lib/types';
+import { getSerializedRouteScript } from '$lib/utils/routeScriptPersistence';
 
 /**
  * 現在の経路（WASM Farert オブジェクト）
@@ -66,7 +67,7 @@ function persistSnapshot(force = false): void {
 	try {
 		const route = get(mainRoute);
 		if (route && typeof route.routeScript === 'function') {
-			const routeStr = route.routeScript();
+			const routeStr = getSerializedRouteScript(route);
 			localStorage.setItem(STORAGE_KEYS.CURRENT_ROUTE, routeStr);
 		} else if (route === null) {
 			localStorage.removeItem(STORAGE_KEYS.CURRENT_ROUTE);

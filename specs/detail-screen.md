@@ -151,7 +151,6 @@
 |fareInfo.isEnableRule115|fareInfo.isRule115specificTerm|旅客営業取扱基準規程115条(単駅最安)|旅客営業取扱基準規程115条(特定都区市内発着)|`route.setSpecificTermRule115(True)`|`route.setSpecificTermRule115(False)`|
 |fareInfo.isJRCentralStockEnable|fareInfo.isJRCentralStock|JR東海株主優待券を適用しない|JR東海株主優待券を適用する|`route.setJrTokaiStockApply(True)`|`route.setJrTokaiStockApply(False)`|
 
-
 0. **共通動作**
    - いずれのメニュー項目も、選択時に 「setOption」「clear option」の関数を実行した後 `calcFare` 相当の再計算を行う
    - 再計算後、詳細画面を更新する
