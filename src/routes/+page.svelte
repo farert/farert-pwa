@@ -355,9 +355,7 @@ function updateOptionAvailability(_info: FareInfo | null) {
 	}
 
 	function openHelp(): void {
-		if (typeof window !== 'undefined') {
-			window.open('https://farert.blogspot.jp/', '_blank', 'noopener');
-		}
+		goto(`${base}/help`);
 	}
 
 	function toggleAppMenu() {
