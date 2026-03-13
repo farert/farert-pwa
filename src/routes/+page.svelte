@@ -354,6 +354,12 @@ function updateOptionAvailability(_info: FareInfo | null) {
 		goto(`${base}/version`);
 	}
 
+	function openHelp(): void {
+		if (typeof window !== 'undefined') {
+			window.open('https://farert.blogspot.jp/', '_blank', 'noopener');
+		}
+	}
+
 	function toggleAppMenu() {
 		appMenuOpen = !appMenuOpen;
 		if (!appMenuOpen) return;
@@ -369,6 +375,11 @@ function updateOptionAvailability(_info: FareInfo | null) {
 	function handleVersionMenuSelection() {
 		closeMenus();
 		openVersionInfo();
+	}
+
+	function handleHelpMenuSelection() {
+		closeMenus();
+		openHelp();
 	}
 
 	function openTerminalSelection() {
@@ -757,8 +768,9 @@ function updateHolderView(): void {
 		</button>
 		{#if appMenuOpen}
 			<div class="app-menu" role="menu">
-				<button type="button" role="menuitem" onclick={handleVersionMenuSelection}>
-					バージョン情報
+				<button type="button" role="menuitem" onclick={handleVersionMenuSelection}>バージョン情報</button>
+				<button type="button" role="menuitem" onclick={handleHelpMenuSelection}>
+					ヘルプ
 				</button>
 				{#if optionEnabled}
 					<hr class="menu-divider" />
