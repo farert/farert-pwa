@@ -14,7 +14,7 @@ export interface FaretClass {
 	getRouteCount(): number;
 	departureStationName(): string;
 	arrivevalStationName(): string;
-	buildRoute(routeStr: string): number;
+	buildRoute(routeStr: string): number | string;
 	routeScript(): string;
 
 	// Route manipulation

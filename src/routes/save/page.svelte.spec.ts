@@ -6,7 +6,7 @@ import type { FaretClass } from '$lib/wasm/types';
 
 class MockFarert implements FaretClass {
 	script = '';
-	static buildRouteMock = vi.fn<[string], number>(() => 0);
+	static buildRouteMock = vi.fn<[string], number | string>(() => 0);
 
 	addStartRoute(station: string): number {
 		this.script = station;
@@ -39,7 +39,7 @@ class MockFarert implements FaretClass {
 		return tokens[tokens.length - 1] ?? '';
 	}
 
-	buildRoute(routeStr: string): number {
+	buildRoute(routeStr: string): number | string {
 		this.script = routeStr;
 		return MockFarert.buildRouteMock(routeStr);
 	}
@@ -293,11 +293,12 @@ describe('/save/+page.svelte', () => {
 		MockFarert.buildRouteMock.mockReturnValueOnce(1);
 		render(SavePage);
 
-		await page.getByRole('button', { name: 'インポート' }).click();
-		await page.getByRole('button', { name: 'インポート実行', exact: true }).click();
+	await page.getByRole('button', { name: 'インポート' }).click();
+	await page.getByRole('button', { name: 'インポート実行', exact: true }).click();
+	await page.getByRole('button', { name: 'はい' }).click();
 
-		expect(get(savedRoutesStore)).toContain('東京,東海道線,熱海');
-		await expect.element(page.getByText('インポートしました。')).toBeInTheDocument();
+	expect(get(savedRoutesStore)).toContain('東京,東海道線,熱海');
+	await expect.element(page.getByText('インポートしました。')).toBeInTheDocument();
 	});
 
 	it('インポート時に改行区切りの複数経路を取り込む', async () => {
@@ -306,27 +307,54 @@ describe('/save/+page.svelte', () => {
 		);
 		render(SavePage);
 
-		await page.getByRole('button', { name: 'インポート' }).click();
-		await page.getByRole('button', { name: 'インポート実行', exact: true }).click();
+	await page.getByRole('button', { name: 'インポート' }).click();
+	await page.getByRole('button', { name: 'インポート実行', exact: true }).click();
+	await page.getByRole('button', { name: 'はい' }).click();
 
-		expect(get(savedRoutesStore)).toEqual(['東京,東海道線,熱海', '仙台,東北線,盛岡']);
-		await expect.element(page.getByText('2件インポートしました。')).toBeInTheDocument();
+	expect(get(savedRoutesStore)).toEqual(['東京,東海道線,熱海', '仙台,東北線,盛岡']);
+	await expect.element(page.getByText('2件インポートしました。')).toBeInTheDocument();
 	});
 
 	it('クリップボード取得不可時にテキスト入力ダイアログでインポートできる', async () => {
 		pasteRouteFromClipboardMock.mockResolvedValueOnce('');
 		render(SavePage);
 
+	await page.getByRole('button', { name: 'インポート' }).click();
+	const dialog = page.getByRole('dialog', { name: '経路インポート' });
+	await expect.element(dialog).toBeInTheDocument();
+
+	const textArea = page.getByRole('textbox', { name: '経路テキスト' });
+	await textArea.fill('横浜,相鉄本線,町田');
+	const importButton = page.getByRole('button', { name: 'インポート実行', exact: true });
+	await importButton.click();
+	await page.getByRole('button', { name: 'はい' }).click();
+
+	expect(get(savedRoutesStore)).toEqual(['横浜,相鉄本線,町田']);
+	await expect.element(page.getByText('インポートしました。')).toBeInTheDocument();
+	});
+
+	it('インポート時に確認ダイアログでいいえを選ぶと取り込まない', async () => {
+		pasteRouteFromClipboardMock.mockResolvedValueOnce('東京,東海道線,熱海');
+		render(SavePage);
+
 		await page.getByRole('button', { name: 'インポート' }).click();
-		const dialog = page.getByRole('dialog', { name: '経路インポート' });
-		await expect.element(dialog).toBeInTheDocument();
+		await page.getByRole('button', { name: 'インポート実行', exact: true }).click();
+		await page.getByRole('button', { name: 'いいえ' }).click();
 
-		const textArea = page.getByRole('textbox', { name: '経路テキスト' });
-		await textArea.fill('横浜,相鉄本線,町田');
-		const importButton = page.getByRole('button', { name: 'インポート実行', exact: true });
-		await importButton.click();
+		expect(get(savedRoutesStore)).toEqual([]);
+		await expect.element(page.getByText('インポートしました。')).not.toBeInTheDocument();
+	});
 
-		expect(get(savedRoutesStore)).toEqual(['横浜,相鉄本線,町田']);
-		await expect.element(page.getByText('インポートしました。')).toBeInTheDocument();
+	it('不正な経路は詳細を含むエラーメッセージを表示する', async () => {
+		pasteRouteFromClipboardMock.mockResolvedValueOnce('東京,東海道線,？？');
+		MockFarert.buildRouteMock.mockReturnValueOnce('{"rc":-200,"failItem":"？？","offset":2}');
+		render(SavePage);
+
+	await page.getByRole('button', { name: 'インポート' }).click();
+	await page.getByRole('button', { name: 'インポート実行', exact: true }).click();
+	await page.getByRole('button', { name: 'はい' }).click();
+
+	await expect.element(page.getByText('経路の書式不正により、インポートに失敗しました: 1 行目、？？（3番目のワード）')).toBeInTheDocument();
+	expect(get(savedRoutesStore)).toEqual([]);
 	});
 });

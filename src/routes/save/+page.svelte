@@ -10,6 +10,12 @@ import type { TicketHolderItem } from '$lib/types';
 import { pasteRouteFromClipboard } from '$lib/storage';
 import { getSerializedRouteScript } from '$lib/utils/routeScriptPersistence';
 
+type BuildRouteResult = {
+	rc: number;
+	failItem?: string;
+	offset?: number;
+};
+
 	let loading = $state(true);
 	let errorMessage = $state('');
 	let infoMessage = $state('');
@@ -172,7 +178,11 @@ import { getSerializedRouteScript } from '$lib/utils/routeScriptPersistence';
 
 	function shouldConfirmRouteOverwrite(targetScript: string): boolean {
 		if (!currentRouteScript || currentRouteScript === targetScript) return false;
-		return getCurrentRouteCount() >= 2;
+		const isCurrentInSaved = savedList.some((item) => item === currentRouteScript);
+		const isCurrentInHolder = holderItems.some(
+			(item) => normalizeRouteScript(item.routeScript) === currentRouteScript
+		);
+		return !isCurrentInSaved && !isCurrentInHolder;
 	}
 
 	function resolveConfirmDialog(result: boolean): void {
@@ -226,23 +236,40 @@ import { getSerializedRouteScript } from '$lib/utils/routeScriptPersistence';
 
 			const imported: string[] = [];
 			let failed = 0;
-			for (const candidate of candidates) {
+			let lastErrorMessage = '';
+			candidates.forEach((candidate, lineIndex) => {
 				const route = new Farert();
-				const result = route.buildRoute(candidate);
-				if (!isBuildSuccess(result)) {
+				const lineNumber = lineIndex + 1;
+				try {
+					const result = route.buildRoute(candidate);
+					const parsed = parseBuildRouteResult(result);
+					if (!isBuildSuccessResult(parsed)) {
+						failed += 1;
+						if (!lastErrorMessage) {
+							lastErrorMessage = formatImportError(parsed, lineNumber);
+						}
+						return;
+					}
+					const script = normalizeRouteScript(route.routeScript());
+					if (!script) {
+						failed += 1;
+						if (!lastErrorMessage) {
+							lastErrorMessage = `経路の書式不正により、インポートに失敗しました: ${lineNumber} 行目`;
+						}
+						return;
+					}
+					imported.push(script);
+				} catch (err) {
 					failed += 1;
-					continue;
+					if (!lastErrorMessage) {
+						lastErrorMessage = '経路のインポートに失敗しました。';
+						console.error('経路インポートエラー', err);
+					}
 				}
-				const script = normalizeRouteScript(route.routeScript());
-				if (!script) {
-					failed += 1;
-					continue;
-				}
-				imported.push(script);
-			}
+			});
 
 			if (!imported.length) {
-				showError('経路の書式不正により、インポートに失敗しました。');
+				showError(lastErrorMessage || '経路の書式不正により、インポートに失敗しました。');
 				return;
 			}
 
@@ -253,7 +280,7 @@ import { getSerializedRouteScript } from '$lib/utils/routeScriptPersistence';
 				showInfo(`${imported.length}件インポートしました。`);
 			}
 			if (failed > 0) {
-				showError(`${failed}件は書式不正のためインポートできませんでした。`);
+				showError(lastErrorMessage || `${failed}件は書式不正のためインポートできませんでした。`);
 			}
 		} catch (err) {
 			console.error('インポートエラー', err);
@@ -261,21 +288,57 @@ import { getSerializedRouteScript } from '$lib/utils/routeScriptPersistence';
 		}
 	}
 
-	function isBuildSuccess(result: unknown): boolean {
-		if (typeof result === 'number') return result >= 0;
+	function parseBuildRouteResult(result: unknown): BuildRouteResult | null {
+		if (typeof result === 'number') {
+			return { rc: result };
+		}
 		if (typeof result === 'string') {
 			const trimmed = result.trim().replace(/\0/g, '');
 			const numeric = Number(trimmed);
-			if (!Number.isNaN(numeric)) return numeric >= 0;
+			if (!Number.isNaN(numeric)) {
+				return { rc: numeric };
+			}
 			try {
-				const parsed = JSON.parse(trimmed) as { rc?: number };
-				return typeof parsed.rc === 'number' ? parsed.rc >= 0 : false;
+				const parsed = JSON.parse(trimmed) as BuildRouteResult;
+				if (typeof parsed?.rc === 'number') {
+					return {
+						rc: parsed.rc,
+						failItem: parsed.failItem,
+						offset: parsed.offset
+					};
+				}
 			} catch {
 				const match = trimmed.match(/"rc"\s*:\s*(-?\d+)/);
-				return match ? Number(match[1]) >= 0 : false;
+				if (match) {
+					return { rc: Number(match[1]) };
+				}
 			}
 		}
-		return false;
+		return null;
+	}
+
+	function isBuildSuccess(result: unknown): boolean {
+		const parsed = parseBuildRouteResult(result);
+		if (!parsed) return false;
+		return parsed.rc >= 0;
+	}
+
+	function isBuildSuccessResult(result: BuildRouteResult | null): boolean {
+		if (!result) return false;
+		return result.rc >= 0;
+	}
+
+	function formatImportError(result: BuildRouteResult | null, lineNumber: number): string {
+		let message = `経路の書式不正により、インポートに失敗しました: ${lineNumber} 行目`;
+		if (!result?.failItem) {
+			return message;
+		}
+
+		message += `、${result.failItem}`;
+		if ((result.rc === -200 || result.rc === -300) && typeof result.offset === 'number') {
+			message += `（${result.offset + 1}番目のワード）`;
+		}
+		return message;
 	}
 
     async function applyRoute(routeScript: string): Promise<void> {
@@ -287,7 +350,7 @@ import { getSerializedRouteScript } from '$lib/utils/routeScriptPersistence';
 		}
 			if (
 				shouldConfirmRouteOverwrite(normalizedScript) &&
-				!(await requestConfirm('経路が消去されますがよろしいですか？'))
+				!(await requestConfirm('⚠️経路は保存されていません。上書きしてよろしいですか？'))
 			) {
 				return;
 			}
@@ -322,6 +385,11 @@ import { getSerializedRouteScript } from '$lib/utils/routeScriptPersistence';
 
 		if (!input) {
 			showError('インポート対象の経路がありません。');
+			return;
+		}
+
+		const confirmed = await requestConfirm('経路をインポートしてよろしいですか？');
+		if (!confirmed) {
 			return;
 		}
 

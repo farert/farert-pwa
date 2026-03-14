@@ -405,7 +405,7 @@ it('hides fare summary card before route selection', async () => {
 		expect(gotoMock).toHaveBeenCalledWith('/version');
 	});
 
-	it('provides Osaka and Kokura toggles inside the option menu', async () => {
+	it('provides Osaka route option inside the option menu', async () => {
 		const seededRoute = new MockFarert();
 		seededRoute.buildRoute('小倉,鹿児島本線,博多,大阪環状線,大阪');
 		seededRoute.fareInfoJson = JSON.stringify({
@@ -428,17 +428,24 @@ it('hides fare summary card before route selection', async () => {
 		await optionsButton.click();
 		const osakaDisable = page.getByRole('menuitem', { name: '大阪環状線近回り' });
 		await expect.element(osakaDisable).toBeInTheDocument();
+		await osakaDisable.click();
+
+		/*
+		// TODO: 小倉-博多オプション復活時のため一時コメントアウト
+		const optionsButton2 = page.getByRole('button', { name: 'オプション' });
+		await optionsButton2.click();
 		const kokuraItem = page.getByRole('menuitem', {
 			name: '小倉-博多間新幹線在来線別線扱い（無効）'
 		});
 		await expect.element(kokuraItem).toBeInTheDocument();
 		await kokuraItem.click();
 
-		await optionsButton.click();
+		await optionsButton2.click();
 		const kokuraItemEnabled = page.getByRole('menuitem', {
 			name: '小倉-博多間新幹線在来線別線扱い（有効）'
 		});
 		await expect.element(kokuraItemEnabled).toBeInTheDocument();
+		*/
 	});
 
 	it('shows overwrite confirmation when selecting ticket holder route and cancels on No', async () => {
