@@ -65,13 +65,12 @@ import { base } from '$app/paths';
 	</section>
 
 	<section class="card">
-		<h2>よくある質問</h2>
-		{#each faqs as faq}
-			<details>
-				<summary>{faq.q}</summary>
-				<p>{faq.a}</p>
-			</details>
-		{/each}
+		<h2>外部サイト</h2>
+		<p>
+			<a href="https://farert.blogspot.com/2017/03/blog-post_54.html" target="_blank" rel="noopener noreferrer"
+				>経路運賃キロ計算アプリの使い方〜目次</a
+			>
+		</p>
 	</section>
 
 	<section class="card warning">
@@ -134,6 +133,7 @@ import { base } from '$app/paths';
 	h2 {
 		margin: 0;
 		font-size: 1.05rem;
+        font-weight: bold;
 	}
 
 	ol,
