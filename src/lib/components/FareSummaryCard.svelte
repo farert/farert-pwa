@@ -61,13 +61,13 @@ function handleDetailClick(): void {
 
 <style>
 	.fare-summary-card {
-		background: #ecfdf5;
+		background: var(--fare-card-bg);
 		border-radius: 1rem;
 		padding: 1rem 1.25rem;
 		display: flex;
 		flex-direction: column;
 		gap: 0.75rem;
-		box-shadow: 0 10px 25px rgba(16, 185, 129, 0.15);
+		box-shadow: var(--card-shadow);
 		border: none;
 		width: 100%;
 		text-align: left;
@@ -89,7 +89,7 @@ function handleDetailClick(): void {
 	.label {
 		margin: 0;
 		font-size: 0.85rem;
-		color: #047857;
+		color: var(--fare-card-label);
 		font-weight: 600;
 	}
 
@@ -97,7 +97,7 @@ function handleDetailClick(): void {
 		margin: 0.2rem 0 0;
 		font-size: 1.1rem;
 		font-weight: 700;
-		color: #064e3b;
+		color: var(--fare-card-value);
 	}
 
 	.fare-summary-card:disabled {
@@ -107,6 +107,6 @@ function handleDetailClick(): void {
 
 	.chevron {
 		font-size: 1.5rem;
-		color: #10b981;
+		color: var(--fare-card-accent);
 	}
 </style>

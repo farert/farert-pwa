@@ -172,22 +172,22 @@ import { base } from '$app/paths';
 		gap: 1rem;
 		padding: 2rem 1.5rem 3rem;
 		text-align: center;
-		background: #f8fafc;
-		color: #0f172a;
+		background: var(--page-bg);
+		color: var(--text-main);
 	}
 
 	.app-version {
 		margin: 0.5rem 0;
 		font-weight: 700;
 		font-size: 1.1rem;
-		color: #4c1d95;
+		color: var(--nav-btn-text);
 	}
 
 	.build-at,
 	.commit-info {
 		margin: 0;
 		font-weight: 600;
-		color: #64748b;
+		color: var(--text-sub);
 	}
 
 	.hero-icon {
@@ -215,33 +215,33 @@ import { base } from '$app/paths';
 	}
 
 	.tax {
-		color: #6b7280;
+		color: var(--text-sub);
 	}
 
 	.banner {
 		padding: 0.8rem 1rem;
 		border-radius: 0.75rem;
-		background: #e0f2fe;
-		color: #0369a1;
+		background: var(--info-bg);
+		color: var(--info-text);
 	}
 
 	.banner.error {
-		background: #fee2e2;
-		color: #b91c1c;
+		background: var(--error-bg);
+		color: var(--error-text);
 	}
 
 	.copyright {
 		margin: 0.5rem 0;
-		color: #374151;
+		color: var(--text-main);
 	}
 
 	.eula {
 		max-width: 420px;
-		background: #fff;
+		background: var(--card-bg);
 		padding: 1rem;
 		border-radius: 0.85rem;
-		box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
-		color: #111827;
+		box-shadow: var(--card-shadow);
+		color: var(--text-main);
 		font-size: 0.95rem;
 		line-height: 1.6;
 	}
@@ -249,7 +249,7 @@ import { base } from '$app/paths';
 	.link-button {
 		border: none;
 		background: none;
-		color: #2563eb;
+		color: var(--link);
 		font-weight: 700;
 		text-decoration: underline;
 		cursor: pointer;
@@ -257,7 +257,7 @@ import { base } from '$app/paths';
 
 	.close-button {
 		border: none;
-		background: #2563eb;
+		background: var(--primary);
 		color: #fff;
 		padding: 0.75rem 2.5rem;
 		border-radius: 999px;

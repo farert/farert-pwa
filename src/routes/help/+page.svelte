@@ -185,7 +185,7 @@ import { base } from '$app/paths';
 
 	.close-button {
 		border: none;
-		background: #2563eb;
+		background: var(--primary);
 		color: white;
 		border-radius: 0.75rem;
 		padding: 0.8rem;

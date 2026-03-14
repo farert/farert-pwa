@@ -284,7 +284,7 @@ function stationMeta(name: string): string {
 	.station-selection {
 		min-height: 100vh;
 		padding: 1rem;
-		background: #f8fafc;
+		background: var(--page-bg);
 		font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 	}
 
@@ -299,14 +299,14 @@ function stationMeta(name: string): string {
 	.toolbar h1 {
 		font-size: 1.1rem;
 		font-weight: 600;
-		color: #1f2937;
+		color: var(--text-main);
 		margin: 0;
 	}
 
 	.text-button {
 		background: none;
 		border: none;
-		color: #2563eb;
+		color: var(--link);
 		font-weight: 600;
 		cursor: pointer;
 		padding: 0.25rem 0.5rem;
@@ -318,23 +318,23 @@ function stationMeta(name: string): string {
 
 	.info,
 	.placeholder {
-		color: #475569;
+		color: var(--text-sub);
 		text-align: center;
 		margin-top: 2rem;
 	}
 
 	.error-card {
-		background: #fee2e2;
-		color: #991b1b;
+		background: var(--error-bg);
+		color: var(--error-text);
 		padding: 1rem;
 		border-radius: 0.75rem;
 	}
 
 	.station-section {
-		background: #fff;
+		background: var(--card-bg);
 		border-radius: 0.75rem;
 		padding: 1rem;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+		box-shadow: var(--card-shadow);
 	}
 
 	.station-list {
@@ -348,33 +348,33 @@ function stationMeta(name: string): string {
 
 	.station-list button {
 		width: 100%;
-		border: 1px solid #e2e8f0;
+		border: 1px solid var(--border-color);
 		border-radius: 0.75rem;
 		padding: 0.75rem 1rem;
-		background: #fff;
+		background: var(--card-bg);
 		text-align: left;
 		cursor: pointer;
 		transition: background 0.2s;
 	}
 
 	.station-list button:hover:not(:disabled) {
-		background: #f1f5f9;
+		background: var(--list-item-bg);
 	}
 
 	.station-list button.disabled {
-		background: #f1f5f9;
-		color: #94a3b8;
+		background: var(--list-item-bg);
+		color: var(--subtitle-color);
 		cursor: not-allowed;
 	}
 
 	.station-name {
 		display: block;
 		font-weight: 600;
-		color: #0f172a;
+		color: var(--text-main);
 	}
 
 	.station-meta {
 		font-size: 0.85rem;
-		color: #64748b;
+		color: var(--text-sub);
 	}
 </style>

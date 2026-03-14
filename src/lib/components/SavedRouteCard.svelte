@@ -92,16 +92,16 @@
 		display: flex;
 		gap: 0.5rem;
 		align-items: flex-start;
-		background: #f8fafc;
+		background: var(--card-bg);
 		border-radius: 0.75rem;
 		padding: 0.9rem 1rem;
-		box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
-		border: 1px solid #e5e7eb;
+		box-shadow: var(--card-shadow);
+		border: 1px solid var(--border-color);
 		cursor: pointer;
 	}
 
 	.saved-card.text-card {
-		background: #fff;
+		background: var(--card-bg);
 		box-shadow: none;
 		border: none;
 	}
@@ -112,7 +112,7 @@
 
 	.route {
 		margin: 0;
-		color: #111827;
+		color: var(--text-main);
 		line-height: 1.4;
 		white-space: pre-wrap;
 		word-break: break-word;
@@ -126,21 +126,21 @@
 	}
 
 	.status.alert {
-		color: #dc2626;
+		color: var(--danger);
 	}
 
 	.status.muted {
-		color: #6b7280;
+		color: var(--text-sub);
 	}
 
 	.status.normal {
-		color: #374151;
+		color: var(--text-main);
 	}
 
 	.delete {
 		border: none;
-		background: #fef2f2;
-		color: #b91c1c;
+		background: var(--error-bg);
+		color: var(--error-text);
 		border-radius: 999px;
 		width: 36px;
 		height: 36px;

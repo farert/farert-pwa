@@ -573,7 +573,7 @@ type BuildRouteResult = {
 		align-items: center;
 		justify-content: space-between;
 		gap: 0.75rem;
-		background: #1976d2;
+		background: var(--top-bar-bg);
 		color: #fff;
 		padding: 0.75rem 1rem;
 		border-radius: 0 0 1rem 1rem;
@@ -610,18 +610,18 @@ type BuildRouteResult = {
 		margin: 0;
 		padding: 0.75rem 1rem;
 		border-radius: 0.75rem;
-		background: #e0f2fe;
-		color: #0ea5e9;
+		background: var(--info-bg);
+		color: var(--info-text);
 	}
 
 	.banner.error {
-		background: #fee2e2;
-		color: #b91c1c;
+		background: var(--error-bg);
+		color: var(--error-text);
 	}
 
 	.banner.info {
-		background: #dcfce7;
-		color: #15803d;
+		background: var(--success-bg);
+		color: var(--success-text);
 	}
 
 	.list {
@@ -632,7 +632,7 @@ type BuildRouteResult = {
 
 	.placeholder {
 		margin: 0;
-		color: #9ca3af;
+		color: var(--subtitle-color);
 		font-size: 0.95rem;
 	}
 
@@ -647,8 +647,8 @@ type BuildRouteResult = {
 		bottom: 0;
 		display: grid;
 		grid-template-columns: repeat(3, 1fr);
-		background: #fff;
-		border-top: 1px solid #e5e7eb;
+		background: var(--card-bg);
+		border-top: 1px solid var(--border-color);
 		padding: 0.5rem 0.75rem env(safe-area-inset-bottom, 0);
 		box-shadow: 0 -6px 20px rgba(15, 23, 42, 0.08);
 	}
@@ -662,7 +662,7 @@ type BuildRouteResult = {
 		justify-content: center;
 		gap: 0.15rem;
 		padding: 0.35rem 0.25rem;
-		color: #1f2937;
+		color: var(--text-main);
 		font-size: 0.9rem;
 	}
 
@@ -677,21 +677,21 @@ type BuildRouteResult = {
 	}
 
 	.modal {
-		background: #fff;
+		background: var(--card-bg);
 		padding: 1rem;
 		border-radius: 0.9rem;
 		width: min(90vw, calc(100% - 1rem));
-		box-shadow: 0 14px 30px rgba(15, 23, 42, 0.2);
+		box-shadow: var(--card-shadow);
 	}
 
 	.modal p {
 		margin: 0 0 0.75rem;
-		color: #111827;
+		color: var(--text-main);
 	}
 
 	.modal h3 {
 		margin: 0 0 0.5rem;
-		color: #111827;
+		color: var(--text-main);
 	}
 
 	.route-textarea {
@@ -699,16 +699,18 @@ type BuildRouteResult = {
 		min-height: 130px;
 		resize: vertical;
 		padding: 0.6rem;
-		border: 1px solid #cbd5e1;
+		border: 1px solid var(--border-color);
 		border-radius: 0.6rem;
 		font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
 			monospace;
 		margin-bottom: 0.75rem;
+		background: var(--input-bg);
+		color: var(--text-main);
 	}
 
 	.modal-close {
 		border: none;
-		background: #2563eb;
+		background: var(--primary);
 		color: #fff;
 		padding: 0.5rem 1.1rem;
 		border-radius: 0.6rem;
@@ -729,12 +731,12 @@ type BuildRouteResult = {
 	}
 
 	.confirm-primary {
-		background: #2563eb;
+		background: var(--primary);
 		color: #fff;
 	}
 
 	.confirm-secondary {
-		background: #e5e7eb;
-		color: #1f2937;
+		background: var(--secondary-btn-bg);
+		color: var(--secondary-btn-text);
 	}
 </style>

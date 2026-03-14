@@ -1277,11 +1277,6 @@ function showHistory(): boolean {
 </div>
 
 <style>
-	:global(body) {
-		background: #f3f4f6;
-		font-family: 'Noto Sans JP', system-ui, sans-serif;
-	}
-
 	.terminal-page {
 		max-width: 720px;
 		margin: 0 auto;
@@ -1295,7 +1290,7 @@ function showHistory(): boolean {
 		display: flex;
 		align-items: center;
 		gap: 1rem;
-		background: #1976d2;
+		background: var(--top-bar-bg);
 		color: #fff;
 		padding: 0.75rem 1rem;
 		border-radius: 0.75rem;
@@ -1316,7 +1311,7 @@ function showHistory(): boolean {
 	}
 
 	.nav-button {
-		background: #1565c0;
+		background: rgba(255, 255, 255, 0.15);
 		color: #fff;
 		border: none;
 		border-radius: 999px;
@@ -1336,10 +1331,10 @@ function showHistory(): boolean {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		background: #fff;
+		background: var(--card-bg);
 		border-radius: 999px;
 		padding: 0.25rem 0.5rem;
-		box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+		box-shadow: var(--card-shadow);
 	}
 
 	.tabs {
@@ -1356,11 +1351,11 @@ function showHistory(): boolean {
 		border-radius: 999px;
 		cursor: pointer;
 		font-weight: 600;
-		color: #4b5563;
+		color: var(--text-sub);
 	}
 
 	.tabs button.active {
-		background: #1976d2;
+		background: var(--primary);
 		color: #fff;
 	}
 
@@ -1368,10 +1363,10 @@ function showHistory(): boolean {
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
-		background: #fff;
+		background: var(--card-bg);
 		padding: 0.5rem 0.75rem;
 		border-radius: 0.75rem;
-		box-shadow: inset 0 0 0 1px #e5e7eb;
+		box-shadow: inset 0 0 0 1px var(--border-color);
 	}
 
 	.search-bar input {
@@ -1379,6 +1374,8 @@ function showHistory(): boolean {
 		border: none;
 		outline: none;
 		font-size: 1rem;
+		background: transparent;
+		color: var(--text-main);
 	}
 
 	.clear-button {
@@ -1392,8 +1389,8 @@ function showHistory(): boolean {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		background: #fee2e2;
-		color: #991b1b;
+		background: var(--error-bg);
+		color: var(--error-text);
 		border-radius: 0.75rem;
 		padding: 0.75rem 1rem;
 	}
@@ -1409,7 +1406,7 @@ function showHistory(): boolean {
 	.list-title {
 		margin: 0;
 		font-size: 0.9rem;
-		color: #6b7280;
+		color: var(--text-sub);
 		padding-left: 0.25rem;
 	}
 
@@ -1427,13 +1424,14 @@ function showHistory(): boolean {
 	}
 
 	.dialog-card {
-		background: #fff;
+		background: var(--card-bg);
 		border-radius: 1rem;
 		padding: 1.25rem;
 		max-width: 320px;
 		width: calc(100% - 2rem);
-		box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+		box-shadow: var(--card-shadow);
 		text-align: center;
+		color: var(--text-main);
 	}
 
 	.dialog-card h2 {
@@ -1457,26 +1455,26 @@ function showHistory(): boolean {
 	}
 
 	.dialog-actions button:first-child {
-		background: #2563eb;
+		background: var(--primary);
 		color: #fff;
 	}
 
 	.dialog-actions button:nth-child(2) {
-		background: #10b981;
+		background: var(--success-text);
 		color: #fff;
 	}
 
 	.dialog-actions button.secondary {
-		background: #e5e7eb;
-		color: #111827;
+		background: var(--secondary-btn-bg);
+		color: var(--secondary-btn-text);
 	}
 
 	.list-panel {
-		background: #fff;
+		background: var(--card-bg);
 		border-radius: 1rem;
 		padding: 0.5rem;
 		min-height: 320px;
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+		box-shadow: var(--card-shadow);
 	}
 
 	.list-panel ul {
@@ -1492,7 +1490,7 @@ function showHistory(): boolean {
 		width: 100%;
 		text-align: left;
 		border: none;
-		background: #f9fafb;
+		background: var(--list-item-bg);
 		border-radius: 0.9rem;
 		padding: 0.75rem 1rem;
 		cursor: pointer;
@@ -1502,21 +1500,21 @@ function showHistory(): boolean {
 	}
 
 	.list-item.station {
-		background: #eef2ff;
+		background: var(--list-item-active);
 	}
 
 	.primary {
 		font-weight: 600;
-		color: #111827;
+		color: var(--text-main);
 	}
 
 	.secondary {
 		font-size: 0.85rem;
-		color: #6b7280;
+		color: var(--text-sub);
 	}
 
 	.placeholder {
-		color: #9ca3af;
+		color: var(--subtitle-color);
 		text-align: center;
 		padding: 2rem 0;
 	}
@@ -1548,7 +1546,7 @@ function showHistory(): boolean {
 		width: 100%;
 		height: 100%;
 		border: none;
-		background: #dc2626;
+		background: var(--danger);
 		color: #fff;
 		font-weight: 700;
 		cursor: pointer;

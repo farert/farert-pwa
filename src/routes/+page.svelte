@@ -927,74 +927,6 @@ function updateHolderView(): void {
 </div>
 
 <style>
-	:global(:root) {
-		--bg: #f4f5f7;
-		--text-main: #0f172a;
-		--text-sub: #6b7280;
-		--title-color: #1f2937;
-		--subtitle-color: #9ca3af;
-		--card-bg: #ffffff;
-		--card-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-		--info-bg: #eff6ff;
-		--info-text: #1d4ed8;
-		--error-bg: #fee2e2;
-		--error-text: #b91c1c;
-		--icon-bg: #f3e8ff;
-		--icon-fg: #6b21a8;
-		--nav-btn-bg: #ede9fe;
-		--nav-btn-text: #4c1d95;
-		--station-grad-start: #6b21a8;
-		--station-grad-end: #a855f7;
-		--menu-bg: #ffffff;
-		--menu-shadow: 0 8px 20px rgba(15, 23, 42, 0.18);
-		--overlay-dim: rgba(15, 23, 42, 0.2);
-	}
-
-	:global([data-theme='dark']) {
-		--bg: #0f172a;
-		--text-main: #e5e7eb;
-		--text-sub: #cbd5e1;
-		--title-color: #e5e7eb;
-		--subtitle-color: #c7d2fe;
-		--card-bg: #111827;
-		--card-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-		--info-bg: #1f2937;
-		--info-text: #c7d2fe;
-		--error-bg: #3f1d2e;
-		--error-text: #fecdd3;
-		--icon-bg: rgba(255, 255, 255, 0.08);
-		--icon-fg: #e0e7ff;
-		--nav-btn-bg: #312e81;
-		--nav-btn-text: #c4b5fd;
-		--station-grad-start: #5b21b6;
-		--station-grad-end: #6d28d9;
-		--menu-bg: #1f2937;
-		--menu-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
-		--overlay-dim: rgba(15, 23, 42, 0.5);
-	}
-
-	:global(body) {
-		background: var(--bg);
-		color: var(--text-main);
-		font-family: 'Noto Sans JP', system-ui, sans-serif;
-	}
-
-	:global(.material-symbols-rounded) {
-		font-family: 'Material Symbols Rounded';
-		font-weight: normal;
-		font-style: normal;
-		font-size: 1em;
-		line-height: 1;
-		letter-spacing: normal;
-		text-transform: none;
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		white-space: nowrap;
-		-webkit-font-feature-settings: 'liga';
-		-webkit-font-smoothing: antialiased;
-	}
-
 	.page {
 		max-width: 960px;
 		margin: 0 auto;
@@ -1228,8 +1160,8 @@ function updateHolderView(): void {
 		display: flex;
 		flex-direction: column;
 		gap: 0.25rem;
-		background: #fff7ed;
-		color: #92400e;
+		background: var(--add-card-bg);
+		color: var(--add-card-text);
 		font-weight: 600;
 		cursor: pointer;
 	}
@@ -1271,7 +1203,7 @@ function updateHolderView(): void {
 		padding: 0.65rem 1rem;
 		font-size: 0.95rem;
 		cursor: pointer;
-		color: #1f2937;
+		color: var(--text-main);
 	}
 
 	.app-menu button:disabled {

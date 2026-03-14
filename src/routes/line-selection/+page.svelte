@@ -392,7 +392,7 @@ function handleLineSelect(lineName: string): void {
 	.line-selection {
 		min-height: 100vh;
 		padding: 1rem;
-		background: #f8fafc;
+		background: var(--page-bg);
 		font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 	}
 
@@ -407,14 +407,14 @@ function handleLineSelect(lineName: string): void {
 	.toolbar h1 {
 		font-size: 1.1rem;
 		font-weight: 600;
-		color: #1f2937;
+		color: var(--text-main);
 		margin: 0;
 	}
 
 	.text-button {
 		background: none;
 		border: none;
-		color: #2563eb;
+		color: var(--link);
 		font-weight: 600;
 		cursor: pointer;
 		padding: 0.25rem 0.5rem;
@@ -426,28 +426,28 @@ function handleLineSelect(lineName: string): void {
 
 	.info,
 	.placeholder {
-		color: #475569;
+		color: var(--text-sub);
 		text-align: center;
 		margin-top: 2rem;
 	}
 
 	.error-card {
-		background: #fee2e2;
-		color: #991b1b;
+		background: var(--error-bg);
+		color: var(--error-text);
 		padding: 1rem;
 		border-radius: 0.75rem;
 	}
 
 	.line-section {
-		background: #fff;
+		background: var(--card-bg);
 		border-radius: 0.75rem;
 		padding: 1rem;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+		box-shadow: var(--card-shadow);
 	}
 
 	.list-title {
 		font-weight: 600;
-		color: #0f172a;
+		color: var(--text-main);
 		margin-bottom: 0.75rem;
 	}
 
@@ -462,29 +462,29 @@ function handleLineSelect(lineName: string): void {
 
 	.line-list button {
 		width: 100%;
-		border: 1px solid #e2e8f0;
+		border: 1px solid var(--border-color);
 		border-radius: 0.75rem;
 		padding: 0.75rem;
 		text-align: left;
-		background: #fff;
+		background: var(--card-bg);
 		font-size: 1rem;
 		font-weight: 600;
-		color: #1f2937;
+		color: var(--text-main);
 		cursor: pointer;
 		transition: background 0.2s;
 	}
 
 	.line-list button:hover:not(:disabled) {
-		background: #eef2ff;
+		background: var(--list-item-active);
 	}
 
 	.line-list button.selected {
-		background: #e2e8f0;
-		color: #94a3b8;
+		background: var(--secondary-btn-bg);
+		color: var(--subtitle-color);
 		cursor: not-allowed;
 	}
 
 	.line-list button:disabled {
-		border-color: #cbd5f5;
+		border-color: var(--border-color);
 	}
 </style>

@@ -11,3 +11,118 @@
 	white-space: nowrap;
 	border: 0;
 }
+
+:root {
+	--bg: #f4f5f7;
+	--text-main: #0f172a;
+	--text-sub: #6b7280;
+	--title-color: #1f2937;
+	--subtitle-color: #9ca3af;
+	--card-bg: #ffffff;
+	--card-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+	--info-bg: #eff6ff;
+	--info-text: #1d4ed8;
+	--error-bg: #fee2e2;
+	--error-text: #b91c1c;
+	--success-bg: #dcfce7;
+	--success-text: #15803d;
+	--warning-bg: #fff7ed;
+	--warning-text: #c2410c;
+	--icon-bg: #f3e8ff;
+	--icon-fg: #6b21a8;
+	--nav-btn-bg: #ede9fe;
+	--nav-btn-text: #4c1d95;
+	--station-grad-start: #6b21a8;
+	--station-grad-end: #a855f7;
+	--menu-bg: #ffffff;
+	--menu-shadow: 0 8px 20px rgba(15, 23, 42, 0.18);
+	--overlay-dim: rgba(15, 23, 42, 0.2);
+	--page-bg: #f8fafc;
+	--link: #2563eb;
+	--primary: #2563eb;
+	--primary-hover: #1d4ed8;
+	--top-bar-bg: #1976d2;
+	--border-color: #e5e7eb;
+	--input-bg: #ffffff;
+	--list-item-bg: #f9fafb;
+	--list-item-active: #eef2ff;
+	--secondary-btn-bg: #e5e7eb;
+	--secondary-btn-text: #1f2937;
+	--danger: #dc2626;
+	--code-bg: #1f2937;
+	--code-text: #f9fafb;
+	--add-card-bg: #fff7ed;
+	--add-card-text: #92400e;
+	--fare-card-bg: #ecfdf5;
+	--fare-card-label: #047857;
+	--fare-card-value: #064e3b;
+	--fare-card-accent: #10b981;
+}
+
+[data-theme='dark'] {
+	--bg: #1a0a2e;
+	--text-main: #ffffff;
+	--text-sub: #e0d4f7;
+	--title-color: #ffffff;
+	--subtitle-color: #c7d2fe;
+	--card-bg: #000000;
+	--card-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+	--info-bg: #2d1b4e;
+	--info-text: #e0d4f7;
+	--error-bg: #3f1d2e;
+	--error-text: #fecdd3;
+	--success-bg: #1a3d2e;
+	--success-text: #86efac;
+	--warning-bg: #3d2a1a;
+	--warning-text: #fdba74;
+	--icon-bg: rgba(255, 255, 255, 0.12);
+	--icon-fg: #e0e7ff;
+	--nav-btn-bg: #3b1d6e;
+	--nav-btn-text: #e0d4f7;
+	--station-grad-start: #5b21b6;
+	--station-grad-end: #6d28d9;
+	--menu-bg: #0a0a0a;
+	--menu-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+	--overlay-dim: rgba(26, 10, 46, 0.7);
+	--page-bg: #1a0a2e;
+	--primary: #6366f1;
+	--primary-hover: #818cf8;
+	--top-bar-bg: #3b1d6e;
+	--border-color: #3b1d6e;
+	--input-bg: #1a0a2e;
+	--list-item-bg: #1a0a2e;
+	--list-item-active: #2d1b4e;
+	--secondary-btn-bg: #3b1d6e;
+	--secondary-btn-text: #ffffff;
+	--danger: #ef4444;
+	--code-bg: #0a0a0a;
+	--code-text: #ffffff;
+	--add-card-bg: #2d1b4e;
+	--add-card-text: #fdba74;
+	--fare-card-bg: #1a2d2e;
+	--fare-card-label: #86efac;
+	--fare-card-value: #a7f3d0;
+	--fare-card-accent: #34d399;
+}
+
+body {
+	background: var(--bg);
+	color: var(--text-main);
+	font-family: 'Noto Sans JP', system-ui, sans-serif;
+}
+
+.material-symbols-rounded {
+	font-family: 'Material Symbols Rounded';
+	font-weight: normal;
+	font-style: normal;
+	font-size: 1em;
+	line-height: 1;
+	letter-spacing: normal;
+	text-transform: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	white-space: nowrap;
+	-webkit-font-feature-settings: 'liga';
+	-webkit-font-smoothing: antialiased;
+}

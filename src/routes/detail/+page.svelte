@@ -839,11 +839,6 @@ function closeExportDialog(): void {
 </div>
 
 <style>
-	:global(body) {
-		background: #f4f5f7;
-		font-family: 'Noto Sans JP', system-ui, sans-serif;
-	}
-
 	:global(.material-symbols-rounded) {
 		font-family: 'Material Symbols Rounded';
 		font-weight: normal;
@@ -882,14 +877,14 @@ function closeExportDialog(): void {
 
 	.title-group > p {
 		margin: 0;
-		color: #6b7280;
+		color: var(--text-sub);
 		font-size: 0.95rem;
 	}
 
 	.title-group > h1 {
 		margin: 0.1rem 0 0;
 		font-size: 1.35rem;
-		color: #111827;
+		color: var(--text-main);
 	}
 
 	.actions {
@@ -904,8 +899,8 @@ function closeExportDialog(): void {
 		height: 44px;
 		border-radius: 999px;
 		border: none;
-		background: #ede9fe;
-		color: #5b21b6;
+		background: var(--icon-bg);
+		color: var(--icon-fg);
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
@@ -923,23 +918,23 @@ function closeExportDialog(): void {
 	}
 
 	.card {
-		background: #fff;
+		background: var(--card-bg);
 		border-radius: 1rem;
 		padding: 1.25rem;
-		box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+		box-shadow: var(--card-shadow);
 	}
 
 	.route-header-card .route-title {
 		margin: 0.25rem 0 0;
 		font-size: 1.3rem;
 		font-weight: 700;
-		color: #111827;
+		color: var(--text-main);
 	}
 
 	.label {
 		margin: 0;
 		font-size: 0.85rem;
-		color: #6b7280;
+		color: var(--text-sub);
 	}
 
 	.metric-card h3,
@@ -949,7 +944,7 @@ function closeExportDialog(): void {
 	.route-detail-card h3 {
 		margin: 0 0 0.75rem;
 		font-size: 1.05rem;
-		color: #0f172a;
+		color: var(--text-main);
 	}
 
 	.metric-list {
@@ -971,52 +966,52 @@ function closeExportDialog(): void {
 	.metric-label {
 		margin: 0;
 		font-size: 0.95rem;
-		color: #374151;
+		color: var(--text-main);
 		font-weight: 600;
 	}
 
 	.metric-note {
 		margin: 0.2rem 0 0;
 		font-size: 0.85rem;
-		color: #6b7280;
+		color: var(--text-sub);
 	}
 
 	.metric-note.success {
-		color: #15803d;
+		color: var(--success-text);
 	}
 
 	.metric-value {
 		margin: 0;
 		font-size: 1rem;
 		font-weight: 700;
-		color: #111827;
+		color: var(--text-main);
 		white-space: nowrap;
 	}
 
 	.placeholder {
 		margin: 0;
-		color: #9ca3af;
+		color: var(--subtitle-color);
 		font-size: 0.95rem;
 	}
 
 	.note-card ul {
 		padding-left: 1.1rem;
 		margin: 0;
-		color: #374151;
+		color: var(--text-main);
 	}
 
 	.validity-card .valid-days {
 		margin: 0 0 0.25rem;
 		font-size: 1.5rem;
 		font-weight: 700;
-		color: #0f172a;
+		color: var(--text-main);
 	}
 
 	.route-string {
 		margin: 0 0 0.5rem;
 		font-family: 'Roboto Mono', 'Noto Sans JP', monospace;
 		font-size: 0.95rem;
-		color: #111827;
+		color: var(--text-main);
 		word-break: break-word;
 	}
 
@@ -1029,23 +1024,23 @@ function closeExportDialog(): void {
 	}
 
 	.info-banner {
-		background: #e0f2fe;
-		color: #0369a1;
+		background: var(--info-bg);
+		color: var(--info-text);
 	}
 
 	.info-banner.success {
-		background: #dcfce7;
-		color: #15803d;
+		background: var(--success-bg);
+		color: var(--success-text);
 	}
 
 	.error-banner {
-		background: #fee2e2;
-		color: #b91c1c;
+		background: var(--error-bg);
+		color: var(--error-text);
 	}
 
 	.warning-banner {
-		background: #fff7ed;
-		color: #c2410c;
+		background: var(--warning-bg);
+		color: var(--warning-text);
 	}
 
 	.export-dialog {
@@ -1077,8 +1072,8 @@ function closeExportDialog(): void {
 		margin: 0 0 0.75rem;
 		padding: 0.9rem;
 		border-radius: 0.85rem;
-		background: #1f2937;
-		color: #f9fafb;
+		background: var(--code-bg);
+		color: var(--code-text);
 		font-family: 'Roboto Mono', 'Noto Sans JP', monospace;
 		font-size: 0.95rem;
 		white-space: pre-wrap;
@@ -1089,8 +1084,8 @@ function closeExportDialog(): void {
 
 	.copy-button {
 		border: none;
-		background: #4c1d95;
-		color: #fff;
+		background: var(--nav-btn-bg);
+		color: var(--nav-btn-text);
 		padding: 0.5rem 1.2rem;
 		border-radius: 999px;
 		font-weight: 600;
@@ -1098,15 +1093,16 @@ function closeExportDialog(): void {
 	}
 
 	.copy-button:hover {
-		background: #5b21b6;
+		background: var(--station-grad-start);
+		color: #fff;
 	}
 
 	.app-menu {
 		position: absolute;
 		top: 48px;
 		right: 0;
-		background: #fff;
-		box-shadow: 0 8px 20px rgba(15, 23, 42, 0.15);
+		background: var(--menu-bg);
+		box-shadow: var(--menu-shadow);
 		border-radius: 0.75rem;
 		padding: 0.5rem;
 		z-index: 20;
@@ -1122,13 +1118,13 @@ function closeExportDialog(): void {
 		text-align: left;
 		border-radius: 0.5rem;
 		font-size: 0.95rem;
-		color: #111827;
+		color: var(--text-main);
 		background-color: transparent;
 		cursor: pointer;
 	}
 
 	.app-menu button:hover {
-		background: #f3f4f6;
+		background: var(--list-item-bg);
 	}
 
 	.menu-overlay {
