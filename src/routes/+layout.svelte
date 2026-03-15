@@ -6,13 +6,11 @@
 	let updateAvailable = $state(false);
 	let updateWorker = $state<ServiceWorker | null>(null);
 	let dismissUpdate = $state(false);
-	let activeRegistration = $state<ServiceWorkerRegistration | null>(null);
 
 	let cleanupServiceWorker: (() => void) | null = null;
-	let cleanupVisibility: (() => void) | null = null;
 
 	onMount(() => {
-		const checkForUpdate = async (registration: ServiceWorkerRegistration) => {
+		const setupUpdateListener = (registration: ServiceWorkerRegistration) => {
 			const registerWaitingWorker = (worker: ServiceWorker | null): void => {
 				if (!worker) return;
 				if (!navigator.serviceWorker.controller) {
@@ -44,12 +42,6 @@
 
 			registration.addEventListener('updatefound', onUpdateFound);
 
-			try {
-				await registration.update();
-			} catch {
-				// 更新チェック失敗時は静かに無視
-			}
-
 			return () => {
 				registration.removeEventListener('updatefound', onUpdateFound);
 			};
@@ -77,10 +69,9 @@
 		if ('serviceWorker' in navigator) {
 			navigator.serviceWorker
 				.getRegistration()
-				.then(async (registration) => {
+				.then((registration) => {
 					if (!registration) return;
-					activeRegistration = registration;
-					const cleanup = await checkForUpdate(registration);
+					const cleanup = setupUpdateListener(registration);
 					cleanupServiceWorker = cleanup ?? null;
 				})
 				.catch(() => {
@@ -88,21 +79,8 @@
 				});
 		}
 
-		const onVisibilityChange = async () => {
-			if (document.visibilityState !== 'visible' || dismissUpdate || updateAvailable) return;
-			if (!activeRegistration) return;
-			try {
-				await activeRegistration.update();
-			} catch {
-				// 更新確認失敗時は無視
-			}
-		};
-		document.addEventListener('visibilitychange', onVisibilityChange);
-		cleanupVisibility = () => document.removeEventListener('visibilitychange', onVisibilityChange);
-
 		return () => {
 			cleanupServiceWorker?.();
-			cleanupVisibility?.();
 		};
 	});
 
