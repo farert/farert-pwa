@@ -90,7 +90,7 @@ import { base } from '$app/paths';
 		if (!worker) return false;
 		if (!navigator.serviceWorker.controller) return false;
 		updateWorker = worker;
-		updateMessage = '新しいバージョンが検出されました。更新を適用します。';
+		updateMessage = '更新候補が見つかりました。反映して最新版を使えます。';
 		return true;
 	}
 
@@ -115,7 +115,7 @@ import { base } from '$app/paths';
 		}
 
 		checkingUpdate = true;
-		updateMessage = '更新を確認しています...';
+		updateMessage = '更新の確認を開始しています...';
 		updateWorker = null;
 
 		try {
@@ -251,7 +251,7 @@ import { base } from '$app/paths';
 			{#if checkingUpdate}
 				更新確認中...
 			{:else}
-				更新
+				更新を確認
 			{/if}
 		</button>
 

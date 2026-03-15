@@ -127,10 +127,16 @@
 {#if updateAvailable && !dismissUpdate}
 	<div class="fixed inset-x-0 top-0 z-50 border-b border-white/20 bg-amber-500 px-4 py-2 text-white shadow-lg">
 		<div class="mx-auto flex max-w-3xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-			<p class="text-sm">新しいバージョンがあります。更新してください。</p>
+			<p class="text-sm">
+				新しいアプリバージョンが利用可能です。反映して最新状態に更新しますか？
+			</p>
 			<div class="flex items-center gap-2">
-				<button class="rounded border border-white/50 px-3 py-1 text-xs" on:click={closeUpdatePrompt}>あとで</button>
-				<button class="rounded bg-white px-3 py-1 text-xs font-semibold text-amber-700" on:click={applyUpdate}>更新</button>
+				<button class="rounded border border-white/50 px-3 py-1 text-xs font-semibold" on:click={closeUpdatePrompt}>
+					あとで
+				</button>
+				<button class="rounded bg-white px-3 py-1 text-xs font-bold text-amber-700" on:click={applyUpdate}>
+					今すぐ反映
+				</button>
 			</div>
 		</div>
 	</div>
