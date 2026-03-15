@@ -6,7 +6,6 @@
 	let updateAvailable = $state(false);
 	let updateWorker = $state<ServiceWorker | null>(null);
 	let dismissUpdate = $state(false);
-	let updatePreview = $state(false);
 
 	let cleanupServiceWorker: (() => void) | null = null;
 	let autoApplyTimer: ReturnType<typeof setTimeout> | null = null;
@@ -95,7 +94,6 @@
 					if (isUpdatePreview() && !updateAvailable) {
 						updateAvailable = true;
 						updateWorker = null;
-						updatePreview = true;
 					}
 				});
 		}
@@ -137,20 +135,8 @@
 			<div class="update-content">
 				<div class="update-icon" aria-hidden="true">⟳</div>
 				<div class="update-text">
-					<p class="update-title">
-						{#if updatePreview}
-							テスト表示
-						{:else}
-							アプリ更新の通知
-						{/if}
-					</p>
-					<p class="update-message">
-						{#if updatePreview}
-							【テスト表示】更新バナーの見た目確認
-						{:else}
-							新しいアプリバージョンが利用可能です。反映して最新状態に更新しますか？
-						{/if}
-					</p>
+					<p class="update-title">アプリ更新の通知</p>
+					<p class="update-message">新しいアプリバージョンが利用可能です。反映して最新状態に更新しますか？</p>
 					<div class="update-actions">
 						<button class="update-btn update-btn-secondary" on:click={closeUpdatePrompt}>
 							あとで
@@ -159,7 +145,7 @@
 							class="update-btn"
 							on:click={applyUpdate}
 							disabled={updateWorker === null}
-							title={updateWorker === null ? 'テスト表示では実反映なし' : 'Service Workerを適用'}
+							title={updateWorker === null ? '更新ワーカーが未検出です' : 'Service Workerを適用'}
 						>
 							今すぐ反映
 						</button>
