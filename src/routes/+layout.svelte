@@ -190,10 +190,10 @@
 		width: min(50vw, 50%);
 		max-width: 48rem;
 		border-radius: 1rem;
-		border: 1px solid rgba(255, 255, 255, 0.35);
-		box-shadow: 0 24px 45px rgba(15, 23, 42, 0.25);
-		background: linear-gradient(120deg, #ea580c 0%, #fb923c 60%, #f97316 100%);
-		color: #fff7ed;
+		border: 1px solid rgba(180, 83, 9, 0.28);
+		box-shadow: 0 16px 32px rgba(249, 115, 22, 0.18);
+		background: linear-gradient(120deg, #ffedd5 0%, #fed7aa 55%, #fcd34d 100%);
+		color: #92400e;
 		padding: 1rem;
 	}
 
@@ -210,7 +210,7 @@
 		display: grid;
 		place-items: center;
 		border-radius: 999px;
-		background: rgba(255, 255, 255, 0.2);
+		background: rgba(255, 255, 255, 0.45);
 		font-weight: 700;
 		font-size: 1rem;
 	}
@@ -245,28 +245,28 @@
 		padding: 0.4rem 0.85rem;
 		font-size: 0.8rem;
 		font-weight: 700;
-		background: #fff;
+		background: #f59e0b;
 		color: #7c2d12;
 		cursor: pointer;
-		box-shadow: 0 8px 20px rgba(124, 45, 18, 0.25);
+		box-shadow: 0 6px 14px rgba(180, 83, 9, 0.25);
 		white-space: nowrap;
 	}
 
 	.update-btn:hover {
-		background: #fff7ed;
+		background: #fbbf24;
 	}
 
 	.update-btn:disabled {
-		background: rgba(255, 255, 255, 0.55);
-		color: rgba(124, 45, 18, 0.65);
+		background: rgba(251, 191, 36, 0.35);
+		color: rgba(120, 53, 15, 0.6);
 		box-shadow: none;
 		cursor: default;
 	}
 
 	.update-btn-secondary {
-		background: rgba(255, 255, 255, 0.18);
-		border: 1px solid rgba(255, 255, 255, 0.5);
-		color: #fff;
+		background: rgba(255, 251, 235, 0.65);
+		border: 1px solid rgba(180, 83, 9, 0.32);
+		color: #7c2d12;
 		box-shadow: none;
 	}
 
@@ -320,7 +320,8 @@
 	}
 
 	:global(html[data-theme='dark']) .update-banner {
-		background: linear-gradient(120deg, #db6e1f 0%, #ea580c 55%, #fb6f24 100%);
-		border-color: rgba(255, 255, 255, 0.35);
+		background: linear-gradient(120deg, #3c2410 0%, #78350f 50%, #92400e 100%);
+		color: #fed7aa;
+		border-color: rgba(253, 186, 116, 0.28);
 	}
 </style>
