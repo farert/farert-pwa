@@ -73,12 +73,6 @@
 			}
 		}
 
-		if (typeof window !== 'undefined' && theme === 'light') {
-			if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-				theme = 'dark';
-			}
-		}
-
 		if (typeof document !== 'undefined') {
 			document.documentElement.setAttribute('data-theme', theme);
 		}
@@ -197,7 +191,7 @@
 		border-radius: 1rem;
 		border: 1px solid rgba(255, 255, 255, 0.35);
 		box-shadow: 0 24px 45px rgba(15, 23, 42, 0.25);
-		background: linear-gradient(120deg, #f59e0b 0%, #f97316 70%, #fb923c 100%);
+		background: linear-gradient(120deg, #ea580c 0%, #fb923c 60%, #f97316 100%);
 		color: #fff7ed;
 		padding: 1rem;
 	}
@@ -321,7 +315,7 @@
 	}
 
 	:global(html[data-theme='dark']) .update-banner {
-		background: linear-gradient(120deg, #7c3aed 0%, #9333ea 70%, #a855f7 100%);
-		border-color: rgba(255, 255, 255, 0.3);
+		background: linear-gradient(120deg, #db6e1f 0%, #ea580c 55%, #fb6f24 100%);
+		border-color: rgba(255, 255, 255, 0.35);
 	}
 </style>
