@@ -100,12 +100,28 @@ import { base } from '$app/paths';
 			return;
 		}
 
+		let hasReloaded = false;
 		const onControllerChange = () => {
+			hasReloaded = true;
 			window.removeEventListener('controllerchange', onControllerChange);
 			window.location.reload();
 		};
 		window.addEventListener('controllerchange', onControllerChange, { once: true });
-		updateWorker.postMessage({ type: 'SKIP_WAITING' });
+
+		window.setTimeout(() => {
+			if (!hasReloaded) {
+				window.location.reload();
+			}
+		}, 1200);
+
+		try {
+			updateWorker.postMessage({ type: 'SKIP_WAITING' });
+		} catch (err) {
+			console.warn('SW更新通知の送信に失敗しました', err);
+			if (!hasReloaded) {
+				window.location.reload();
+			}
+		}
 	}
 
 	async function checkAndApplyUpdate(): Promise<void> {
