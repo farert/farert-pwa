@@ -8,6 +8,16 @@
 	let dismissUpdate = $state(false);
 
 	let cleanupServiceWorker: (() => void) | null = null;
+	let autoApplyTimer: ReturnType<typeof setTimeout> | null = null;
+
+	function scheduleAutoApply(): void {
+		if (autoApplyTimer) {
+			clearTimeout(autoApplyTimer);
+		}
+		autoApplyTimer = setTimeout(() => {
+			applyUpdate();
+		}, 400);
+	}
 
 	onMount(() => {
 		const setupUpdateListener = (registration: ServiceWorkerRegistration) => {
@@ -19,6 +29,7 @@
 				updateWorker = worker;
 				updateAvailable = true;
 				dismissUpdate = false;
+				scheduleAutoApply();
 			};
 
 			if (registration.waiting) {
@@ -69,8 +80,11 @@
 		if ('serviceWorker' in navigator) {
 			navigator.serviceWorker
 				.getRegistration()
-				.then((registration) => {
+				.then(async (registration) => {
 					if (!registration) return;
+					await registration.update().catch(() => {
+						// 更新確認失敗時は自動更新しない
+					});
 					const cleanup = setupUpdateListener(registration);
 					cleanupServiceWorker = cleanup ?? null;
 				})
@@ -81,6 +95,10 @@
 
 		return () => {
 			cleanupServiceWorker?.();
+			if (autoApplyTimer) {
+				clearTimeout(autoApplyTimer);
+				autoApplyTimer = null;
+			}
 		};
 	});
 
