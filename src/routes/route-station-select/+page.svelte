@@ -7,7 +7,8 @@ import {
 	getBranchStationsByLine,
 	getStationsByLine,
 	getKanaByStation,
-	getLinesByStation
+	getLinesByStation,
+	executeSql
 } from '$lib/wasm';
 import { mainRoute } from '$lib/stores';
 import type { FaretClass } from '$lib/wasm/types';
@@ -22,6 +23,11 @@ interface StationSelectionParams {
 	prefecture?: string;
 	group?: string;
 }
+interface StationMetaInfo {
+	name: string;
+	kana: string;
+	lines: string[];
+}
 
 let loading = $state(true);
 let errorMessage = $state('');
@@ -29,7 +35,7 @@ let params = $state<StationSelectionParams>({ from: 'main' });
 let mode = $state<ScreenMode>('branch');
 let branchStations = $state<string[]>([]);
 let destinationStations = $state<string[]>([]);
-let stationDetails = $state<Record<string, { kana: string; lines: string[] }>>({});
+let stationDetails = $state<Record<string, StationMetaInfo>>({});
 let routeRef = $state<FaretClass | null>(null);
 let { presetParams = null } = $props<{ presetParams?: Partial<StationSelectionParams> | null }>();
 
@@ -105,7 +111,7 @@ function loadStations(context: StationSelectionParams): void {
 		}
 
 		destinationStations = parseList(getStationsByLine(context.line));
-		stationDetails = buildStationDetails([...new Set([...branchStations, ...destinationStations])]);
+		stationDetails = buildStationDetails([...new Set([...branchStations, ...destinationStations])], context.line);
 		errorMessage = '';
 	} catch (err) {
 		console.error('駅リストの取得に失敗しました', err);
@@ -137,24 +143,131 @@ function parseList(raw: string): string[] {
 	return [];
 }
 
-function buildStationDetails(stations: string[]): Record<string, { kana: string; lines: string[] }> {
-	const info: Record<string, { kana: string; lines: string[] }> = {};
+function buildStationDetails(stations: string[], lineName: string): Record<string, StationMetaInfo> {
+	const info: Record<string, StationMetaInfo> = {};
+	const stationNameMap = resolveDisplayNames(stations, lineName);
+
 	for (const station of stations) {
 		let kana = '';
 		let lines: string[] = [];
+		const displayName = stationNameMap[station] ?? station;
+		const normalized = normalizeStationName(displayName);
+
 		try {
-			kana = getKanaByStation(station);
+			kana = getKanaByStation(displayName);
 		} catch (err) {
 			console.warn('かな情報の取得に失敗しました', station, err);
+		}
+		if (!kana && normalized !== displayName) {
+			try {
+				kana = getKanaByStation(normalized);
+			} catch (err) {
+				console.warn('かな情報の再取得に失敗しました', station, err);
+			}
 		}
 		try {
 			lines = parseList(getLinesByStation(station));
 		} catch (err) {
 			console.warn('所属路線情報の取得に失敗しました', station, err);
 		}
-		info[station] = { kana, lines };
+		info[station] = { name: displayName, kana, lines };
 	}
 	return info;
+}
+
+function normalizeStationName(raw: string): string {
+	const trimmed = raw.trim();
+	return trimmed.replace(/[（(][^（）()]*[）)]$/g, '').trim();
+}
+
+function hasSamenameSuffix(raw: string): boolean {
+	return /[（(][^（）()]*[）)]$/.test(raw.trim());
+}
+
+function formatSamenameSuffix(raw: string): string {
+	const trimmed = raw.trim();
+	if (!trimmed) return '';
+	return trimmed.startsWith('(') || trimmed.startsWith('（') ? trimmed : `(${trimmed})`;
+}
+
+function resolveDisplayNames(stations: string[], lineName: string): Record<string, string> {
+	const map: Record<string, string> = {};
+	const stationBaseNames = [...new Set(stations.map((station) => normalizeStationName(station)))];
+	const sameNameByBase = resolveSameNameSuffix(stationBaseNames, lineName);
+
+	for (const station of stations) {
+		if (map[station] !== undefined) {
+			continue;
+		}
+		if (hasSamenameSuffix(station)) {
+			map[station] = station;
+			continue;
+		}
+		const base = normalizeStationName(station);
+		const suffix = sameNameByBase[base] ?? '';
+		map[station] = suffix ? `${base}${suffix}` : station;
+	}
+	return map;
+}
+
+function resolveSameNameSuffix(stationNames: string[], lineName: string): Record<string, string> {
+	const result: Record<string, string> = {};
+	if (typeof executeSql !== 'function') {
+		return result;
+	}
+
+	const query = (name: string, useLineFilter: boolean): string => {
+		const escapedName = name.replace(/'/g, "''");
+		const escapedLine = lineName.replace(/'/g, "''");
+		const lineClause = useLineFilter ? ` and ln.name='${escapedLine}'` : '';
+		return (
+			`select distinct t.samename from t_station t`
+			+ ` left join t_lines l on t.rowid=l.station_id`
+			+ ` left join t_line ln on ln.rowid=l.line_id`
+			+ ` where t.name='${escapedName}'${lineClause}`
+			+ ` and t.samename<>'' and (t.sflg&(1<<18))=0`
+		);
+	};
+
+	const parse = (payload: string): string[] => {
+		try {
+			const parsed = JSON.parse(payload) as {
+				rows?: Array<[string]>;
+			};
+			const rows = parsed.rows;
+			if (!Array.isArray(rows)) return [];
+			return rows.map((row) => {
+				const value = row?.[0];
+				return typeof value === 'string' ? value : '';
+			});
+		} catch {
+			return [];
+		}
+	};
+
+	for (const station of stationNames) {
+		try {
+		const response = executeSql(query(station, true));
+		const values = parse(response).filter((value) => value.length > 0);
+		const suffix = values[0] ?? '';
+		if (suffix) {
+			result[station] = formatSamenameSuffix(suffix);
+		}
+		} catch {
+			try {
+				const fallback = executeSql(query(station, false));
+				const values = parse(fallback).filter((value) => value.length > 0);
+				const suffix = values[0] ?? '';
+				if (suffix) {
+					result[station] = formatSamenameSuffix(suffix);
+				}
+			} catch {
+				// SQLクエリ失敗時は無視
+			}
+		}
+	}
+
+	return result;
 }
 
 function toggleMode(): void {
@@ -170,10 +283,12 @@ function goBack(): void {
 }
 
 function isDisabledStation(name: string): boolean {
-	return Boolean(params.station && params.station === name);
+	if (!params.station) return false;
+	return normalizeStationName(params.station) === normalizeStationName(name);
 }
 
 function handleSelectStation(name: string): void {
+	const selected = stationDetails[name]?.name ?? name;
 	if (!params.line) {
 		errorMessage = '路線情報が不足しています。';
 		return;
@@ -188,7 +303,7 @@ function handleSelectStation(name: string): void {
 			errorMessage = '発駅が設定されていません。';
 			return;
 		}
-		const result = route.addRoute(params.line, name);
+		const result = route.addRoute(params.line, selected);
 		if (result < 0) {
 			errorMessage = '経路の追加に失敗しました。';
 			return;
@@ -199,9 +314,9 @@ function handleSelectStation(name: string): void {
 	}
 
 	const search = new URLSearchParams();
-	search.set('from', params.from);
-	search.set('station', name);
-	search.set('line', params.line);
+		search.set('from', params.from);
+		search.set('station', selected);
+		search.set('line', params.line);
 	if (params.prefecture) search.set('prefecture', params.prefecture);
 	if (params.group) search.set('group', params.group);
 	goto(`${base}/terminal-selection?${search.toString()}`);
@@ -267,7 +382,7 @@ function stationMeta(name: string): string {
 								aria-disabled={isDisabledStation(station)}
 								onclick={() => handleSelectStation(station)}
 							>
-								<span class="station-name">{station}</span>
+								<span class="station-name">{stationDetails[station]?.name ?? station}</span>
 								{#if stationMeta(station)}
 									<span class="station-meta">{stationMeta(station)}</span>
 								{/if}

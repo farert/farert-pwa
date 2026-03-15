@@ -145,7 +145,8 @@ const wasmApi = {
 	getBranchStationsByLine: vi.fn<[string, string], string>(),
 	getStationsByLine: vi.fn<[string], string>(),
 	getKanaByStation: vi.fn<[string], string>(),
-	getLinesByStation: vi.fn<[string], string>()
+	getLinesByStation: vi.fn<[string], string>(),
+	executeSql: vi.fn<[string], string>()
 };
 
 vi.mock('$lib/wasm', () => ({
@@ -154,7 +155,8 @@ vi.mock('$lib/wasm', () => ({
 		wasmApi.getBranchStationsByLine(line, station),
 	getStationsByLine: (line: string) => wasmApi.getStationsByLine(line),
 	getKanaByStation: (station: string) => wasmApi.getKanaByStation(station),
-	getLinesByStation: (station: string) => wasmApi.getLinesByStation(station)
+	getLinesByStation: (station: string) => wasmApi.getLinesByStation(station),
+	executeSql: (sql: string) => wasmApi.executeSql(sql)
 }));
 
 const mainRouteStore: Writable<FaretClass | null> = writable(null);
@@ -173,6 +175,8 @@ describe('/route-station-select/+page.svelte', () => {
 		wasmApi.getStationsByLine.mockReset();
 		wasmApi.getKanaByStation.mockReset();
 		wasmApi.getLinesByStation.mockReset();
+		wasmApi.executeSql.mockReset();
+		wasmApi.executeSql.mockReturnValue('{"columns":["samename"],"rows":[],"rowCount":0}');
 		mainRouteStore.set(null);
 	});
 
@@ -257,5 +261,55 @@ describe('/route-station-select/+page.svelte', () => {
 		await expect.element(stationMeta).toBeInTheDocument();
 		await expect.element(page.getByText('(北上かな)')).toBeInTheDocument();
 		expect(wasmApi.getLinesByStation).toHaveBeenCalledWith('水沢');
+	});
+
+	it('同名駅はサフィックスを付与し、同名駅のかなをベース名で補完する', async () => {
+		wasmApi.getBranchStationsByLine.mockReturnValue(JSON.stringify(['金山']));
+		wasmApi.getStationsByLine.mockReturnValue(JSON.stringify(['金山']));
+		wasmApi.getKanaByStation.mockImplementation((station: string) => {
+			if (station === '金山(中)') return '';
+			return station === '金山' ? 'かなやま' : `${station}かな`;
+		});
+		wasmApi.getLinesByStation.mockReturnValue(JSON.stringify(['東海道本線']));
+		wasmApi.executeSql.mockReturnValue(JSON.stringify({
+			columns: ['samename'],
+			rows: [['中']],
+			rowCount: 1
+		}));
+
+		render(RouteStationSelectPage, {
+			presetParams: { from: 'main', station: '川崎', line: '東海道本線' }
+		});
+
+		const stationButton = page.getByRole('button', { name: '金山(中)' });
+		await expect.element(stationButton).toBeInTheDocument();
+		await expect.element(page.getByText('(かなやま) / 東海道本線')).toBeInTheDocument();
+	});
+
+	it('同名駅の識別子を経由して路線追加を実行する', async () => {
+		const seededRoute = new MockFarert();
+		seededRoute.addStartRoute('柏木平');
+		mainRouteStore.set(seededRoute);
+
+		wasmApi.getBranchStationsByLine.mockReturnValue(JSON.stringify(['金山']));
+		wasmApi.getStationsByLine.mockReturnValue(JSON.stringify(['金山']));
+		wasmApi.getKanaByStation.mockImplementation((station: string) => {
+			if (station === '金山(中)') return '';
+			return station === '金山' ? 'かなやま' : `${station}かな`;
+		});
+		wasmApi.getLinesByStation.mockReturnValue(JSON.stringify(['東海道本線']));
+		wasmApi.executeSql.mockReturnValue(JSON.stringify({
+			columns: ['samename'],
+			rows: [['中']],
+			rowCount: 1
+		}));
+
+		render(RouteStationSelectPage, {
+			presetParams: { from: 'main', station: '柏木平', line: '東海道本線' }
+		});
+
+		const stationButton = page.getByRole('button', { name: '金山(中)' });
+		await stationButton.click();
+		expect(seededRoute.addRouteMock).toHaveBeenCalledWith('東海道本線', '金山(中)');
 	});
 });
