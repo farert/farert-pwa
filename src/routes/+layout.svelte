@@ -6,6 +6,7 @@
 	let updateAvailable = $state(false);
 	let updateWorker = $state<ServiceWorker | null>(null);
 	let dismissUpdate = $state(false);
+	let isApplyingUpdate = $state(false);
 
 	let cleanupServiceWorker: (() => void) | null = null;
 	let autoApplyTimer: ReturnType<typeof setTimeout> | null = null;
@@ -109,6 +110,8 @@
 
 	function applyUpdate(): void {
 		if (!updateAvailable || !updateWorker) return;
+		if (isApplyingUpdate) return;
+		isApplyingUpdate = true;
 
 		let hasReloaded = false;
 		const onControllerChange = () => {
@@ -120,6 +123,7 @@
 
 		window.setTimeout(() => {
 			if (!hasReloaded) {
+				isApplyingUpdate = false;
 				window.location.reload();
 			}
 		}, 1200);
@@ -129,6 +133,7 @@
 		} catch (err) {
 			console.warn('SW更新通知の送信に失敗しました', err);
 			if (!hasReloaded) {
+				isApplyingUpdate = false;
 				window.location.reload();
 			}
 		}
@@ -160,10 +165,10 @@
 						<button
 							class="update-btn"
 							on:click={applyUpdate}
-							disabled={updateWorker === null}
+							disabled={updateWorker === null || isApplyingUpdate}
 							title={updateWorker === null ? '更新ワーカーが未検出です' : 'Service Workerを適用'}
 						>
-							今すぐ反映
+							{isApplyingUpdate ? '反映中...' : '今すぐ反映'}
 						</button>
 					</div>
 				</div>
