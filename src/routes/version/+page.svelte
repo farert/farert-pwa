@@ -18,6 +18,9 @@ import { base } from '$app/paths';
 	let gitCommitAt = $state(GIT_COMMIT_AT);
 	let gitSha = $state(GIT_SHA);
 	let dbMeta = $state<DbMeta>({ name: '', createDate: '', tax: null });
+	let checkingUpdate = $state(false);
+	let updateMessage = $state('');
+	let updateWorker = $state<ServiceWorker | null>(null);
 
 	onMount(() => {
 		(async () => {
@@ -81,6 +84,90 @@ import { base } from '$app/paths';
 
 	function close(): void {
 		goto(`${base}/`);
+	}
+
+	function registerPendingWorker(worker: ServiceWorker | null): boolean {
+		if (!worker) return false;
+		if (!navigator.serviceWorker.controller) return false;
+		updateWorker = worker;
+		updateMessage = '新しいバージョンが検出されました。更新を適用します。';
+		return true;
+	}
+
+	async function applyUpdate(): Promise<void> {
+		if (!('serviceWorker' in navigator) || !updateWorker) {
+			updateMessage = '更新対象が見つかりません。';
+			return;
+		}
+
+		const onControllerChange = () => {
+			window.removeEventListener('controllerchange', onControllerChange);
+			window.location.reload();
+		};
+		window.addEventListener('controllerchange', onControllerChange, { once: true });
+		updateWorker.postMessage({ type: 'SKIP_WAITING' });
+	}
+
+	async function checkAndApplyUpdate(): Promise<void> {
+		if (!('serviceWorker' in navigator)) {
+			updateMessage = 'この環境ではService Workerを更新できません。';
+			return;
+		}
+
+		checkingUpdate = true;
+		updateMessage = '更新を確認しています...';
+		updateWorker = null;
+
+		try {
+			const registration = await navigator.serviceWorker.getRegistration();
+			if (!registration) {
+				updateMessage = 'Service Workerが未登録です。';
+				return;
+			}
+
+			if (registerPendingWorker(registration.waiting)) {
+				await applyUpdate();
+				return;
+			}
+
+			await registration.update();
+			await new Promise((resolve) => {
+				setTimeout(resolve, 300);
+			});
+
+			if (registerPendingWorker(registration.waiting)) {
+				await applyUpdate();
+			} else if (registration.installing) {
+				await new Promise<void>((resolve) => {
+					const clearState = () => {
+						registration.installing?.removeEventListener('statechange', onStateChange);
+						resolve();
+					};
+					const onStateChange = () => {
+						if (
+							registration.installing?.state === 'installed' ||
+							registration.installing?.state === 'redundant'
+						) {
+							clearState();
+						}
+					};
+					registration.installing.addEventListener('statechange', onStateChange);
+				});
+
+				if (registerPendingWorker(registration.waiting)) {
+					await applyUpdate();
+				} else {
+					updateMessage = '更新は見つかりませんでした。';
+				}
+			} else {
+				updateMessage = '更新は見つかりませんでした。';
+			}
+		} catch (err) {
+			console.error('SW更新の確認に失敗しました', err);
+			updateMessage = '更新の確認に失敗しました。';
+		} finally {
+			checkingUpdate = false;
+		}
 	}
 
 	const taxText = $derived(
@@ -156,6 +243,16 @@ import { base } from '$app/paths';
 
 		<button type="button" class="link-button" onclick={openSupport}>
 			http://farert.blogspot.jp/
+		</button>
+		{#if updateMessage}
+			<p class="banner">{updateMessage}</p>
+		{/if}
+		<button type="button" class="close-button" onclick={checkAndApplyUpdate} disabled={checkingUpdate}>
+			{#if checkingUpdate}
+				更新確認中...
+			{:else}
+				更新
+			{/if}
 		</button>
 
 		<button type="button" class="close-button" onclick={close}>OK</button>
