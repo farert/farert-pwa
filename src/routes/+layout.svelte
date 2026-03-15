@@ -6,6 +6,7 @@
 	let updateAvailable = $state(false);
 	let updateWorker = $state<ServiceWorker | null>(null);
 	let dismissUpdate = $state(false);
+	let updatePreview = $state(false);
 
 	let cleanupServiceWorker: (() => void) | null = null;
 	let autoApplyTimer: ReturnType<typeof setTimeout> | null = null;
@@ -20,6 +21,11 @@
 	}
 
 	onMount(() => {
+		const isUpdatePreview = () => {
+			if (typeof window === 'undefined') return false;
+			return new URLSearchParams(window.location.search).get('sw-update-preview') === '1';
+		};
+
 		const setupUpdateListener = (registration: ServiceWorkerRegistration) => {
 			const registerWaitingWorker = (worker: ServiceWorker | null): void => {
 				if (!worker) return;
@@ -90,6 +96,13 @@
 				})
 				.catch(() => {
 					// SW登録取得失敗時は更新チェックを行わない
+				})
+				.finally(() => {
+					if (isUpdatePreview() && !updateAvailable) {
+						updateAvailable = true;
+						updateWorker = null;
+						updatePreview = true;
+					}
 				});
 		}
 
@@ -126,9 +139,13 @@
 
 {#if updateAvailable && !dismissUpdate}
 	<div class="fixed inset-x-0 top-0 z-50 border-b border-white/20 bg-amber-500 px-4 py-2 text-white shadow-lg">
-		<div class="mx-auto flex max-w-3xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+			<div class="mx-auto flex max-w-3xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 			<p class="text-sm">
+				{#if updatePreview}
+					【テスト表示】更新バナーの見た目確認
+				{:else}
 				新しいアプリバージョンが利用可能です。反映して最新状態に更新しますか？
+				{/if}
 			</p>
 			<div class="flex items-center gap-2">
 				<button class="rounded border border-white/50 px-3 py-1 text-xs font-semibold" on:click={closeUpdatePrompt}>
