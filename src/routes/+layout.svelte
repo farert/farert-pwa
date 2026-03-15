@@ -187,6 +187,7 @@
 
 	.update-banner {
 		margin: 0 auto;
+		width: min(50vw, 50%);
 		max-width: 48rem;
 		border-radius: 1rem;
 		border: 1px solid rgba(255, 255, 255, 0.35);
@@ -270,6 +271,10 @@
 	}
 
 	@media (max-width: 640px) {
+		.update-banner {
+			width: auto;
+		}
+
 		.update-content {
 			grid-template-columns: auto 1fr;
 			grid-template-areas:
