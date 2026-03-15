@@ -88,10 +88,44 @@ import { base } from '$app/paths';
 
 	function registerPendingWorker(worker: ServiceWorker | null): boolean {
 		if (!worker) return false;
-		if (!navigator.serviceWorker.controller) return false;
 		updateWorker = worker;
 		updateMessage = '更新候補が見つかりました。反映して最新版を使えます。';
 		return true;
+	}
+
+	async function getServiceWorkerRegistration(): Promise<ServiceWorkerRegistration | null> {
+		if (!('serviceWorker' in navigator)) return null;
+		const currentUrl = window.location.href;
+
+		try {
+			const registration = await navigator.serviceWorker.getRegistration();
+			if (registration) return registration;
+
+			const registrations = await navigator.serviceWorker.getRegistrations();
+			if (registrations.length === 0) return null;
+
+			const sameOrigin = registrations.filter((candidate) => {
+				try {
+					return new URL(candidate.scope).origin === new URL(currentUrl).origin;
+				} catch {
+					return false;
+				}
+			});
+
+			if (sameOrigin.length === 0) return registrations[0] ?? null;
+
+			const matched = sameOrigin.filter((candidate) => currentUrl.startsWith(candidate.scope));
+			if (matched.length > 0) {
+				matched.sort((a, b) => b.scope.length - a.scope.length);
+				return matched[0];
+			}
+
+			sameOrigin.sort((a, b) => b.scope.length - a.scope.length);
+			return sameOrigin[0];
+		} catch (err) {
+			console.warn('Service Worker登録の取得に失敗しました', err);
+			return null;
+		}
 	}
 
 	async function applyUpdate(): Promise<void> {
@@ -135,9 +169,9 @@ import { base } from '$app/paths';
 		updateWorker = null;
 
 		try {
-			const registration = await navigator.serviceWorker.getRegistration();
+			const registration = await getServiceWorkerRegistration();
 			if (!registration) {
-				updateMessage = 'Service Workerが未登録です。';
+				updateMessage = '更新は見つかりませんでした。';
 				return;
 			}
 
