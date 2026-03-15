@@ -24,6 +24,11 @@ if (isDev) {
 		return;
 	});
 } else {
+	sw.addEventListener('message', (event) => {
+		if (event.data?.type === 'SKIP_WAITING') {
+			sw.skipWaiting();
+		}
+	});
 
 const CACHE_NAME = `farert-cache-${hashManifest(precacheManifest)}`;
 
@@ -49,6 +54,7 @@ sw.addEventListener('activate', (event) => {
 		}
 	}
 
+	sw.clients.claim();
 	event.waitUntil(deleteOldCaches());
 });
 
