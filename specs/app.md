@@ -72,7 +72,22 @@
 ### PWA要件
 - manifest.json: アプリメタデータ（名前、アイコン、テーマカラー）
 - Service Worker: オフラインキャッシュ戦略
-- インストール可能: ホーム画面に追加可能
+	- `injectManifest` 方式を使用し、`vite.config.ts` の `injectManifest.globPatterns` に以下を含める。
+		- `html,js,css,svg,png,wasm,data,webmanifest`
+	- `src/lib/service-worker.js` は以下を必須要件として実装する。
+		- キャッシュ登録: `precacheManifest` の全URLを `CACHE_NAME` でインストール時に `addAll`。
+		- ネットワーク優先 + キャッシュフォールバック。
+		- `navigate` リクエスト（`/route-station-select` などの深いURL）失敗時は、`BASE_URL` 起点のシェル（`/` + `index.html`）を返し、
+		  画面を復元可能とする。
+		- 外部ネットワーク障害時でも、`/route-station-select` を含む既存画面の再表示とWASM初期化に必要な静的資産の再利用を維持する。
+	- インストール可能: ホーム画面に追加可能
+- 更新ポリシー（PWAの運用）
+	- 1) ビルドごとに新しいSWが配信される。
+	- 2) `waiting` 状態で更新候補を待機。
+	- 3) アプリ側（`+layout.svelte` / `/version`）から `SKIP_WAITING` を送信し、`controllerchange` 後に再読込。
+	- 4) オフライン中は有効なキャッシュ版（現行キャッシュ）を継続利用。オンライン復帰後に更新反映。
+- 重要資産として `farert.js`, `farert.wasm`, `farert.data` を同時にキャッシュ対象とし、
+	  オフライン時の駅検索・経路計算・路線/駅一覧表示を阻害しない。
 
 ### WASM統合の手順
 1. WASMモジュールのビルド（`/workspace-wasm` 内）

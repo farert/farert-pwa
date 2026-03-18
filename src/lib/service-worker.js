@@ -8,6 +8,8 @@ const sw = self;
 
 const precacheManifest = self.__WB_MANIFEST ?? [];
 const manifestUrls = precacheManifest.map((entry) => entry.url);
+const basePath = new URL(import.meta.env.BASE_URL || '/', self.location.origin).pathname;
+const shellPath = basePath.endsWith('/') ? basePath : `${basePath}/`;
 
 // 開発モードでは何もしない
 const isDev = import.meta.env.DEV;
@@ -30,74 +32,106 @@ if (isDev) {
 		}
 	});
 
-const CACHE_NAME = `farert-cache-${hashManifest(precacheManifest)}`;
+	const CACHE_NAME = `farert-cache-${hashManifest(precacheManifest)}`;
 
-// キャッシュするファイル
-const assetSet = new Set([...manifestUrls]);
-const ASSETS = Array.from(assetSet);
+	// キャッシュするファイル
+	const assetSet = new Set([...manifestUrls]);
+	const ASSETS = Array.from(assetSet);
 
-// インストール時
-sw.addEventListener('install', (event) => {
-	async function addFilesToCache() {
-		const cache = await caches.open(CACHE_NAME);
-		await cache.addAll(ASSETS);
+	/**
+	 * SPA のエントリ（シェル）として返却する候補
+	 * @returns {string[]}
+	 */
+	function getShellCandidates() {
+		const indexShell = `${shellPath}index.html`.replace('//', '/');
+		return [shellPath, indexShell, '/'];
 	}
 
-	event.waitUntil(addFilesToCache());
-});
-
-// アクティベート時
-sw.addEventListener('activate', (event) => {
-	async function deleteOldCaches() {
-		for (const key of await caches.keys()) {
-			if (key !== CACHE_NAME) await caches.delete(key);
+	/**
+	 * キャッシュからシェルを返却する
+	 * @param {Cache} cache
+	 * @returns {Promise<Response | null>}
+	 */
+	async function getCachedShell(cache) {
+		for (const candidate of getShellCandidates()) {
+			const response = await cache.match(candidate);
+			if (response) {
+				return response;
+			}
 		}
+		return null;
 	}
 
-	sw.clients.claim();
-	event.waitUntil(deleteOldCaches());
-});
+	// インストール時
+	sw.addEventListener('install', (event) => {
+		async function addFilesToCache() {
+			const cache = await caches.open(CACHE_NAME);
+			await cache.addAll(ASSETS);
+		}
 
-// フェッチ時
-sw.addEventListener('fetch', (event) => {
-	if (event.request.method !== 'GET') return;
+		event.waitUntil(addFilesToCache());
+	});
 
-	async function respond() {
-		const url = new URL(event.request.url);
-		const cache = await caches.open(CACHE_NAME);
-
-		// ビルドファイルはキャッシュから優先
-		if (ASSETS.includes(url.pathname)) {
-			const cachedResponse = await cache.match(url.pathname);
-			if (cachedResponse) {
-				return cachedResponse;
+	// アクティベート時
+	sw.addEventListener('activate', (event) => {
+		async function deleteOldCaches() {
+			for (const key of await caches.keys()) {
+				if (key !== CACHE_NAME) {
+					await caches.delete(key);
+				}
 			}
 		}
 
-		// ネットワークを試行
-		try {
-			const response = await fetch(event.request);
+		sw.clients.claim();
+		event.waitUntil(deleteOldCaches());
+	});
 
-			// 成功したらキャッシュに保存
-			if (response.status === 200) {
-				cache.put(event.request, response.clone());
-			}
-
-			return response;
-		} catch {
-			// オフライン時はキャッシュから返す
-			const cachedResponse = await cache.match(event.request);
-			if (cachedResponse) {
-				return cachedResponse;
-			}
-
-			// フォールバック: index.htmlを返す（SPAルーティング用）
-			return cache.match('/') || new Response('Not found', { status: 404 });
+	// フェッチ時
+	sw.addEventListener('fetch', (event) => {
+		if (event.request.method !== 'GET') {
+			return;
 		}
-	}
 
-event.respondWith(respond());
-});
+		async function respond() {
+			const url = new URL(event.request.url);
+			const cache = await caches.open(CACHE_NAME);
+
+			// ビルドファイルはキャッシュから優先
+			if (ASSETS.includes(url.pathname)) {
+				const cachedResponse = await cache.match(url.pathname);
+				if (cachedResponse) {
+					return cachedResponse;
+				}
+			}
+
+			// ネットワークを試行
+			try {
+				const response = await fetch(event.request);
+
+				// 成功したらキャッシュに保存
+				if (response.status === 200) {
+					cache.put(event.request, response.clone());
+				}
+
+				return response;
+			} catch {
+				// オフライン時はキャッシュから返す
+				const cachedResponse = await cache.match(event.request);
+				if (cachedResponse) {
+					return cachedResponse;
+				}
+
+				if (event.request.mode === 'navigate') {
+					return (await getCachedShell(cache)) || new Response('Not found', { status: 404 });
+				}
+
+				// その他は404
+				return new Response('Not found', { status: 404 });
+			}
+		}
+
+		event.respondWith(respond());
+	});
 
 } // end else (production mode)
 
