@@ -11,9 +11,21 @@
 		const next = target.value as FareType;
 		onChange?.(next);
 	}
+
+	function stopInteractionPropagation(event: Event): void {
+		event.stopPropagation();
+	}
 </script>
 
-<select class="fare-picker" value={value} onchange={handleChange} aria-label="運賃タイプ選択">
+<select
+	class="fare-picker"
+	value={value}
+	onchange={handleChange}
+	onclick={stopInteractionPropagation}
+	onpointerdown={stopInteractionPropagation}
+	onfocusin={stopInteractionPropagation}
+	aria-label="運賃タイプ選択"
+>
 	{#each Object.values(FareType) as type}
 		<option value={type} selected={type === value}>{FareTypeLabels[type]}</option>
 	{/each}
