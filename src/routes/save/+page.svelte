@@ -7,7 +7,6 @@ import { initFarert, Farert } from '$lib/wasm';
 import { initStores, mainRoute, savedRoutes, ticketHolder } from '$lib/stores';
 import type { FaretClass } from '$lib/wasm/types';
 import type { TicketHolderItem } from '$lib/types';
-import { pasteRouteFromClipboard } from '$lib/storage';
 import { getSerializedRouteScript } from '$lib/utils/routeScriptPersistence';
 
 type BuildRouteResult = {
@@ -371,14 +370,7 @@ type BuildRouteResult = {
 
 	async function handleImport(): Promise<void> {
 		clearMessages();
-		let text: string | null = null;
-		try {
-			text = await pasteRouteFromClipboard();
-		} catch (err) {
-			console.warn('クリップボードの読み取りに失敗しました', err);
-		}
-
-		const input = await openImportDialog(text ?? '');
+		const input = await openImportDialog('');
 		if (input === null) {
 			return;
 		}
@@ -530,7 +522,7 @@ type BuildRouteResult = {
 	{#if importDialogOpen}
 		<div class="modal-backdrop" role="dialog" aria-modal="true" aria-label="経路インポート">
 			<section class="modal">
-				<h3>経路テキストを貼り付け</h3>
+				<h3>経路テキストを入力</h3>
 				<p class="placeholder small">
 					経路はカンマまたはスペース区切りで1行1経路で複数行指定可能です
 				</p>

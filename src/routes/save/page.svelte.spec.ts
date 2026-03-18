@@ -140,15 +140,10 @@ vi.mock('$app/navigation', () => ({
 }));
 
 const initFarertMock = vi.fn().mockResolvedValue(undefined);
-const pasteRouteFromClipboardMock = vi.fn();
 
 vi.mock('$lib/wasm', () => ({
 	initFarert: () => initFarertMock(),
 	Farert: MockFarert
-}));
-
-vi.mock('$lib/storage', () => ({
-	pasteRouteFromClipboard: (...args: unknown[]) => pasteRouteFromClipboardMock(...args)
 }));
 
 const mainRouteStore: Writable<FaretClass | null> = writable(null);
@@ -170,7 +165,6 @@ describe('/save/+page.svelte', () => {
 		vi.unstubAllGlobals();
 		gotoMock.mockReset();
 		initFarertMock.mockResolvedValue(undefined);
-		pasteRouteFromClipboardMock.mockReset();
 		MockFarert.buildRouteMock.mockReset();
 		MockFarert.buildRouteMock.mockReturnValue(0);
 		mainRouteStore.set(null);
@@ -289,34 +283,33 @@ describe('/save/+page.svelte', () => {
 	});
 
 	it('インポート時に buildRoute rc=1 を成功扱いにする', async () => {
-		pasteRouteFromClipboardMock.mockResolvedValueOnce('東京,東海道線,熱海');
 		MockFarert.buildRouteMock.mockReturnValueOnce(1);
 		render(SavePage);
 
 	await page.getByRole('button', { name: 'インポート' }).click();
-	await page.getByRole('button', { name: 'インポート実行', exact: true }).click();
-	await page.getByRole('button', { name: 'はい' }).click();
+		const textArea = page.getByRole('textbox', { name: '経路テキスト' });
+		await textArea.fill('東京,東海道線,熱海');
+		await page.getByRole('button', { name: 'インポート実行', exact: true }).click();
+		await page.getByRole('button', { name: 'はい' }).click();
 
 	expect(get(savedRoutesStore)).toContain('東京,東海道線,熱海');
 	await expect.element(page.getByText('インポートしました。')).toBeInTheDocument();
 	});
 
 	it('インポート時に改行区切りの複数経路を取り込む', async () => {
-		pasteRouteFromClipboardMock.mockResolvedValueOnce(
-			'東京,東海道線,熱海\n仙台,東北線,盛岡\n'
-		);
 		render(SavePage);
 
 	await page.getByRole('button', { name: 'インポート' }).click();
-	await page.getByRole('button', { name: 'インポート実行', exact: true }).click();
-	await page.getByRole('button', { name: 'はい' }).click();
+		const textArea = page.getByRole('textbox', { name: '経路テキスト' });
+		await textArea.fill('東京,東海道線,熱海\n仙台,東北線,盛岡\n');
+		await page.getByRole('button', { name: 'インポート実行', exact: true }).click();
+		await page.getByRole('button', { name: 'はい' }).click();
 
 	expect(get(savedRoutesStore)).toEqual(['東京,東海道線,熱海', '仙台,東北線,盛岡']);
 	await expect.element(page.getByText('2件インポートしました。')).toBeInTheDocument();
 	});
 
-	it('クリップボード取得不可時にテキスト入力ダイアログでインポートできる', async () => {
-		pasteRouteFromClipboardMock.mockResolvedValueOnce('');
+	it('インポートダイアログで入力してインポートできる', async () => {
 		render(SavePage);
 
 	await page.getByRole('button', { name: 'インポート' }).click();
@@ -334,10 +327,11 @@ describe('/save/+page.svelte', () => {
 	});
 
 	it('インポート時に確認ダイアログでいいえを選ぶと取り込まない', async () => {
-		pasteRouteFromClipboardMock.mockResolvedValueOnce('東京,東海道線,熱海');
 		render(SavePage);
 
 		await page.getByRole('button', { name: 'インポート' }).click();
+		const textArea = page.getByRole('textbox', { name: '経路テキスト' });
+		await textArea.fill('東京,東海道線,熱海');
 		await page.getByRole('button', { name: 'インポート実行', exact: true }).click();
 		await page.getByRole('button', { name: 'いいえ' }).click();
 
@@ -346,13 +340,14 @@ describe('/save/+page.svelte', () => {
 	});
 
 	it('不正な経路は詳細を含むエラーメッセージを表示する', async () => {
-		pasteRouteFromClipboardMock.mockResolvedValueOnce('東京,東海道線,？？');
 		MockFarert.buildRouteMock.mockReturnValueOnce('{"rc":-200,"failItem":"？？","offset":2}');
 		render(SavePage);
 
 	await page.getByRole('button', { name: 'インポート' }).click();
-	await page.getByRole('button', { name: 'インポート実行', exact: true }).click();
-	await page.getByRole('button', { name: 'はい' }).click();
+		const textArea = page.getByRole('textbox', { name: '経路テキスト' });
+		await textArea.fill('東京,東海道線,？？');
+		await page.getByRole('button', { name: 'インポート実行', exact: true }).click();
+		await page.getByRole('button', { name: 'はい' }).click();
 
 	await expect.element(page.getByText('経路の書式不正により、インポートに失敗しました: 1 行目、？？（3番目のワード）')).toBeInTheDocument();
 	expect(get(savedRoutesStore)).toEqual([]);
