@@ -77,6 +77,7 @@
 	- `src/lib/service-worker.js` は以下を必須要件として実装する。
 		- キャッシュ登録: `precacheManifest` の全URLを `CACHE_NAME` でインストール時に `addAll`。
 		- ネットワーク優先 + キャッシュフォールバック。
+		- `BASE_URL` を跨ぐパス差分（`/` と `/farert-pwa/` など）を吸収するため、キャッシュキー比較は `pathname` の先頭スラッシュ有無・`BASE_URL` 付与有無を候補化して判定する。
 		- `navigate` リクエスト（`/route-station-select` などの深いURL）失敗時は、`BASE_URL` 起点のシェル（`/` + `index.html`）を返し、
 		  画面を復元可能とする。
 		- 外部ネットワーク障害時でも、`/route-station-select` を含む既存画面の再表示とWASM初期化に必要な静的資産の再利用を維持する。

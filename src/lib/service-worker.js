@@ -39,12 +39,75 @@ if (isDev) {
 	const ASSETS = Array.from(assetSet);
 
 	/**
+	 * @param {string} pathname
+	 * @returns {string[]}
+	 */
+	function getPathCandidates(pathname) {
+		const candidates = new Set([pathname]);
+		const trimmed = pathname.endsWith('/') && pathname.length > 1 ? pathname.replace(/\/$/, '') : pathname;
+		candidates.add(trimmed);
+
+		if (basePath !== '/' && pathname.startsWith(basePath)) {
+			const withoutBase = pathname.slice(basePath.length);
+			if (withoutBase) {
+				candidates.add(withoutBase);
+			}
+			if (withoutBase && withoutBase !== '/') {
+				candidates.add(`/${withoutBase}`);
+			}
+		}
+
+		if (trimmed.length > 1) {
+			candidates.add(`/${trimmed.replace(/^\/+/, '')}`);
+		}
+
+		if (trimmed === '/') {
+			candidates.add('index.html');
+			candidates.add('/index.html');
+		}
+
+		return Array.from(candidates);
+	}
+
+	/**
+	 * @param {Cache} cache
+	 * @param {string} pathname
+	 * @param {Request} request
+	 * @returns {Promise<Response | null>}
+	 */
+	async function getCachedByCandidates(cache, pathname, request) {
+		for (const path of getPathCandidates(pathname)) {
+			const cached = await cache.match(path);
+			if (cached) {
+				return cached;
+			}
+		}
+
+		const direct = await cache.match(request);
+		return direct ?? null;
+	}
+
+	/**
+	 * @param {string} pathname
+	 * @returns {boolean}
+	 */
+	function isPrecachedAsset(pathname) {
+		return getPathCandidates(pathname).some((path) => ASSETS.includes(path));
+	}
+
+	/**
 	 * SPA のエントリ（シェル）として返却する候補
 	 * @returns {string[]}
 	 */
 	function getShellCandidates() {
-		const indexShell = `${shellPath}index.html`.replace('//', '/');
-		return [shellPath, indexShell, '/'];
+		const indexShell = `${shellPath}index.html`;
+		const shellCandidates = new Set(['/']);
+		for (const path of [shellPath, indexShell]) {
+			for (const candidate of getPathCandidates(path)) {
+				shellCandidates.add(candidate);
+			}
+		}
+		return Array.from(shellCandidates);
 	}
 
 	/**
@@ -94,11 +157,15 @@ if (isDev) {
 
 		async function respond() {
 			const url = new URL(event.request.url);
+			if (url.origin !== sw.location.origin) {
+				return fetch(event.request);
+			}
+
 			const cache = await caches.open(CACHE_NAME);
 
 			// ビルドファイルはキャッシュから優先
-			if (ASSETS.includes(url.pathname)) {
-				const cachedResponse = await cache.match(url.pathname);
+			if (isPrecachedAsset(url.pathname)) {
+				const cachedResponse = await getCachedByCandidates(cache, url.pathname, event.request);
 				if (cachedResponse) {
 					return cachedResponse;
 				}
@@ -116,7 +183,7 @@ if (isDev) {
 				return response;
 			} catch {
 				// オフライン時はキャッシュから返す
-				const cachedResponse = await cache.match(event.request);
+				const cachedResponse = await getCachedByCandidates(cache, url.pathname, event.request);
 				if (cachedResponse) {
 					return cachedResponse;
 				}
