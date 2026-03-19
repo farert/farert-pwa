@@ -53,6 +53,7 @@ let currentRouteScript = $state('');
 let confirmDialogOpen = $state(false);
 let confirmDialogMessage = $state('');
 let confirmResolver: ((result: boolean) => void) | null = null;
+let fareSummarySection = $state<HTMLElement | null>(null);
 const osakaMenuLabel = $derived(
 	osakaDetourSelected ? '大阪環状線近回り' : '大阪環状線遠回り'
 );
@@ -419,6 +420,12 @@ function updateOptionAvailability(_info: FareInfo | null) {
 		} catch (err) {
 			error = `詳細画面を開けませんでした: ${err}`;
 		}
+	}
+
+	function scrollToFareSummary(): void {
+		const section = fareSummarySection;
+		if (!section) return;
+		section.scrollIntoView({ behavior: 'smooth', block: 'start' });
 	}
 
 function handleUndo() {
@@ -800,23 +807,35 @@ function updateHolderView(): void {
 			<p class="info-banner success" role="status">{info}</p>
 		{/if}
 
-		<button type="button" class="card station-card actionable" onclick={openTerminalSelection}>
-			<span
-				class="material-symbols-rounded station-card-icon"
-				aria-hidden="true"
-				data-testid="start-station-train-icon"
-			>
-				train
-			</span>
-			<div class="station-card-text">
-				<h2>発駅</h2>
-				{#if startStation}
-					<p class="station-name">{startStation}</p>
-				{:else}
-					<p class="placeholder">発駅を指定してください</p>
-				{/if}
-			</div>
-		</button>
+		<div class="card station-card">
+			<button type="button" class="station-card-main actionable" onclick={openTerminalSelection}>
+				<span
+					class="material-symbols-rounded station-card-icon"
+					aria-hidden="true"
+					data-testid="start-station-train-icon"
+				>
+					train
+				</span>
+				<div class="station-card-text">
+					<h2>発駅</h2>
+					{#if startStation}
+						<p class="station-name">{startStation}</p>
+					{:else}
+						<p class="placeholder">発駅を指定してください</p>
+					{/if}
+				</div>
+			</button>
+			{#if showFareSummary && detailLink && segments.length >= 10}
+				<button
+					type="button"
+					class="station-result-link"
+					onclick={scrollToFareSummary}
+					aria-label="運賃サマリーまで移動"
+				>
+					結果まで移動
+				</button>
+			{/if}
+		</div>
 
 		<section class="segment-section">
 			{#if segments.length === 0}
@@ -855,11 +874,13 @@ function updateHolderView(): void {
 		</button>
 
 		{#if showFareSummary}
-			<FareSummaryCard
-				fareInfo={fareInfo}
-				detailEnabled={Boolean(detailLink)}
-				onDetailClick={openFullDetail}
-			/>
+			<section bind:this={fareSummarySection}>
+				<FareSummaryCard
+					fareInfo={fareInfo}
+					detailEnabled={Boolean(detailLink)}
+					onDetailClick={openFullDetail}
+				/>
+			</section>
 		{/if}
 
 		<nav class="bottom-nav">
@@ -1044,13 +1065,54 @@ function updateHolderView(): void {
 	.station-card {
 		display: flex;
 		align-items: center;
-		justify-content: flex-start;
+		justify-content: space-between;
 		gap: 1rem;
 		background: linear-gradient(135deg, var(--station-grad-start), var(--station-grad-end));
 		color: #fff;
 		position: sticky;
 		top: 0.75rem;
 		z-index: 12;
+		padding-right: 0.8rem;
+	}
+
+	.station-card-main {
+		display: flex;
+		align-items: center;
+		justify-content: flex-start;
+		gap: 1rem;
+		background: transparent;
+		border: none;
+		color: inherit;
+		width: 100%;
+		flex: 1;
+		text-align: left;
+		padding: 0;
+	}
+
+	.station-result-link {
+		white-space: nowrap;
+		border: none;
+		background: transparent;
+		color: rgba(255, 255, 255, 0.85);
+		border-radius: 0.5rem;
+		padding: 0.22rem 0.45rem;
+		font-size: 0.82rem;
+		font-weight: 600;
+		line-height: 1.2;
+		cursor: pointer;
+		text-decoration: underline;
+		text-decoration-thickness: 1px;
+		text-underline-offset: 3px;
+		text-decoration-color: rgba(255, 255, 255, 0.5);
+	}
+
+	.station-result-link:hover {
+		color: rgba(255, 255, 255, 0.95);
+		text-decoration-color: rgba(255, 255, 255, 0.85);
+	}
+
+	.station-result-link:active {
+		transform: translateY(1px);
 	}
 
 	.station-card-text {
@@ -1331,7 +1393,25 @@ function updateHolderView(): void {
 	.text-button {
 		border: none;
 		background: transparent;
-		color: #7c3aed;
+		color: rgba(255, 255, 255, 0.85);
 		cursor: pointer;
+		font-size: 0.85rem;
+		padding: 0.1rem 0.2rem;
+		text-decoration: underline;
+		text-decoration-thickness: 1px;
+		text-underline-offset: 3px;
+	}
+
+	.error-banner .text-button {
+		color: var(--error-text);
+		opacity: 0.95;
+	}
+
+	.text-button:hover {
+		color: rgba(255, 255, 255, 0.95);
+	}
+
+	.text-button:active {
+		transform: translateY(1px);
 	}
 </style>

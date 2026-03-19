@@ -223,6 +223,39 @@ describe('/+page.svelte', () => {
 		await expect.element(placeholder).toBeInTheDocument();
 	});
 
+	it('shows a result link when fare summary is available and segment count is 10 or more', async () => {
+		const seededRoute = new MockFarert();
+		seededRoute.addStartRoute('東京');
+		for (let i = 0; i < 10; i += 1) {
+			seededRoute.addRoute('山手線', `駅${i + 1}`);
+		}
+		mainRouteStore.set(seededRoute);
+		const scrollSpy = vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(() => {});
+
+		render(Page);
+
+		const resultLink = page.getByRole('button', { name: '結果まで移動' });
+		await expect.element(resultLink).toBeInTheDocument();
+		await resultLink.click();
+		expect(scrollSpy).toHaveBeenCalledTimes(1);
+
+		scrollSpy.mockRestore();
+	});
+
+	it('does not show the result link when route has fewer than 10 segments', async () => {
+		const seededRoute = new MockFarert();
+		seededRoute.addStartRoute('東京');
+		for (let i = 0; i < 9; i += 1) {
+			seededRoute.addRoute('山手線', `駅${i + 1}`);
+		}
+		mainRouteStore.set(seededRoute);
+
+		render(Page);
+
+		const resultLink = page.getByRole('button', { name: '結果まで移動' });
+		await expect.element(resultLink).not.toBeInTheDocument();
+	});
+
 	it('shows deferred error message from transition store on main screen', async () => {
 		mainScreenErrorMessageStore.set('最短経路の計算に失敗しました: autoRoute rc=-2');
 		render(Page);

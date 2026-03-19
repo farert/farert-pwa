@@ -313,6 +313,10 @@ interface StationCardProps {
 - パディング: `p-4`
 - 高さ: 約 80px
 - アイコン: 青い電車アイコン (32px)
+- **右端リンク**:
+-   条件: `RouteSegmentCard` が10件以上ある場合に表示。
+-   テキスト: `結果まで移動`
+-   挙動: タップで `FareSummaryCard` 位置までスクロール。
 
 **構造**:
 ```svelte
