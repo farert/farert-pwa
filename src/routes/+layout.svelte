@@ -9,16 +9,6 @@
 	let isApplyingUpdate = $state(false);
 
 	let cleanupServiceWorker: (() => void) | null = null;
-	let autoApplyTimer: ReturnType<typeof setTimeout> | null = null;
-
-	function scheduleAutoApply(): void {
-		if (autoApplyTimer) {
-			clearTimeout(autoApplyTimer);
-		}
-		autoApplyTimer = setTimeout(() => {
-			applyUpdate();
-		}, 400);
-	}
 
 	onMount(() => {
 		const isUpdatePreview = () => {
@@ -35,7 +25,6 @@
 				updateWorker = worker;
 				updateAvailable = true;
 				dismissUpdate = false;
-				scheduleAutoApply();
 			};
 
 			if (registration.waiting) {
@@ -101,10 +90,6 @@
 
 		return () => {
 			cleanupServiceWorker?.();
-			if (autoApplyTimer) {
-				clearTimeout(autoApplyTimer);
-				autoApplyTimer = null;
-			}
 		};
 	});
 
