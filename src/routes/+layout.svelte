@@ -1,5 +1,11 @@
 <script lang="ts">
+	import { afterNavigate, beforeNavigate } from '$app/navigation';
+	import { base } from '$app/paths';
+	import { page } from '$app/state';
 	import { onMount } from 'svelte';
+	import { cubicOut } from 'svelte/easing';
+	import { fly } from 'svelte/transition';
+	import { resolvePageTransition, type PageTransitionKind } from '$lib/utils/pageTransition';
 	import '../app.css';
 
 	let { children } = $props();
@@ -7,8 +13,20 @@
 	let updateWorker = $state<ServiceWorker | null>(null);
 	let dismissUpdate = $state(false);
 	let isApplyingUpdate = $state(false);
+	let pageTransition = $state<PageTransitionKind>('none');
+	let transitionReady = $state(false);
 
 	let cleanupServiceWorker: (() => void) | null = null;
+
+	beforeNavigate((navigation) => {
+		const fromPathname = navigation.from?.url.pathname ?? page.url.pathname;
+		const toPathname = navigation.to?.url.pathname ?? page.url.pathname;
+		pageTransition = resolvePageTransition(fromPathname, toPathname, base);
+	});
+
+	afterNavigate(() => {
+		transitionReady = true;
+	});
 
 	onMount(() => {
 		const isUpdatePreview = () => {
@@ -128,6 +146,23 @@
 		dismissUpdate = true;
 		updateAvailable = false;
 	}
+
+	function resolvePageFlyParams(stage: 'in' | 'out') {
+		if (!transitionReady) {
+			return { x: 0, duration: 0 };
+		}
+		if (pageTransition === 'main-detail-forward') {
+			return stage === 'in'
+				? { x: 88, duration: 260, opacity: 0.18, easing: cubicOut }
+				: { x: -88, duration: 260, opacity: 0.18, easing: cubicOut };
+		}
+		if (pageTransition === 'detail-main-back') {
+			return stage === 'in'
+				? { x: -88, duration: 260, opacity: 0.18, easing: cubicOut }
+				: { x: 88, duration: 260, opacity: 0.18, easing: cubicOut };
+		}
+		return { x: 0, duration: 0 };
+	}
 </script>
 
 <svelte:head>
@@ -162,11 +197,28 @@
 	</div>
 {/if}
 
-<div class={updateAvailable && !dismissUpdate ? 'pt-20' : ''}>
-	{@render children()}
+<div class={`layout-root ${updateAvailable && !dismissUpdate ? 'pt-20' : ''}`}>
+	{#key `${page.url.pathname}?${page.url.search}`}
+		<div
+			class="page-transition-shell"
+			in:fly={resolvePageFlyParams('in')}
+			out:fly={resolvePageFlyParams('out')}
+		>
+			{@render children()}
+		</div>
+	{/key}
 </div>
 
 <style>
+	.layout-root {
+		overflow-x: clip;
+	}
+
+	.page-transition-shell {
+		min-height: 100vh;
+		will-change: transform, opacity;
+	}
+
 	.update-banner-wrap {
 		position: fixed;
 		inset-inline: 0;
