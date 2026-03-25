@@ -10,6 +10,8 @@ const precacheManifest = self.__WB_MANIFEST ?? [];
 const manifestUrls = precacheManifest.map((entry) => entry.url);
 const basePath = new URL(import.meta.env.BASE_URL || '/', self.location.origin).pathname;
 const shellPath = basePath.endsWith('/') ? basePath : `${basePath}/`;
+const shellIndexPath = `${shellPath}index.html`;
+const fallbackShellPath = `${shellPath}404.html`;
 
 // 開発モードでは何もしない
 const isDev = import.meta.env.DEV;
@@ -35,7 +37,7 @@ if (isDev) {
 	const CACHE_NAME = `farert-cache-${hashManifest(precacheManifest)}`;
 
 	// キャッシュするファイル
-	const assetSet = new Set([...manifestUrls]);
+	const assetSet = new Set([...manifestUrls, shellPath, shellIndexPath, fallbackShellPath]);
 	const ASSETS = Array.from(assetSet);
 
 	/**
@@ -100,9 +102,8 @@ if (isDev) {
 	 * @returns {string[]}
 	 */
 	function getShellCandidates() {
-		const indexShell = `${shellPath}index.html`;
 		const shellCandidates = new Set(['/']);
-		for (const path of [shellPath, indexShell]) {
+		for (const path of [shellPath, shellIndexPath, fallbackShellPath]) {
 			for (const candidate of getPathCandidates(path)) {
 				shellCandidates.add(candidate);
 			}

@@ -7,7 +7,7 @@
 	"scripts": {
 		"copy:wasm": "bash scripts/copy-wasm.sh",
 		"dev": "pnpm copy:wasm && vite dev",
-		"build": "pnpm copy:wasm && vite build",
+		"build": "pnpm copy:wasm && vite build && bash scripts/ensure-start-shell.sh",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",

@@ -74,12 +74,15 @@
 - Service Worker: オフラインキャッシュ戦略
 	- `injectManifest` 方式を使用し、`vite.config.ts` の `injectManifest.globPatterns` に以下を含める。
 		- `html,js,css,svg,png,wasm,data,webmanifest`
+	- PWA の `start_url` に対応する起動シェル (`/` または `BASE_URL/index.html`) を実ファイルとして生成し、オフラインでも直接起動できるようにする。
 	- `src/lib/service-worker.js` は以下を必須要件として実装する。
 		- キャッシュ登録: `precacheManifest` の全URLを `CACHE_NAME` でインストール時に `addAll`。
+		- `start_url` 相当のシェルパス (`BASE_URL/`, `BASE_URL/index.html`) と fallback の `404.html` を明示的にキャッシュ対象へ含める。
 		- ネットワーク優先 + キャッシュフォールバック。
 		- `BASE_URL` を跨ぐパス差分（`/` と `/farert-pwa/` など）を吸収するため、キャッシュキー比較は `pathname` の先頭スラッシュ有無・`BASE_URL` 付与有無を候補化して判定する。
-		- `navigate` リクエスト（`/route-station-select` などの深いURL）失敗時は、`BASE_URL` 起点のシェル（`/` + `index.html`）を返し、
-		  画面を復元可能とする。
+		- `navigate` リクエスト（`/route-station-select` などの深いURL）失敗時は、adapter-static の fallback である `404.html` を
+		  `BASE_URL` 起点のシェルとして返し、画面を復元可能とする。
+		- `404.html` は precacheManifest に含まれない場合でも、Service Worker が明示的にキャッシュ対象へ追加する。
 		- 外部ネットワーク障害時でも、`/route-station-select` を含む既存画面の再表示とWASM初期化に必要な静的資産の再利用を維持する。
 	- インストール可能: ホーム画面に追加可能
 - 更新ポリシー（PWAの運用）
