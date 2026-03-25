@@ -486,14 +486,14 @@ it('hides fare summary card before route selection', async () => {
 
 		render(Page);
 
-		const optionsButton = page.getByRole('button', { name: 'オプション' });
-		await optionsButton.click();
+		const menuButton = page.getByRole('button', { name: 'メニュー' });
+		await menuButton.click();
 
 		const osakaEnable = page.getByRole('menuitem', { name: '大阪環状線遠回り' });
 		await expect.element(osakaEnable).toBeInTheDocument();
 		await osakaEnable.click();
 
-		await optionsButton.click();
+		await menuButton.click();
 		const osakaDisable = page.getByRole('menuitem', { name: '大阪環状線近回り' });
 		await expect.element(osakaDisable).toBeInTheDocument();
 		await osakaDisable.click();

@@ -62,16 +62,15 @@
 
 メイン画面下部には、`component-design.md`で定義された`BottomNavigation`コンポーネントが表示されます。
 
--   Props: `onBackClick`, `onReverseClick`, `onOptionClick`, `onSaveClick`
+-   Props: `onBackClick`, `onReverseClick`, `onSaveClick`
 -   ボタン構成:
     1.  **戻る** (`UndoIcon`): 最後の経路区間を削除し、経路を再表示します。
     2.  **反転** (`SwapIcon`): 現在の経路を反転し、再表示します。
-    3.  **オプション** (`SettingsIcon`): 経路オプションメニューを表示します。
-    4.  **保存** (`SaveIcon`): **<保存>** 画面へ遷移します。
-    5.  **↑**: 画面最上部へスムーズスクロールします。
-    6.  **↓**: 画面最下部へスムーズスクロールします。
+    3.  **保存** (`SaveIcon`): **<保存>** 画面へ遷移します。
+    4.  **↑**: 画面最上部へスムーズスクロールします。
+    5.  **↓**: 画面最下部へスムーズスクロールします。
 
-`ui-guidelines.md`の`BottomNavigation`セクションで定義されている有効/無効状態のロジックに従います。特に「オプション」ボタンは、経路に大阪環状線が含まれる場合、または `fareInfo.isFareOptEnabled` が `true` の場合にのみ有効化されます。
+経路オプションメニューは右上の3点メニューから開く。
 
 ## データソース
 

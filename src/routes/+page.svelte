@@ -481,10 +481,6 @@ function handleUndo() {
 		refreshRouteState(route);
 	}
 
-	function openOptions() {
-		appMenuOpen = true;
-	}
-
 	function openSave() {
 		goto(`${base}/save`);
 	}
@@ -908,9 +904,6 @@ function updateHolderView(): void {
 			</button>
 			<button type="button" onclick={handleReverse} disabled={!canReverse} aria-label="反転">
 				<span class="material-symbols-rounded bottom-nav-icon" aria-hidden="true">swap_horiz</span>
-			</button>
-			<button type="button" onclick={openOptions} disabled={!optionEnabled} aria-label="オプション">
-				<span class="material-symbols-rounded bottom-nav-icon" aria-hidden="true">tune</span>
 			</button>
 			<button type="button" onclick={openSave} aria-label="保存">
 				<span class="material-symbols-rounded bottom-nav-icon" aria-hidden="true">save</span>
