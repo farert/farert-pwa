@@ -1018,12 +1018,6 @@ function updateHolderView(): void {
 		color: var(--title-color);
 	}
 
-	.title-row {
-		display: flex;
-		align-items: center;
-		gap: 0.4rem;
-	}
-
 	.title {
 		flex: 1;
 		display: flex;
@@ -1156,13 +1150,6 @@ function updateHolderView(): void {
 		display: flex;
 		flex-direction: column;
 		gap: 0.75rem;
-	}
-
-	.section-title {
-		margin: 0;
-		font-size: 1rem;
-		font-weight: 600;
-		color: var(--text-sub);
 	}
 
 	.segment-cards {

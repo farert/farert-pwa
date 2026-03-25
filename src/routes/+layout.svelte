@@ -179,12 +179,12 @@
 					<p class="update-title">アプリ更新の通知</p>
 					<p class="update-message">新しいアプリバージョンが利用可能です。反映して最新状態に更新しますか？</p>
 					<div class="update-actions">
-						<button class="update-btn update-btn-secondary" on:click={closeUpdatePrompt}>
+						<button class="update-btn update-btn-secondary" onclick={closeUpdatePrompt}>
 							あとで
 						</button>
 						<button
 							class="update-btn"
-							on:click={applyUpdate}
+							onclick={applyUpdate}
 							disabled={updateWorker === null || isApplyingUpdate}
 							title={updateWorker === null ? '更新ワーカーが未検出です' : 'Service Workerを適用'}
 						>

@@ -154,16 +154,6 @@ import { base } from '$app/paths';
 		margin-right: 0.35rem;
 	}
 
-	details {
-		border-top: 1px solid color-mix(in srgb, var(--text-main, #0f172a) 10%, transparent);
-		padding: 0.5rem 0;
-	}
-
-	summary {
-		cursor: pointer;
-		font-weight: 600;
-	}
-
 	.warning p {
 		margin: 0;
 		line-height: 1.6;
