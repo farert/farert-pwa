@@ -908,12 +908,12 @@ function updateHolderView(): void {
 			<button type="button" onclick={openSave} aria-label="保存">
 				<span class="material-symbols-rounded bottom-nav-icon" aria-hidden="true">save</span>
 			</button>
-			<button type="button" onclick={scrollToTop} aria-label="Scroll to top">
+			<button type="button" class="bottom-nav-scroll" onclick={scrollToTop} aria-label="Scroll to top">
 				<span class="material-symbols-rounded bottom-nav-icon" aria-hidden="true">
 					vertical_align_top
 				</span>
 			</button>
-			<button type="button" onclick={scrollToBottom} aria-label="Scroll to bottom">
+			<button type="button" class="bottom-nav-scroll" onclick={scrollToBottom} aria-label="Scroll to bottom">
 				<span class="material-symbols-rounded bottom-nav-icon" aria-hidden="true">
 					vertical_align_bottom
 				</span>
@@ -1263,7 +1263,7 @@ function updateHolderView(): void {
 		padding: 0.5rem 0.75rem max(0.5rem, env(safe-area-inset-bottom, 0));
 		z-index: 28;
 		display: grid;
-		grid-template-columns: repeat(6, minmax(0, 1fr));
+		grid-template-columns: repeat(3, minmax(0, 1fr)) repeat(2, minmax(0, 0.5fr));
 		gap: 0.75rem;
 		margin-top: 0;
 	}
@@ -1280,6 +1280,10 @@ function updateHolderView(): void {
 		flex-direction: column;
 		align-items: center;
 		gap: 0.25rem;
+	}
+
+	.bottom-nav button.bottom-nav-scroll {
+		padding-inline: 0.5rem;
 	}
 
 	.bottom-nav-icon {

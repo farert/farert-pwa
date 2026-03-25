@@ -266,8 +266,18 @@ pnpm add @mdi/js svelte-material-icons
     <SaveIcon />
     <span>保存</span>
   </button>
+
+  <button class="scroll-button" on:click={scrollToTop}>
+    <VerticalAlignTopIcon />
+  </button>
+
+  <button class="scroll-button" on:click={scrollToBottom}>
+    <VerticalAlignBottomIcon />
+  </button>
 </nav>
 ```
+
+- `戻る` / `反転` / `保存` を標準幅、`↑` / `↓` を半幅で配置する。
 
 ## オプションメニュー
 

@@ -335,6 +335,7 @@ interface StationCardProps {
 補足:
 - メイン画面のスクロール操作は `BottomNavigation` に集約する。
 - `保存` の右に `↑` / `↓` ボタンを配置し、画面最上部 / 最下部へスクロールする。
+- `↑` / `↓` の横幅は `戻る` / `反転` / `保存` の半分とする。
 
 ---
 
@@ -699,7 +700,7 @@ interface BottomNavigationProps {
 - 高さ: 64px
 - 背景: `bg-white`
 - ボーダー: `border-t border-gray-300`
-- ボタン: 4つ均等配置
+- ボタン: `戻る` / `反転` / `保存` を標準幅、`↑` / `↓` をその半分の幅で配置
 
 **構造**:
 ```svelte
@@ -722,6 +723,14 @@ interface BottomNavigationProps {
   <button on:click={onSaveClick}>
     <SaveIcon />
     <span>保存</span>
+  </button>
+
+  <button class="scroll-button" on:click={scrollToTop}>
+    <VerticalAlignTopIcon />
+  </button>
+
+  <button class="scroll-button" on:click={scrollToBottom}>
+    <VerticalAlignBottomIcon />
   </button>
 </nav>
 ```
