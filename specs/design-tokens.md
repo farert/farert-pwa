@@ -35,7 +35,7 @@ Farert PWAのデザインシステム定義
 --color-accent-orange-200: #FFCC80;
 --color-accent-orange-300: #FFB74D;
 --color-accent-orange-400: #FFA726;
---color-accent-orange-500: #FF9800;  /* 追加ボタン */
+--color-accent-orange-500: #FF9800;  /* 追加ボタン（ライト） */
 --color-accent-orange-600: #FB8C00;
 --color-accent-orange-700: #F57C00;
 
@@ -264,6 +264,8 @@ font-weight: var(--font-medium);
 
 /* アクセントボタン（追加ボタン） */
 background: var(--color-accent-orange-500);
+
+ダークモード時の「経路を追加」ボタン文字色は、オレンジではなく明るい緑系を用いる。
 color: white;
 padding: var(--space-4) var(--space-6);  /* 16px 24px */
 border-radius: var(--rounded-md);

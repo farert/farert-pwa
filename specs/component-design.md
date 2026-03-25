@@ -388,7 +388,7 @@ interface RouteSegmentCardProps {
 **ファイル**: `src/lib/components/AddRouteButton.svelte`
 
 **デザイン**:
-- 背景: `bg-accent-orange-500` (#FF9800)
+- 背景: ライトモードでは暖色系、ダークモードでは深い紫の面に明るい緑文字
 - 角丸: `rounded-lg`
 - パディング: `py-4`
 - テキスト: `text-white font-medium`
