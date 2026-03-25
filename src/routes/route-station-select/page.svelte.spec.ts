@@ -134,6 +134,12 @@ class MockFarert implements FaretClass {
 	}
 }
 
+class DuplicateRouteFarert extends MockFarert {
+	override addRoute(): number {
+		return -1;
+	}
+}
+
 const gotoMock = vi.fn();
 
 vi.mock('$app/navigation', () => ({
@@ -238,8 +244,7 @@ describe('/route-station-select/+page.svelte', () => {
 			presetParams: { from: 'main', station: '北上', line: '東北新幹線' }
 		});
 
-		const destinationButton = page.getByRole('button', { name: '水沢' });
-		await destinationButton.click();
+		await page.getByTestId('station-option-水沢').click();
 
 		expect(seededRoute.addRouteMock).toHaveBeenCalledWith('東北新幹線', '水沢');
 		expect(gotoMock).toHaveBeenCalledWith('/');
@@ -263,6 +268,43 @@ describe('/route-station-select/+page.svelte', () => {
 		expect(wasmApi.getLinesByStation).toHaveBeenCalledWith('水沢');
 	});
 
+	it('sorts branch stations by line order and inserts the route start station with prefix', async () => {
+		const seededRoute = new MockFarert();
+		seededRoute.buildRoute('伊香牛,石北線,新旭川');
+		mainRouteStore.set(seededRoute);
+
+		wasmApi.getBranchStationsByLine.mockReturnValue(
+			JSON.stringify(['新旭川', '網走', '旭川'])
+		);
+		wasmApi.getStationsByLine.mockReturnValue(
+			JSON.stringify(['旭川', '新旭川', '伊香牛', '網走'])
+		);
+		wasmApi.getKanaByStation.mockImplementation((station: string) => {
+			const names: Record<string, string> = {
+				旭川: 'あさひかわ',
+				新旭川: 'しんあさひかわ',
+				伊香牛: 'いかうし',
+				網走: 'あばしり'
+			};
+			return names[station] ?? `${station}かな`;
+		});
+		wasmApi.getLinesByStation.mockReturnValue(JSON.stringify(['石北線']));
+
+		render(RouteStationSelectPage, {
+			presetParams: { from: 'main', station: '新旭川', line: '石北線' }
+		});
+
+		const stationList = page.getByTestId('station-list');
+		const stationButtons = stationList.locator('button');
+		await expect.element(stationButtons.nth(0)).toHaveAttribute('data-testid', 'station-option-旭川');
+		await expect.element(stationButtons.nth(1)).toHaveAttribute('data-testid', 'station-option-新旭川');
+		await expect.element(stationButtons.nth(2)).toHaveAttribute('data-testid', 'station-option-伊香牛');
+		await expect.element(stationButtons.nth(3)).toHaveAttribute('data-testid', 'station-option-網走');
+		await expect.element(page.getByText('<発駅>')).toBeInTheDocument();
+		await expect.element(page.getByText('(いかうし)')).toBeInTheDocument();
+		expect(wasmApi.getBranchStationsByLine).toHaveBeenCalledWith('石北線', '伊香牛');
+	});
+
 	it('同名駅はサフィックスを付与し、同名駅のかなをベース名で補完する', async () => {
 		wasmApi.getBranchStationsByLine.mockReturnValue(JSON.stringify(['金山']));
 		wasmApi.getStationsByLine.mockReturnValue(JSON.stringify(['金山']));
@@ -283,7 +325,7 @@ describe('/route-station-select/+page.svelte', () => {
 
 		const stationButton = page.getByRole('button', { name: '金山(中)' });
 		await expect.element(stationButton).toBeInTheDocument();
-		await expect.element(page.getByText('(かなやま) / 東海道本線')).toBeInTheDocument();
+		await expect.element(page.getByText('(かなやま)')).toBeInTheDocument();
 	});
 
 	it('同名駅の識別子を経由して路線追加を実行する', async () => {
@@ -308,8 +350,27 @@ describe('/route-station-select/+page.svelte', () => {
 			presetParams: { from: 'main', station: '柏木平', line: '東海道本線' }
 		});
 
-		const stationButton = page.getByRole('button', { name: '金山(中)' });
-		await stationButton.click();
+		await page.getByTestId('station-option-金山').click();
 		expect(seededRoute.addRouteMock).toHaveBeenCalledWith('東海道本線', '金山(中)');
+	});
+
+	it('shows duplicate route message when addRoute returns duplicate error', async () => {
+		const seededRoute = new DuplicateRouteFarert();
+		seededRoute.addStartRoute('柏木平');
+		mainRouteStore.set(seededRoute);
+
+		wasmApi.getBranchStationsByLine.mockReturnValue(JSON.stringify(['水沢']));
+		wasmApi.getStationsByLine.mockReturnValue(JSON.stringify(['水沢']));
+		wasmApi.getKanaByStation.mockReturnValue('みずさわ');
+		wasmApi.getLinesByStation.mockReturnValue(JSON.stringify(['東北本線']));
+
+		render(RouteStationSelectPage, {
+			presetParams: { from: 'main', station: '北上', line: '東北新幹線' }
+		});
+
+		await page.getByTestId('station-option-水沢').click();
+
+		await expect.element(page.getByText('経路が重複しています')).toBeInTheDocument();
+		expect(gotoMock).not.toHaveBeenCalled();
 	});
 });

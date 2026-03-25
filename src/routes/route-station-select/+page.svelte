@@ -2,7 +2,7 @@
 import { goto } from '$app/navigation';
 import { base } from '$app/paths';
 import { onMount } from 'svelte';
-import { cubicOut } from 'svelte/easing';
+import { get } from 'svelte/store';
 import {
 	initFarert,
 	getBranchStationsByLine,
@@ -38,8 +38,6 @@ let branchStations = $state<string[]>([]);
 let destinationStations = $state<string[]>([]);
 let stationDetails = $state<Record<string, StationMetaInfo>>({});
 let routeRef = $state<FaretClass | null>(null);
-let transitionReady = $state(false);
-let transitionFrame: number | null = null;
 let { presetParams = null } = $props<{ presetParams?: Partial<StationSelectionParams> | null }>();
 
 onMount(() => {
@@ -58,22 +56,11 @@ onMount(() => {
 			errorMessage = '駅一覧の初期化に失敗しました。';
 		} finally {
 			loading = false;
-			if (typeof window !== 'undefined') {
-				transitionFrame = window.requestAnimationFrame(() => {
-					transitionReady = true;
-					transitionFrame = null;
-				});
-			} else {
-				transitionReady = true;
-			}
 		}
 	})();
 
 	return () => {
 		unsubscribe();
-		if (transitionFrame !== null && typeof window !== 'undefined') {
-			window.cancelAnimationFrame(transitionFrame);
-		}
 	};
 });
 
@@ -111,9 +98,13 @@ function loadStations(context: StationSelectionParams): void {
 			throw new Error('line parameter is required');
 		}
 
+		destinationStations = parseList(getStationsByLine(context.line));
+
 		if (context.from === 'main' && context.station) {
+			const startStation = routeRef?.departureStationName?.().trim() ?? '';
+			const branchBaseStation = startStation || context.station;
 			const rawBranches = parseList(
-				getBranchStationsByLine(context.line, context.station)
+				getBranchStationsByLine(context.line, branchBaseStation)
 			);
 			const seen = new Set<string>();
 			const deduped = rawBranches.filter((name) => {
@@ -121,12 +112,14 @@ function loadStations(context: StationSelectionParams): void {
 				seen.add(name);
 				return true;
 			});
-			branchStations = [context.station, ...deduped];
+			const candidates = [context.station, ...deduped];
+			if (startStation && destinationStations.includes(startStation)) {
+				candidates.push(startStation);
+			}
+			branchStations = sortStationsByLineOrder(candidates, destinationStations);
 		} else {
-			branchStations = parseList(getStationsByLine(context.line));
+			branchStations = destinationStations;
 		}
-
-		destinationStations = parseList(getStationsByLine(context.line));
 		stationDetails = buildStationDetails([...new Set([...branchStations, ...destinationStations])], context.line);
 		errorMessage = '';
 	} catch (err) {
@@ -157,6 +150,27 @@ function parseList(raw: string): string[] {
 		console.warn('駅リストの解析に失敗しました', err);
 	}
 	return [];
+}
+
+function sortStationsByLineOrder(stations: string[], lineStations: string[]): string[] {
+	const uniqueStations = [...new Set(stations.filter((station) => station.trim().length > 0))];
+	const orderMap = new Map<string, number>();
+	lineStations.forEach((station, index) => {
+		if (!orderMap.has(station)) {
+			orderMap.set(station, index);
+		}
+	});
+
+	return uniqueStations.sort((left, right) => {
+		const leftIndex = orderMap.get(left);
+		const rightIndex = orderMap.get(right);
+		if (leftIndex !== undefined && rightIndex !== undefined) {
+			return leftIndex - rightIndex;
+		}
+		if (leftIndex !== undefined) return -1;
+		if (rightIndex !== undefined) return 1;
+		return left.localeCompare(right, 'ja');
+	});
 }
 
 function buildStationDetails(stations: string[], lineName: string): Record<string, StationMetaInfo> {
@@ -290,32 +304,6 @@ function toggleMode(): void {
 	mode = mode === 'branch' ? 'destination' : 'branch';
 }
 
-function rotateCenterVertical(
-	_node: Element,
-	params: { delay?: number; duration?: number; direction: 'in' | 'out' }
-) {
-	const delay = params.delay ?? 0;
-	const duration = params.duration ?? 260;
-	const direction = params.direction;
-
-	return {
-		delay,
-		duration,
-		easing: cubicOut,
-		css: (t: number) => {
-			const eased = direction === 'in' ? t : 1 - t;
-			const rotate = direction === 'in' ? (1 - eased) * -88 : eased * 88;
-			const opacity = 0.18 + eased * 0.82;
-			return `
-				transform-origin: center center;
-				transform: perspective(1200px) rotateY(${rotate}deg);
-				opacity: ${opacity};
-				backface-visibility: hidden;
-			`;
-		}
-	};
-}
-
 function goBack(): void {
 	if (typeof window !== 'undefined' && window.history.length > 1) {
 		window.history.back();
@@ -340,12 +328,16 @@ function handleSelectStation(name: string): void {
 	}
 
 	if (params.from === 'main') {
-		const route = routeRef;
+		const route = routeRef ?? get(mainRoute);
 		if (!route) {
 			errorMessage = '発駅が設定されていません。';
 			return;
 		}
 		const result = route.addRoute(params.line, selected);
+		if (result === -1) {
+			errorMessage = '経路が重複しています';
+			return;
+		}
 		if (result < 0) {
 			errorMessage = '経路の追加に失敗しました。';
 			return;
@@ -374,6 +366,11 @@ const headerTitle = $derived(
 			? '発駅指定'
 			: '着駅指定'
 );
+
+function isStartStation(name: string): boolean {
+	const departure = routeRef?.departureStationName?.().trim() ?? '';
+	return Boolean(departure) && normalizeStationName(departure) === normalizeStationName(name);
+}
 
 function stationMeta(name: string): string {
 	const kana = stationDetails[name]?.kana ?? '';
@@ -412,40 +409,36 @@ function stationMeta(name: string): string {
 	{:else}
 		<section class="station-section">
 			<div class="station-panel-stage">
-				{#key params.from === 'main' ? mode : 'fixed'}
-					<div
-						class="station-panel"
-						in:rotateCenterVertical={transitionReady && params.from === 'main'
-							? { direction: 'in' }
-							: { direction: 'in', duration: 0 }}
-						out:rotateCenterVertical={transitionReady && params.from === 'main'
-							? { direction: 'out' }
-							: { direction: 'out', duration: 0 }}
-					>
-						{#if visibleStations.length === 0}
-							<p class="placeholder">駅が見つかりませんでした。</p>
-						{:else}
-							<ul class="station-list">
-								{#each visibleStations as station (station)}
-									<li>
-										<button
-											type="button"
-											class:disabled={isDisabledStation(station)}
-											disabled={isDisabledStation(station)}
-											aria-disabled={isDisabledStation(station)}
-											onclick={() => handleSelectStation(station)}
-										>
-											<span class="station-name">{stationDetails[station]?.name ?? station}</span>
-											{#if stationMeta(station)}
-												<span class="station-meta">{stationMeta(station)}</span>
+				<div class="station-panel">
+					{#if visibleStations.length === 0}
+						<p class="placeholder">駅が見つかりませんでした。</p>
+					{:else}
+						<ul class="station-list" data-testid="station-list">
+							{#each visibleStations as station (station)}
+								<li>
+									<button
+										type="button"
+										data-testid={`station-option-${station}`}
+										class:disabled={isDisabledStation(station)}
+										disabled={isDisabledStation(station)}
+										aria-disabled={isDisabledStation(station)}
+										onclick={() => handleSelectStation(station)}
+									>
+										<span class="station-name">
+											{#if params.from === 'main' && isStartStation(station)}
+												<span class="station-prefix">&lt;発駅&gt;</span>
 											{/if}
-										</button>
-									</li>
-								{/each}
-							</ul>
-						{/if}
-					</div>
-				{/key}
+											{stationDetails[station]?.name ?? station}
+										</span>
+										{#if stationMeta(station)}
+											<span class="station-meta">{stationMeta(station)}</span>
+										{/if}
+									</button>
+								</li>
+							{/each}
+						</ul>
+					{/if}
+				</div>
 			</div>
 		</section>
 	{/if}
@@ -506,17 +499,6 @@ function stationMeta(name: string): string {
 		border-radius: 0.75rem;
 		padding: 1rem;
 		box-shadow: var(--card-shadow);
-		perspective: 1200px;
-		overflow: hidden;
-	}
-
-	.station-panel-stage {
-		position: relative;
-	}
-
-	.station-panel {
-		transform-style: preserve-3d;
-		will-change: transform, opacity;
 	}
 
 	.station-list {
@@ -537,6 +519,8 @@ function stationMeta(name: string): string {
 		text-align: left;
 		cursor: pointer;
 		transition: background 0.2s;
+		position: relative;
+		z-index: 1;
 	}
 
 	.station-list button:hover:not(:disabled) {
@@ -550,9 +534,17 @@ function stationMeta(name: string): string {
 	}
 
 	.station-name {
-		display: block;
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
 		font-weight: 600;
 		color: var(--text-main);
+	}
+
+	.station-prefix {
+		font-size: 0.78rem;
+		font-weight: 700;
+		color: var(--link);
 	}
 
 	.station-meta {

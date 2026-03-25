@@ -29,6 +29,7 @@ let canUndo = $state(false);
 let canReverse = $state(false);
 let optionEnabled = $state(false);
 let showFareSummary = $state(false);
+let routeTerminal = $state(false);
 let appMenuOpen = $state(false);
 let hasOsakakanOption = $state(false);
 let hasKokuraOption = $state(false);
@@ -68,20 +69,29 @@ const canAddToHolder = $derived(() => {
 });
 
 	function isBuildSuccess(result: unknown): boolean {
-		if (typeof result === 'number') return result >= 0;
+		const statusCode = resolveRouteStatusCode(result);
+		return statusCode !== null ? statusCode >= 0 : false;
+	}
+
+	function resolveRouteStatusCode(result: unknown): number | null {
+		if (typeof result === 'number') return result;
 		if (typeof result === 'string') {
 			const trimmed = result.trim().replace(/\0/g, '');
 			const numeric = Number(trimmed);
-			if (!Number.isNaN(numeric)) return numeric >= 0;
+			if (!Number.isNaN(numeric)) return numeric;
 			try {
 				const parsed = JSON.parse(trimmed) as { rc?: number };
-				return typeof parsed.rc === 'number' ? parsed.rc >= 0 : false;
+				return typeof parsed.rc === 'number' ? parsed.rc : null;
 			} catch {
 				const match = trimmed.match(/"rc"\s*:\s*(-?\d+)/);
-				return match ? Number(match[1]) >= 0 : false;
+				return match ? Number(match[1]) : null;
 			}
 		}
-		return false;
+		return null;
+	}
+
+	function isTerminalStatusCode(statusCode: number | null): boolean {
+		return statusCode === 0 || statusCode === 4 || statusCode === 5;
 	}
 
 function parseFareInfoJson(raw: unknown): FareInfo | null {
@@ -251,6 +261,7 @@ function parseFareInfoJson(raw: unknown): FareInfo | null {
 
 	segments = parsedSegments;
 	canUndo = hasStart;
+	routeTerminal = false;
 	try {
 		const routeCount = current.getRouteCount ? current.getRouteCount() : parsedSegments.length;
 		showFareSummary = routeCount >= 2;
@@ -295,6 +306,15 @@ function parseFareInfoJson(raw: unknown): FareInfo | null {
 	}
 
 	canReverse = current.isAvailableReverse ? current.isAvailableReverse() : parsedSegments.length > 0;
+	if (parsedSegments.length > 0) {
+		try {
+			const routeStatus = resolveRouteStatusCode(current.buildRoute(script));
+			routeTerminal = isTerminalStatusCode(routeStatus);
+		} catch (err) {
+			console.warn('経路終端状態の取得に失敗しました', err);
+			routeTerminal = false;
+		}
+	}
 	updateOptionAvailability(fareInfo);
 }
 
@@ -313,6 +333,7 @@ function resetView() {
 	treatKokuraAsSame = true;
 	appMenuOpen = false;
 	showFareSummary = false;
+	routeTerminal = false;
 }
 
 function updateOptionAvailability(_info: FareInfo | null) {
@@ -382,6 +403,9 @@ function updateOptionAvailability(_info: FareInfo | null) {
 	}
 
 	function openRouteAddition() {
+		if (routeTerminal) {
+			return;
+		}
 		if (!startStation) {
 			error = '先に発駅を設定してください';
 			return;
@@ -862,10 +886,10 @@ function updateHolderView(): void {
 			type="button"
 			class="card add-route-card actionable"
 			onclick={openRouteAddition}
-			disabled={!startStation}
-			aria-disabled={!startStation}
+			disabled={!startStation || routeTerminal}
+			aria-disabled={!startStation || routeTerminal}
 		>
-			<span>+ 経路を追加</span>
+			<span>{routeTerminal ? '経路が終端に達しました' : '+ 経路を追加'}</span>
 		</button>
 
 		{#if showFareSummary}

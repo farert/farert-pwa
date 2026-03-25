@@ -7,6 +7,7 @@ import type { FaretClass } from '$lib/wasm/types';
 
 class MockFarert implements FaretClass {
 	script = '';
+	buildRouteResult = 1;
 	private osakaDetour = false;
 	private notSameKokura = false;
 	fareInfoJson = JSON.stringify({
@@ -46,7 +47,7 @@ class MockFarert implements FaretClass {
 
 	buildRoute(routeStr: string): number {
 		this.script = routeStr;
-		return 0;
+		return this.buildRouteResult;
 	}
 
 	routeScript(): string {
@@ -174,6 +175,13 @@ class ReverseReturnOneFarert extends MockFarert {
 	override reverse(): number {
 		const rc = super.reverse();
 		return rc < 0 ? rc : 1;
+	}
+}
+
+class TerminalRouteFarert extends MockFarert {
+	constructor(result: number) {
+		super();
+		this.buildRouteResult = result;
 	}
 }
 
@@ -423,6 +431,20 @@ it('hides fare summary card before route selection', async () => {
 		expect(parsed.searchParams.get('from')).toBe('main');
 		expect(parsed.searchParams.get('station')).toBe('北上');
 		expect(parsed.searchParams.get('line')).toBe('北上線');
+	});
+
+	it('disables add route button and shows terminal message when route reached the end', async () => {
+		const seededRoute = new TerminalRouteFarert(0);
+		seededRoute.addStartRoute('柏木平');
+		seededRoute.addRoute('北上線', '北上');
+		mainRouteStore.set(seededRoute);
+
+		render(Page);
+
+		const terminalButton = page.getByRole('button', { name: '経路が終端に達しました' });
+		await expect.element(terminalButton).toBeDisabled();
+
+		expect(gotoMock).not.toHaveBeenCalled();
 	});
 
 	it('treats reverse rc=1 as success', async () => {

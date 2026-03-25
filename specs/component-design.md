@@ -392,6 +392,7 @@ interface RouteSegmentCardProps {
 - パディング: `py-4`
 - テキスト: `text-white font-medium`
 - アイコン: `+`
+- 終端到達時は無効状態とし、文言を `経路が終端に達しました` に切り替える
 
 **構造**:
 ```svelte
