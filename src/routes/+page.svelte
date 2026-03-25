@@ -53,7 +53,6 @@ let currentRouteScript = $state('');
 let confirmDialogOpen = $state(false);
 let confirmDialogMessage = $state('');
 let confirmResolver: ((result: boolean) => void) | null = null;
-let fareSummarySection = $state<HTMLElement | null>(null);
 const osakaMenuLabel = $derived(
 	osakaDetourSelected ? '大阪環状線近回り' : '大阪環状線遠回り'
 );
@@ -422,10 +421,16 @@ function updateOptionAvailability(_info: FareInfo | null) {
 		}
 	}
 
-	function scrollToFareSummary(): void {
-		const section = fareSummarySection;
-		if (!section) return;
-		section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+	function scrollToTop(): void {
+		window.scrollTo({ top: 0, behavior: 'smooth' });
+	}
+
+	function scrollToBottom(): void {
+		const scrollHeight = Math.max(
+			document.documentElement.scrollHeight,
+			document.body?.scrollHeight ?? 0
+		);
+		window.scrollTo({ top: scrollHeight, behavior: 'smooth' });
 	}
 
 function handleUndo() {
@@ -825,16 +830,6 @@ function updateHolderView(): void {
 					{/if}
 				</div>
 			</button>
-			{#if showFareSummary && detailLink && segments.length >= 10}
-				<button
-					type="button"
-					class="station-result-link"
-					onclick={scrollToFareSummary}
-					aria-label="運賃サマリーまで移動"
-				>
-					結果まで移動
-				</button>
-			{/if}
 		</div>
 
 		<section class="segment-section">
@@ -874,7 +869,7 @@ function updateHolderView(): void {
 		</button>
 
 		{#if showFareSummary}
-			<section bind:this={fareSummarySection}>
+			<section>
 				<FareSummaryCard
 					fareInfo={fareInfo}
 					detailEnabled={Boolean(detailLink)}
@@ -895,6 +890,16 @@ function updateHolderView(): void {
 			</button>
 			<button type="button" onclick={openSave} aria-label="保存">
 				<span class="material-symbols-rounded bottom-nav-icon" aria-hidden="true">save</span>
+			</button>
+			<button type="button" onclick={scrollToTop} aria-label="Scroll to top">
+				<span class="material-symbols-rounded bottom-nav-icon" aria-hidden="true">
+					vertical_align_top
+				</span>
+			</button>
+			<button type="button" onclick={scrollToBottom} aria-label="Scroll to bottom">
+				<span class="material-symbols-rounded bottom-nav-icon" aria-hidden="true">
+					vertical_align_bottom
+				</span>
 			</button>
 		</nav>
 
@@ -1089,32 +1094,6 @@ function updateHolderView(): void {
 		padding: 0;
 	}
 
-	.station-result-link {
-		white-space: nowrap;
-		border: none;
-		background: transparent;
-		color: rgba(255, 255, 255, 0.85);
-		border-radius: 0.5rem;
-		padding: 0.22rem 0.45rem;
-		font-size: 0.82rem;
-		font-weight: 600;
-		line-height: 1.2;
-		cursor: pointer;
-		text-decoration: underline;
-		text-decoration-thickness: 1px;
-		text-underline-offset: 3px;
-		text-decoration-color: rgba(255, 255, 255, 0.5);
-	}
-
-	.station-result-link:hover {
-		color: rgba(255, 255, 255, 0.95);
-		text-decoration-color: rgba(255, 255, 255, 0.85);
-	}
-
-	.station-result-link:active {
-		transform: translateY(1px);
-	}
-
 	.station-card-text {
 		display: flex;
 		flex-direction: column;
@@ -1280,7 +1259,7 @@ function updateHolderView(): void {
 		padding: 0.5rem 0.75rem max(0.5rem, env(safe-area-inset-bottom, 0));
 		z-index: 28;
 		display: grid;
-		grid-template-columns: repeat(4, minmax(0, 1fr));
+		grid-template-columns: repeat(6, minmax(0, 1fr));
 		gap: 0.75rem;
 		margin-top: 0;
 	}

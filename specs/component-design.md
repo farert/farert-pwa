@@ -313,10 +313,6 @@ interface StationCardProps {
 - パディング: `p-4`
 - 高さ: 約 80px
 - アイコン: 青い電車アイコン (32px)
-- **右端リンク**:
--   条件: `RouteSegmentCard` が10件以上ある場合に表示。
--   テキスト: `結果まで移動`
--   挙動: タップで `FareSummaryCard` 位置までスクロール。
 
 **構造**:
 ```svelte
@@ -332,6 +328,10 @@ interface StationCardProps {
   <ChevronRightIcon class="text-gray-400" />
 </button>
 ```
+
+補足:
+- メイン画面のスクロール操作は `BottomNavigation` に集約する。
+- `保存` の右に `↑` / `↓` ボタンを配置し、画面最上部 / 最下部へスクロールする。
 
 ---
 

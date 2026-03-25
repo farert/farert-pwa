@@ -23,8 +23,6 @@
     -   経路の発駅が設定されている場合に表示されます。
     -   Props: `station`, `isStartStation={true}`
     -   タップ動作: **<発着駅選択>** 画面へ遷移し、発駅を変更します。選択後、既存の経路区間は全てクリアされ、`StationCard`と`AddRouteButton`のみの表示に戻ります。
-    -   右端に「結果まで移動」リンクを表示します。路線区間カード（RouteSegmentCard）が10件以上あり、運賃サマリーが表示可能な場合にのみ表示します。
-    -   リンク押下時は `FareSummaryCard` の位置へスクロールして移動します。
 
 2.  **RouteSegmentCard (経路区間表示)**
     -   `component-design.md`の`RouteSegmentCard`を参照。
@@ -64,6 +62,8 @@
     2.  **反転** (`SwapIcon`): 現在の経路を反転し、再表示します。
     3.  **オプション** (`SettingsIcon`): 経路オプションメニューを表示します。
     4.  **保存** (`SaveIcon`): **<保存>** 画面へ遷移します。
+    5.  **↑**: 画面最上部へスムーズスクロールします。
+    6.  **↓**: 画面最下部へスムーズスクロールします。
 
 `ui-guidelines.md`の`BottomNavigation`セクションで定義されている有効/無効状態のロジックに従います。特に「オプション」ボタンは、経路に大阪環状線が含まれる場合、または `fareInfo.isFareOptEnabled` が `true` の場合にのみ有効化されます。
 

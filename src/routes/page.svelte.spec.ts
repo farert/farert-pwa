@@ -223,26 +223,39 @@ describe('/+page.svelte', () => {
 		await expect.element(placeholder).toBeInTheDocument();
 	});
 
-	it('shows a result link when fare summary is available and segment count is 10 or more', async () => {
+	it('shows scroll buttons in the toolbar and scrolls to the top and bottom', async () => {
 		const seededRoute = new MockFarert();
 		seededRoute.addStartRoute('東京');
 		for (let i = 0; i < 10; i += 1) {
 			seededRoute.addRoute('山手線', `駅${i + 1}`);
 		}
 		mainRouteStore.set(seededRoute);
-		const scrollSpy = vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(() => {});
+		const scrollSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+		Object.defineProperty(document.documentElement, 'scrollHeight', {
+			configurable: true,
+			value: 2400
+		});
+		Object.defineProperty(window, 'innerHeight', {
+			configurable: true,
+			value: 800
+		});
 
 		render(Page);
 
-		const resultLink = page.getByRole('button', { name: '結果まで移動' });
-		await expect.element(resultLink).toBeInTheDocument();
-		await resultLink.click();
-		expect(scrollSpy).toHaveBeenCalledTimes(1);
+		const topButton = page.getByRole('button', { name: 'Scroll to top' });
+		const bottomButton = page.getByRole('button', { name: 'Scroll to bottom' });
+		await expect.element(topButton).toBeInTheDocument();
+		await expect.element(bottomButton).toBeInTheDocument();
+
+		await topButton.click();
+		await bottomButton.click();
+		expect(scrollSpy).toHaveBeenNthCalledWith(1, { top: 0, behavior: 'smooth' });
+		expect(scrollSpy).toHaveBeenNthCalledWith(2, { top: 2400, behavior: 'smooth' });
 
 		scrollSpy.mockRestore();
 	});
 
-	it('does not show the result link when route has fewer than 10 segments', async () => {
+	it('does not show the old result link even when route has fewer than 10 segments', async () => {
 		const seededRoute = new MockFarert();
 		seededRoute.addStartRoute('東京');
 		for (let i = 0; i < 9; i += 1) {
