@@ -6,6 +6,10 @@
 	import { cubicOut } from 'svelte/easing';
 	import { fly } from 'svelte/transition';
 	import { resolvePageTransition, type PageTransitionKind } from '$lib/utils/pageTransition';
+	import {
+		getReadyServiceWorkerRegistration,
+		waitForPendingWorker
+	} from '$lib/utils/serviceWorkerUpdate';
 	import '../app.css';
 
 	let { children } = $props();
@@ -15,8 +19,6 @@
 	let isApplyingUpdate = $state(false);
 	let pageTransition = $state<PageTransitionKind>('none');
 	let transitionReady = $state(false);
-
-	let cleanupServiceWorker: (() => void) | null = null;
 
 	beforeNavigate((navigation) => {
 		const fromPathname = navigation.from?.url.pathname ?? page.url.pathname;
@@ -34,41 +36,14 @@
 			return new URLSearchParams(window.location.search).get('sw-update-preview') === '1';
 		};
 
-		const setupUpdateListener = (registration: ServiceWorkerRegistration) => {
-			const registerWaitingWorker = (worker: ServiceWorker | null): void => {
-				if (!worker) return;
-				if (!navigator.serviceWorker.controller) {
-					return;
-				}
-				updateWorker = worker;
-				updateAvailable = true;
-				dismissUpdate = false;
-			};
-
-			if (registration.waiting) {
-				registerWaitingWorker(registration.waiting);
+		const registerWaitingWorker = (worker: ServiceWorker | null): void => {
+			if (!worker) return;
+			if (!navigator.serviceWorker.controller) {
+				return;
 			}
-
-			const onUpdateFound = () => {
-				const installingWorker = registration.installing;
-				if (!installingWorker) return;
-
-				const onStateChange = () => {
-					if (installingWorker.state === 'installed') {
-						registerWaitingWorker(installingWorker);
-					}
-					if (installingWorker.state === 'installed' || installingWorker.state === 'redundant') {
-						installingWorker.removeEventListener('statechange', onStateChange);
-					}
-				};
-				installingWorker.addEventListener('statechange', onStateChange);
-			};
-
-			registration.addEventListener('updatefound', onUpdateFound);
-
-			return () => {
-				registration.removeEventListener('updatefound', onUpdateFound);
-			};
+			updateWorker = worker;
+			updateAvailable = true;
+			dismissUpdate = false;
 		};
 
 		let theme: 'light' | 'dark' = 'light';
@@ -85,15 +60,17 @@
 		}
 
 		if ('serviceWorker' in navigator) {
-			navigator.serviceWorker
-				.getRegistration()
+			getReadyServiceWorkerRegistration()
 				.then(async (registration) => {
 					if (!registration) return;
+					registerWaitingWorker(registration.waiting);
+					const pendingWorkerPromise = waitForPendingWorker(registration, 4000).then((worker) => {
+						registerWaitingWorker(worker);
+					});
 					await registration.update().catch(() => {
 						// 更新確認失敗時は自動更新しない
 					});
-					const cleanup = setupUpdateListener(registration);
-					cleanupServiceWorker = cleanup ?? null;
+					await pendingWorkerPromise;
 				})
 				.catch(() => {
 					// SW登録取得失敗時は更新チェックを行わない
@@ -106,9 +83,7 @@
 				});
 		}
 
-		return () => {
-			cleanupServiceWorker?.();
-		};
+		return () => {};
 	});
 
 	function applyUpdate(): void {

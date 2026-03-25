@@ -90,6 +90,7 @@
 - 更新ポリシー（PWAの運用）
 	- 1) ビルドごとに新しいSWが配信される。
 	- 2) `waiting` 状態で更新候補を待機。
+	- 2a) 更新確認時は `navigator.serviceWorker.ready` を待ってから registration を取得し、`updatefound` / `statechange` の監視を開始した後で `registration.update()` を呼ぶ。
 	- 3) アプリ側（`+layout.svelte` / `/version`）から `SKIP_WAITING` を送信し、`controllerchange` 後に再読込。
 	- 4) オフライン中は有効なキャッシュ版（現行キャッシュ）を継続利用。オンライン復帰後に更新反映。
 - 重要資産として `farert.js`, `farert.wasm`, `farert.data` を同時にキャッシュ対象とし、

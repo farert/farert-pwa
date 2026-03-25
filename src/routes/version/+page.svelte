@@ -4,6 +4,10 @@ import { base } from '$app/paths';
 	import { onMount } from 'svelte';
 	import { initFarert, databaseInfo } from '$lib/wasm';
 	import { APP_VERSION, BUILD_AT, GIT_COMMIT_AT, GIT_SHA } from '$lib/version';
+	import {
+		getReadyServiceWorkerRegistration,
+		waitForPendingWorker
+	} from '$lib/utils/serviceWorkerUpdate';
 
 	interface DbMeta {
 		name: string;
@@ -93,41 +97,6 @@ import { base } from '$app/paths';
 		return true;
 	}
 
-	async function getServiceWorkerRegistration(): Promise<ServiceWorkerRegistration | null> {
-		if (!('serviceWorker' in navigator)) return null;
-		const currentUrl = window.location.href;
-
-		try {
-			const registration = await navigator.serviceWorker.getRegistration();
-			if (registration) return registration;
-
-			const registrations = await navigator.serviceWorker.getRegistrations();
-			if (registrations.length === 0) return null;
-
-			const sameOrigin = registrations.filter((candidate) => {
-				try {
-					return new URL(candidate.scope).origin === new URL(currentUrl).origin;
-				} catch {
-					return false;
-				}
-			});
-
-			if (sameOrigin.length === 0) return registrations[0] ?? null;
-
-			const matched = sameOrigin.filter((candidate) => currentUrl.startsWith(candidate.scope));
-			if (matched.length > 0) {
-				matched.sort((a, b) => b.scope.length - a.scope.length);
-				return matched[0];
-			}
-
-			sameOrigin.sort((a, b) => b.scope.length - a.scope.length);
-			return sameOrigin[0];
-		} catch (err) {
-			console.warn('Service Worker登録の取得に失敗しました', err);
-			return null;
-		}
-	}
-
 	async function applyUpdate(): Promise<void> {
 		if (!('serviceWorker' in navigator) || !updateWorker) {
 			updateMessage = '更新対象が見つかりません。';
@@ -169,7 +138,7 @@ import { base } from '$app/paths';
 		updateWorker = null;
 
 		try {
-			const registration = await getServiceWorkerRegistration();
+			const registration = await getReadyServiceWorkerRegistration();
 			if (!registration) {
 				updateMessage = '更新は見つかりませんでした。';
 				return;
@@ -180,35 +149,12 @@ import { base } from '$app/paths';
 				return;
 			}
 
+			const pendingWorkerPromise = waitForPendingWorker(registration, 4000);
 			await registration.update();
-			await new Promise((resolve) => {
-				setTimeout(resolve, 300);
-			});
+			const pendingWorker = await pendingWorkerPromise;
 
-			if (registerPendingWorker(registration.waiting)) {
+			if (registerPendingWorker(pendingWorker ?? registration.waiting)) {
 				await applyUpdate();
-			} else if (registration.installing) {
-				await new Promise<void>((resolve) => {
-					const clearState = () => {
-						registration.installing?.removeEventListener('statechange', onStateChange);
-						resolve();
-					};
-					const onStateChange = () => {
-						if (
-							registration.installing?.state === 'installed' ||
-							registration.installing?.state === 'redundant'
-						) {
-							clearState();
-						}
-					};
-					registration.installing.addEventListener('statechange', onStateChange);
-				});
-
-				if (registerPendingWorker(registration.waiting)) {
-					await applyUpdate();
-				} else {
-					updateMessage = '更新は見つかりませんでした。';
-				}
 			} else {
 				updateMessage = '更新は見つかりませんでした。';
 			}
