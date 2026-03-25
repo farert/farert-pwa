@@ -24,6 +24,26 @@
 - オプション: `specs/option-menu.md`
 - URL 圧縮経路: `specs/url-routing.md`
 
+## 画面対応表
+
+| 仕様書 | 画面名 | ルート | 実装 | 補足 |
+|---|---|---|---|---|
+| `specs/main-screen.md` | メイン画面 | `/` | `src/routes/+page.svelte` | アプリの初期画面 |
+| `specs/detail-screen.md` | 詳細画面 | `/detail` | `src/routes/detail/+page.svelte` | 運賃詳細表示 |
+| `specs/terminal-selection-screen.md` | 発着駅選択画面 | `/terminal-selection` | `src/routes/terminal-selection/+page.svelte` | 発駅・着駅の選択に使用 |
+| `specs/line-selection-screen.md` | 路線選択画面 | `/line-selection` | `src/routes/line-selection/+page.svelte` | メイン画面と発着駅選択画面の両方から遷移 |
+| `specs/station-selection-screen.md` | 駅選択画面 | `/route-station-select` | `src/routes/route-station-select/+page.svelte` | 分岐駅選択 / 着駅選択のトグルを含む |
+| `specs/save-screen.md` | 保存画面 | `/save` | `src/routes/save/+page.svelte` | 保存済み経路の管理 |
+| `specs/version-info-screen.md` | バージョン情報画面 | `/version` | `src/routes/version/+page.svelte` | バージョン・更新情報表示 |
+
+### 補足ルール
+
+- `src/routes` のディレクトリ名を正本のルート名とみなす。
+- 画面仕様の正本は、上表の「仕様書」列を優先する。
+- `specs/component-design.md` の画面名やコンポーネント名は UI 設計上の呼称であり、ルート名と一致しない場合がある。
+- `/route-station-select` は `specs/station-selection-screen.md` を画面仕様の正本とする。
+- `/route-station-select` の利用元や画面フローの補足は `specs/line-selection-screen.md` と `specs/screen-flow-and-io.md` を参照する。
+
 ## データ・設計
 - データモデル: `specs/data-model.md`
 - コンポーネント設計: `specs/component-design.md`
