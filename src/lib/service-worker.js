@@ -3,6 +3,8 @@
 /// <reference lib="esnext" />
 /// <reference lib="webworker" />
 
+import { shouldCacheNetworkResponse, shouldServeShellFallback } from './utils/serviceWorkerNavigation';
+
 /** @type {ServiceWorkerGlobalScope & { __WB_MANIFEST?: Array<{ url: string; revision?: string }> }} */
 const sw = self;
 
@@ -176,8 +178,15 @@ if (isDev) {
 			try {
 				const response = await fetch(event.request);
 
+				if (shouldServeShellFallback(event.request.mode, response.status)) {
+					const cachedShell = await getCachedShell(cache);
+					if (cachedShell) {
+						return cachedShell;
+					}
+				}
+
 				// 成功したらキャッシュに保存
-				if (response.status === 200) {
+				if (shouldCacheNetworkResponse(response.status)) {
 					cache.put(event.request, response.clone());
 				}
 
@@ -189,7 +198,7 @@ if (isDev) {
 					return cachedResponse;
 				}
 
-				if (event.request.mode === 'navigate') {
+				if (shouldServeShellFallback(event.request.mode)) {
 					return (await getCachedShell(cache)) || new Response('Not found', { status: 404 });
 				}
 
