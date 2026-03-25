@@ -2,6 +2,7 @@
 import { goto } from '$app/navigation';
 import { base } from '$app/paths';
 import { onMount } from 'svelte';
+import { cubicOut } from 'svelte/easing';
 import {
 	initFarert,
 	getBranchStationsByLine,
@@ -37,6 +38,8 @@ let branchStations = $state<string[]>([]);
 let destinationStations = $state<string[]>([]);
 let stationDetails = $state<Record<string, StationMetaInfo>>({});
 let routeRef = $state<FaretClass | null>(null);
+let transitionReady = $state(false);
+let transitionFrame: number | null = null;
 let { presetParams = null } = $props<{ presetParams?: Partial<StationSelectionParams> | null }>();
 
 onMount(() => {
@@ -55,10 +58,23 @@ onMount(() => {
 			errorMessage = '駅一覧の初期化に失敗しました。';
 		} finally {
 			loading = false;
+			if (typeof window !== 'undefined') {
+				transitionFrame = window.requestAnimationFrame(() => {
+					transitionReady = true;
+					transitionFrame = null;
+				});
+			} else {
+				transitionReady = true;
+			}
 		}
 	})();
 
-	return () => unsubscribe();
+	return () => {
+		unsubscribe();
+		if (transitionFrame !== null && typeof window !== 'undefined') {
+			window.cancelAnimationFrame(transitionFrame);
+		}
+	};
 });
 
 function resolveParams(): StationSelectionParams {
@@ -274,6 +290,32 @@ function toggleMode(): void {
 	mode = mode === 'branch' ? 'destination' : 'branch';
 }
 
+function rotateCenterVertical(
+	_node: Element,
+	params: { delay?: number; duration?: number; direction: 'in' | 'out' }
+) {
+	const delay = params.delay ?? 0;
+	const duration = params.duration ?? 260;
+	const direction = params.direction;
+
+	return {
+		delay,
+		duration,
+		easing: cubicOut,
+		css: (t: number) => {
+			const eased = direction === 'in' ? t : 1 - t;
+			const rotate = direction === 'in' ? (1 - eased) * -88 : eased * 88;
+			const opacity = 0.18 + eased * 0.82;
+			return `
+				transform-origin: center center;
+				transform: perspective(1200px) rotateY(${rotate}deg);
+				opacity: ${opacity};
+				backface-visibility: hidden;
+			`;
+		}
+	};
+}
+
 function goBack(): void {
 	if (typeof window !== 'undefined' && window.history.length > 1) {
 		window.history.back();
@@ -369,28 +411,42 @@ function stationMeta(name: string): string {
 		</div>
 	{:else}
 		<section class="station-section">
-			{#if visibleStations.length === 0}
-				<p class="placeholder">駅が見つかりませんでした。</p>
-			{:else}
-				<ul class="station-list">
-					{#each visibleStations as station (station)}
-						<li>
-							<button
-								type="button"
-								class:disabled={isDisabledStation(station)}
-								disabled={isDisabledStation(station)}
-								aria-disabled={isDisabledStation(station)}
-								onclick={() => handleSelectStation(station)}
-							>
-								<span class="station-name">{stationDetails[station]?.name ?? station}</span>
-								{#if stationMeta(station)}
-									<span class="station-meta">{stationMeta(station)}</span>
-								{/if}
-							</button>
-						</li>
-					{/each}
-				</ul>
-			{/if}
+			<div class="station-panel-stage">
+				{#key params.from === 'main' ? mode : 'fixed'}
+					<div
+						class="station-panel"
+						in:rotateCenterVertical={transitionReady && params.from === 'main'
+							? { direction: 'in' }
+							: { direction: 'in', duration: 0 }}
+						out:rotateCenterVertical={transitionReady && params.from === 'main'
+							? { direction: 'out' }
+							: { direction: 'out', duration: 0 }}
+					>
+						{#if visibleStations.length === 0}
+							<p class="placeholder">駅が見つかりませんでした。</p>
+						{:else}
+							<ul class="station-list">
+								{#each visibleStations as station (station)}
+									<li>
+										<button
+											type="button"
+											class:disabled={isDisabledStation(station)}
+											disabled={isDisabledStation(station)}
+											aria-disabled={isDisabledStation(station)}
+											onclick={() => handleSelectStation(station)}
+										>
+											<span class="station-name">{stationDetails[station]?.name ?? station}</span>
+											{#if stationMeta(station)}
+												<span class="station-meta">{stationMeta(station)}</span>
+											{/if}
+										</button>
+									</li>
+								{/each}
+							</ul>
+						{/if}
+					</div>
+				{/key}
+			</div>
 		</section>
 	{/if}
 </div>
@@ -450,6 +506,17 @@ function stationMeta(name: string): string {
 		border-radius: 0.75rem;
 		padding: 1rem;
 		box-shadow: var(--card-shadow);
+		perspective: 1200px;
+		overflow: hidden;
+	}
+
+	.station-panel-stage {
+		position: relative;
+	}
+
+	.station-panel {
+		transform-style: preserve-3d;
+		will-change: transform, opacity;
 	}
 
 	.station-list {
