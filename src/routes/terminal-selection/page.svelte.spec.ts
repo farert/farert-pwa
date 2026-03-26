@@ -255,6 +255,7 @@ describe('/terminal-selection/+page.svelte', () => {
 
 		const heading = page.getByRole('heading', { name: '着駅指定（最短経路）' });
 		await expect.element(heading).toBeInTheDocument();
+		await expect.element(page.getByText('着駅を選択してください')).toBeInTheDocument();
 	});
 
 	it('lists lines for the selected prefecture even when payload contains multiple prefectures', async () => {

@@ -120,6 +120,9 @@ let screenMode = $state<'start' | 'destination'>('start');
 const screenTitle = $derived(
 	screenMode === 'destination' ? DESTINATION_SCREEN_TITLE : START_SCREEN_TITLE
 );
+const screenSubtitle = $derived(
+	screenMode === 'destination' ? '着駅を選択してください' : '発駅を選択してください'
+);
 let { initialMode = '' } = $props<{ initialMode?: 'start' | 'destination' }>();
 let autoRouteDialogOpen = $state(false);
 let pendingDestinationStation = $state('');
@@ -1037,7 +1040,7 @@ function scrollToBottom(): void {
 		</button>
 		<div class="title">
 		<h1>{screenTitle}</h1>
-			<p>発駅を選択してください</p>
+			<p>{screenSubtitle}</p>
 		</div>
 	</header>
 
