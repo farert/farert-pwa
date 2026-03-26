@@ -385,6 +385,18 @@ function stationMeta(name: string): string {
 	}
 	return metaParts.join(' / ');
 }
+
+function scrollToTop(): void {
+	window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function scrollToBottom(): void {
+	const scrollHeight = Math.max(
+		document.documentElement.scrollHeight,
+		document.body?.scrollHeight ?? 0
+	);
+	window.scrollTo({ top: scrollHeight, behavior: 'smooth' });
+}
 </script>
 
 <div class="station-selection">
@@ -442,12 +454,22 @@ function stationMeta(name: string): string {
 			</div>
 		</section>
 	{/if}
+
+	<div class="floating-scroll-buttons" aria-label="スクロール操作">
+		<button type="button" class="floating-scroll-button" aria-label="一覧の先頭へスクロール" onclick={scrollToTop}>
+			<span class="material-symbols-rounded" aria-hidden="true">vertical_align_top</span>
+		</button>
+		<button type="button" class="floating-scroll-button" aria-label="一覧の末尾へスクロール" onclick={scrollToBottom}>
+			<span class="material-symbols-rounded" aria-hidden="true">vertical_align_bottom</span>
+		</button>
+	</div>
 </div>
 
 <style>
 	.station-selection {
 		min-height: 100vh;
 		padding: 1rem;
+		padding-bottom: 6.5rem;
 		background: var(--page-bg);
 		font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 	}
@@ -550,5 +572,33 @@ function stationMeta(name: string): string {
 	.station-meta {
 		font-size: 0.85rem;
 		color: var(--text-sub);
+	}
+
+	.floating-scroll-buttons {
+		position: fixed;
+		right: max(1rem, env(safe-area-inset-right, 0.75rem));
+		bottom: max(1rem, env(safe-area-inset-bottom, 0.75rem));
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+		z-index: 30;
+	}
+
+	.floating-scroll-button {
+		width: 3.25rem;
+		height: 3.25rem;
+		border: none;
+		border-radius: 999px;
+		background: linear-gradient(135deg, #7e22ce, #5b21b6);
+		color: #fff;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		box-shadow: 0 12px 28px rgba(91, 33, 182, 0.32);
+		cursor: pointer;
+	}
+
+	.floating-scroll-button .material-symbols-rounded {
+		font-size: 1.5rem;
 	}
 </style>

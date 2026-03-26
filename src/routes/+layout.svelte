@@ -191,7 +191,7 @@
 
 	.page-transition-shell {
 		min-height: 100vh;
-		will-change: transform, opacity;
+		will-change: opacity;
 	}
 
 	.update-banner-wrap {

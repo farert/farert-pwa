@@ -633,5 +633,30 @@ describe('/terminal-selection/+page.svelte', () => {
 		await expect.element(searchBar).toBeInTheDocument();
 	});
 
+	it('shows floating scroll buttons on prefecture tab and scrolls to top and bottom', async () => {
+		const scrollSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+		Object.defineProperty(document.documentElement, 'scrollHeight', {
+			configurable: true,
+			value: 3200
+		});
+
+		render(TerminalSelectionPage);
+
+		await page.getByRole('tab', { name: '都道府県' }).click();
+
+		const upButton = page.getByRole('button', { name: '一覧の先頭へスクロール' });
+		const downButton = page.getByRole('button', { name: '一覧の末尾へスクロール' });
+		await expect.element(upButton).toBeInTheDocument();
+		await expect.element(downButton).toBeInTheDocument();
+
+		await upButton.click();
+		await downButton.click();
+
+		expect(scrollSpy).toHaveBeenNthCalledWith(1, { top: 0, behavior: 'smooth' });
+		expect(scrollSpy).toHaveBeenNthCalledWith(2, { top: 3200, behavior: 'smooth' });
+
+		scrollSpy.mockRestore();
+	});
+
 it.todo('allows deleting history entries via swipe gesture');
 });

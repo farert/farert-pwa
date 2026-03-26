@@ -373,4 +373,34 @@ describe('/route-station-select/+page.svelte', () => {
 		await expect.element(page.getByText('経路が重複しています')).toBeInTheDocument();
 		expect(gotoMock).not.toHaveBeenCalled();
 	});
+
+	it('shows floating scroll buttons and scrolls to top and bottom', async () => {
+		const scrollSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+		Object.defineProperty(document.documentElement, 'scrollHeight', {
+			configurable: true,
+			value: 2800
+		});
+
+		wasmApi.getBranchStationsByLine.mockReturnValue(JSON.stringify(['北上', '水沢']));
+		wasmApi.getStationsByLine.mockReturnValue(JSON.stringify(['北上', '水沢', '一ノ関', '盛岡']));
+		wasmApi.getKanaByStation.mockImplementation((station: string) => `${station}かな`);
+		wasmApi.getLinesByStation.mockReturnValue(JSON.stringify(['東北本線']));
+
+		render(RouteStationSelectPage, {
+			presetParams: { from: 'main', station: '北上', line: '東北新幹線' }
+		});
+
+		const upButton = page.getByRole('button', { name: '一覧の先頭へスクロール' });
+		const downButton = page.getByRole('button', { name: '一覧の末尾へスクロール' });
+		await expect.element(upButton).toBeInTheDocument();
+		await expect.element(downButton).toBeInTheDocument();
+
+		await upButton.click();
+		await downButton.click();
+
+		expect(scrollSpy).toHaveBeenNthCalledWith(1, { top: 0, behavior: 'smooth' });
+		expect(scrollSpy).toHaveBeenNthCalledWith(2, { top: 2800, behavior: 'smooth' });
+
+		scrollSpy.mockRestore();
+	});
 });
