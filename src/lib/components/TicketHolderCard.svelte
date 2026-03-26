@@ -17,7 +17,8 @@
 		onMoveDragEnter,
 		onMoveDragLeave,
 		onMoveDragEnd,
-		dropPosition = null
+		dropPosition = null,
+		showDelete = false
 	} = $props<{
 		item: TicketHolderItem;
 		title: string;
@@ -33,6 +34,7 @@
 		onMoveDragLeave?: (event: DragEvent) => void;
 		onMoveDragEnd?: () => void;
 		dropPosition?: 'before' | 'after' | null;
+		showDelete?: boolean;
 	}>();
 
 	function handleDelete(event: Event): void {
@@ -121,9 +123,11 @@
 	</header>
 
 	<div class="controls">
-		<button type="button" class="icon-button" aria-label="削除" onclick={handleDelete}>
-			<span class="material-symbols-rounded" aria-hidden="true">delete</span>
-		</button>
+		{#if showDelete}
+			<button type="button" class="icon-button" aria-label="削除" onclick={handleDelete}>
+				<span class="material-symbols-rounded" aria-hidden="true">delete</span>
+			</button>
+		{/if}
 		<FarePicker value={item.fareType} onChange={(type) => onFareTypeChange?.(type)} />
 	</div>
 

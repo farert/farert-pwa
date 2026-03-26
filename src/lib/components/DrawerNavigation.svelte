@@ -14,9 +14,11 @@
 
 let {
 		isOpen = false,
+		isEditing = false,
 		items = [],
 		canAdd = true,
 		onClose,
+		onToggleEdit,
 		onItemClick,
 		onItemDelete,
 		onFareTypeChange,
@@ -25,8 +27,10 @@ let {
 		onShare
 	} = $props<{
 		isOpen?: boolean;
+		isEditing?: boolean;
 		items?: DrawerItem[];
 		onClose?: () => void;
+		onToggleEdit?: () => void;
 		onItemClick?: (item: TicketHolderItem) => void;
 		onItemDelete?: (order: number) => void;
 		onFareTypeChange?: (order: number, fareType: FareType) => void;
@@ -212,6 +216,16 @@ let {
 		</button>
 		<button
 			type="button"
+			class="icon-button"
+			aria-label={isEditing ? '完了' : '編集'}
+			onclick={onToggleEdit}
+		>
+			<span class="material-symbols-rounded" aria-hidden="true">
+				{isEditing ? 'check' : 'edit'}
+			</span>
+		</button>
+		<button
+			type="button"
 			class="add-button"
 			aria-label="きっぷホルダに追加"
 			onclick={onAddToHolder}
@@ -247,6 +261,7 @@ let {
 					onMoveDragLeave={(event) => handleMoveDragLeave(event, item.key)}
 					onMoveDragEnd={handleMoveDragEnd}
 					dropPosition={getDropPosition(parseOrder(item.key))}
+					showDelete={isEditing}
 				/>
 			{/each}
 		{/if}
@@ -304,7 +319,7 @@ let {
 	.actions {
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
+		gap: 0.5rem;
 	}
 
 	.icon-button {
@@ -320,6 +335,7 @@ let {
 	}
 
 	.add-button {
+		margin-left: auto;
 		border: none;
 		background: none;
 		color: #f8d34f;

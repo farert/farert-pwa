@@ -12,6 +12,8 @@
 - `isOpen: boolean` (ドロワーの開閉状態)
 - `ticketHolderItems: TicketHolderItem[]` (表示するきっぷホルダアイテムのリスト)
 - `onClose: () => void` (ドロワーを閉じるためのコールバック)
+- `isEditing: boolean` (編集モード状態)
+- `onToggleEdit: () => void` (編集モード切り替えコールバック)
 - `onItemClick: (item: TicketHolderItem) => void` (アイテムがクリックされた時のコールバック)
 - `onItemDelete: (id: string) => void` (アイテムが削除された時のコールバック)
 - `onFareTypeChange: (id: string, fareType: FareType) => void` (運賃タイプが変更された時のコールバック)
@@ -36,6 +38,7 @@
 `component-design.md`の`DrawerNavigation`コンポーネント構造に沿って、以下のボタンが配置されます。
 
 -   **共有ボタン** (`ShareIcon`): タップできっぷホルダ全体を共有します。 共有フォーマットは、カンマ区切りテキスト（CSV）とする。総運賃、総営業キロは載せない。
+-   **編集ボタン** (`EditIcon` / `CheckIcon`): タップで編集モードを切り替えます。共有ボタンの直後に隣接配置します。
 -   **追加ボタン** (`AddIcon` または `AddToHolderButton`): メイン画面の現在の経路をきっぷホルダに追加します。メイン画面の経路が空の場合は非表示です。同一経路の重複追加も可能です。
 
 ### リストエリア（スクロール可能）
@@ -47,7 +50,7 @@
 -   Props: `item: TicketHolderItem`
 -   Events:
     -   `click`: カード全体がタップされた際、`onItemClick`を呼び出し、メイン画面がその経路表示に切り替わります。
-    -   `delete`: `TicketHolderCard`内の削除ボタン(`DeleteIcon`)がクリックされた際、`onItemDelete`を呼び出します。確認ダイアログなしで即座に削除されます。
+    -   `delete`: 編集モード時のみ `TicketHolderCard` 内の削除ボタン(`DeleteIcon`)が表示され、クリック時に `onItemDelete`を呼び出します。確認ダイアログなしで即座に削除されます。
     -   `fareTypeChange`: `TicketHolderCard`内の`FarePicker`コンポーネントで運賃タイプが変更された際、`onFareTypeChange`を呼び出します。
 
 #### `FarePicker`コンポーネント（`TicketHolderCard`内）

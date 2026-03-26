@@ -123,8 +123,10 @@ interface AppBarProps {
 ```typescript
 interface DrawerProps {
   isOpen: boolean;
+  isEditing: boolean;
   ticketHolderItems: TicketHolderItem[];
   onClose: () => void;
+  onToggleEdit: () => void;
   onItemClick: (item: TicketHolderItem) => void;
   onItemDelete: (id: string) => void;
   onFareTypeChange: (id: string, fareType: FareType) => void;
@@ -151,13 +153,23 @@ interface DrawerProps {
     <p>総営業キロ {totalKm.toFixed(1)} km</p>
   </div>
 
-  <button class="share-button" on:click={handleShare}>
-    <ShareIcon />
-  </button>
+  <div class="actions">
+    <button class="share-button" on:click={handleShare}>
+      <ShareIcon />
+    </button>
 
-  <button class="add-button" on:click={onAddToHolder}>
-    追加≪
-  </button>
+    <button class="edit-button" on:click={onToggleEdit}>
+      {#if isEditing}
+        <CheckIcon />
+      {:else}
+        <EditIcon />
+      {/if}
+    </button>
+
+    <button class="add-button" on:click={onAddToHolder}>
+      追加≪
+    </button>
+  </div>
 
   <div class="ticket-list">
     {#each ticketHolderItems as item (item.id)}
@@ -186,6 +198,7 @@ interface DrawerProps {
 ```typescript
 interface TicketHolderCardProps {
   item: TicketHolderItem;
+  showDelete?: boolean;
 }
 ```
 
@@ -207,9 +220,11 @@ interface TicketHolderCardProps {
     <button class="menu-button">
       <MenuIcon />
     </button>
-    <button class="delete-button">
-      <DeleteIcon />
-    </button>
+    {#if showDelete}
+      <button class="delete-button">
+        <DeleteIcon />
+      </button>
+    {/if}
     <h3>{item.route.startStation.name} - {getDestination(item.route)}</h3>
     <button class="train-icon">
       <TrainIcon />

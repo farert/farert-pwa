@@ -550,4 +550,17 @@ it('hides fare summary card before route selection', async () => {
 
 		expect(get(mainRouteStore)?.routeScript()).toBe('仙台,東北線,盛岡');
 	});
+
+	it('shows drawer delete buttons only after entering edit mode', async () => {
+		ticketHolderStore.set([{ order: 1, routeScript: '仙台,東北線,盛岡', fareType: 0 }]);
+
+		render(Page);
+
+		await page.getByRole('button', { name: 'きっぷホルダ', exact: true }).click();
+		const editButton = page.getByRole('button', { name: '編集' });
+		await expect.element(editButton).toBeInTheDocument();
+		await editButton.click();
+
+		expect(document.querySelector('button[aria-label="削除"]')).not.toBeNull();
+	});
 });

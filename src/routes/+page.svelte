@@ -54,6 +54,7 @@ let currentRouteScript = $state('');
 let confirmDialogOpen = $state(false);
 let confirmDialogMessage = $state('');
 let confirmResolver: ((result: boolean) => void) | null = null;
+let drawerEditing = $state(false);
 const osakaMenuLabel = $derived(
 	osakaDetourSelected ? '大阪環状線近回り' : '大阪環状線遠回り'
 );
@@ -589,6 +590,15 @@ function updateHolderView(): void {
 		ticketHolder.update((list) => list.filter((item) => item.order !== order));
 	}
 
+	function toggleDrawerEditing(): void {
+		drawerEditing = !drawerEditing;
+	}
+
+	function closeDrawer(): void {
+		drawerOpen = false;
+		drawerEditing = false;
+	}
+
 	function handleHolderFareChange(order: number, fareType: FareType): void {
 		if (!Number.isFinite(order)) return;
 		ticketHolder.update((list) =>
@@ -641,7 +651,7 @@ function updateHolderView(): void {
 			}
 			mainRoute.set(next);
 			refreshRouteState(next);
-			drawerOpen = false;
+			closeDrawer();
 		} catch (err) {
 			console.error('きっぷホルダの適用に失敗しました', err);
 			error = 'きっぷホルダの適用に失敗しました。';
@@ -954,9 +964,11 @@ function updateHolderView(): void {
 
 	<DrawerNavigation
 		isOpen={drawerOpen}
+		isEditing={drawerEditing}
 		items={holderView}
 		canAdd={canAddToHolder}
-		onClose={() => (drawerOpen = false)}
+		onClose={closeDrawer}
+		onToggleEdit={toggleDrawerEditing}
 		onShare={handleShareHolder}
 		onAddToHolder={handleAddToHolder}
 		onItemClick={handleHolderSelect}
