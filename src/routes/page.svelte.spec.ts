@@ -563,4 +563,30 @@ it('hides fare summary card before route selection', async () => {
 
 		expect(document.querySelector('button[aria-label="削除"]')).not.toBeNull();
 	});
+
+	it('places the delete button to the right of the fare picker in ticket holder edit mode', async () => {
+		ticketHolderStore.set([{ order: 1, routeScript: '仙台,東北線,盛岡', fareType: 0 }]);
+
+		render(Page);
+
+		await page.getByRole('button', { name: 'きっぷホルダ', exact: true }).click();
+		await page.getByRole('button', { name: '編集' }).click();
+
+		const controls = document.querySelector('.card .controls');
+		expect(controls).not.toBeNull();
+
+		const childLabels = Array.from(controls?.children ?? []).map((element) => {
+			if (element instanceof HTMLSelectElement) {
+				return element.getAttribute('aria-label');
+			}
+
+			if (element instanceof HTMLButtonElement) {
+				return element.getAttribute('aria-label');
+			}
+
+			return null;
+		});
+
+		expect(childLabels).toEqual(['運賃タイプ選択', '削除']);
+	});
 });

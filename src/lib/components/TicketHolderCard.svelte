@@ -123,12 +123,12 @@
 	</header>
 
 	<div class="controls">
+		<FarePicker value={item.fareType} onChange={(type) => onFareTypeChange?.(type)} />
 		{#if showDelete}
 			<button type="button" class="icon-button" aria-label="削除" onclick={handleDelete}>
 				<span class="material-symbols-rounded" aria-hidden="true">delete</span>
 			</button>
 		{/if}
-		<FarePicker value={item.fareType} onChange={(type) => onFareTypeChange?.(type)} />
 	</div>
 
 	<button

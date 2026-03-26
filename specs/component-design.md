@@ -240,6 +240,11 @@ interface TicketHolderCardProps {
       fareInfo={item.route.fareInfo}
       on:change={(e) => dispatch('fareTypeChange', e.detail)}
     />
+    {#if showDelete}
+      <button class="delete-button">
+        <DeleteIcon />
+      </button>
+    {/if}
   </div>
 
   <div class="fare-display">
