@@ -1321,7 +1321,7 @@ function scrollToBottom(): void {
 		display: flex;
 		align-items: center;
 		gap: 1rem;
-		background: var(--top-bar-bg);
+		background: linear-gradient(135deg, var(--station-grad-start), var(--station-grad-end));
 		color: #fff;
 		padding: 0.75rem 1rem;
 		border-radius: 0.75rem;
@@ -1386,7 +1386,7 @@ function scrollToBottom(): void {
 	}
 
 	.tabs button.active {
-		background: var(--primary);
+		background: linear-gradient(135deg, var(--station-grad-start), var(--station-grad-end));
 		color: #fff;
 	}
 
