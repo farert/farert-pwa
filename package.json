@@ -1,7 +1,7 @@
 {
 	"name": "farert",
 	"private": true,
-	"version": "26.04",
+	"version": "26.04.01",
 	"type": "module",
 	"packageManager": "pnpm@10.26.2",
 	"scripts": {
