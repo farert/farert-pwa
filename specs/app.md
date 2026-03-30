@@ -67,3 +67,8 @@
 - 画面単位の UI 要件は各 `*-screen.md` を参照する。
 - 状態遷移や入出力の正確な経路は `specs/screen-flow-and-io.md` を参照する。
 - WASM API の引数・返却値の最終正本は `../farert-wasm/docs/API.md` を参照する。
+
+## SwiftUI 版への移植方針
+- 仕様書では URL クエリを「ナビゲーション入力コンテキスト」と読み替えられるように書く。
+- Svelte store は SwiftUI では `Observable` な状態コンテナや Repository に置き換える前提で読む。
+- 画面仕様は View の見た目だけでなく、入力、内部状態、確定結果、エラー出力までを含めて残す。
