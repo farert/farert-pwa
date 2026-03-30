@@ -1,5 +1,9 @@
 # 画面遷移と入出力
 
+## 目的
+- 画面ごとの遷移関係だけでなく、入力、共有状態、確定時の副作用を整理する。
+- SvelteKit のルーティング資料としてだけでなく、SwiftUI 版の Coordinator / Router / ViewModel 設計資料として使える形を保つ。
+
 ## 画面遷移図
 
 ```mermaid
@@ -22,7 +26,7 @@ flowchart TD
 
     terminal -->|グループ/都道府県から選ぶ| line
     terminal -->|発駅確定| main
-    terminal -->|着駅確定後 autoRoute 成功| main
+    terminal -->|着駅確定後 autoRoute| main
 
     line -->|路線選択| routeStation
 
@@ -35,123 +39,215 @@ flowchart TD
     help -->|閉じる| main
 ```
 
-## 共通
+## 共有前提
 - すべての主要画面は `initFarert()` 完了後に WASM API を利用する。
-- `mainRoute` はメイン画面、発着駅選択、駅選択、保存画面で参照・更新する。
+- アプリ全体の中核状態は `mainRoute` で、画面遷移の中心にもなる。
+- SwiftUI 版では URL クエリを「Navigation Context」と読み替える。
 
-## `/`
+## 共有状態
 
-### 入力
+| 名前 | 役割 | 主な読込画面 | 主な更新画面 |
+|---|---|---|---|
+| `mainRoute` | 現在編集中の経路 | `/`, `/terminal-selection`, `/route-station-select`, `/save` | `/`, `/terminal-selection`, `/route-station-select`, `/save` |
+| `savedRoutes` | 保存済み routeScript 一覧 | `/save` | `/save` |
+| `ticketHolder` | きっぷホルダ一覧 | `/`, `/save` | `/` |
+| `stationHistory` | 駅履歴 | `/terminal-selection` | `/terminal-selection` |
+| `mainScreenErrorMessage` | メイン画面へ返す一時メッセージ | `/` | `/terminal-selection` |
+
+## 画面別 I/O
+
+### `/` メイン画面
+
+#### 入力
 - `mainRoute`
 - `ticketHolder`
 - `mainScreenErrorMessage`
 
-### 出力
+#### 出力
 - `/terminal-selection` へ発駅選択遷移
 - `/line-selection` へ経路追加遷移
 - `/detail?r=...` へ詳細遷移
-- `/save`、`/version`、`/help` へ遷移
-- ドロワー内で `ticketHolder` 更新
+- `/save`, `/version`, `/help` へ遷移
+- `ticketHolder` 更新
+- `mainRoute` 更新
 
-### 主な操作
-- 発駅変更
-- 区間追加
-- 末尾削除
-- 経路反転
-- テーマ切替
-- 大阪環状線／小倉博多オプション切替
-- きっぷホルダ追加・共有・並び替え
+#### 主要副作用
+- `removeTail()`, `removeAll()`, `reverse()`
+- 経路オプション setter
+- きっぷホルダ追加、共有、並べ替え
 
-## `/terminal-selection`
+#### SwiftUI 読み替え
+- `MainView`
+- `MainViewModel`
+- `TicketHolderDrawerState`
 
-### 入力
+### `/terminal-selection` 発着駅選択
+
+#### 入力
 - `mode=start|destination`
 - `stationHistory`
 - `mainRoute`
 
-### 出力
-- 発駅確定時は `mainRoute` を新規作成して `/` に戻る
-- 着駅確定時は `mainRoute.autoRoute()` を実行して `/` に戻る
-- グループ・都道府県経由では `/line-selection` に進む
+#### 内部状態
+- `tab`
+- `stage`
+- `searchMode`
+- `selectionBase`
+- 選択中の会社 / 都道府県 / 路線
 
-### 主な WASM 呼び出し
+#### 出力
+- 発駅確定時:
+  - 新しい `mainRoute` を作成
+  - `stationHistory` 更新
+  - `/` に戻る
+- 着駅確定時:
+  - `mainRoute.autoRoute()` 実行
+  - `stationHistory` 更新
+  - 失敗時は `mainScreenErrorMessage` 設定
+  - `/` に戻る
+- グループ / 都道府県経由では `/line-selection` に進む
+
+#### 主な WASM 呼び出し
 - `getCompanys()`
 - `getPrefects()`
 - `getLinesByCompany()`
 - `getLinesByPrefect()`
 - `getStationsByCompanyAndLine()`
 - `getStationsByPrefectureAndLine()`
+- `getStationsByLine()`
 - `searchStationFuzzy()`
 - `getKanaByStation()`
 - `getPrefectureByStation()`
 - `autoRoute()`
 
-## `/line-selection`
+### `/line-selection` 路線選択
 
-### 入力
+#### 入力
 - `from=main|start|destination`
 - `station?`
+- `line?`
 - `prefecture?`
 - `group?`
 
-### 出力
+#### 出力
 - 選択した路線を付与して `/route-station-select` へ遷移
-- `from=start|destination` では戻り導線として `/terminal-selection` を使う
+- `from=main` では `最短経路` 導線で `/terminal-selection?mode=destination` へ遷移
 
-## `/route-station-select`
+#### 主な責務
+- 文脈に応じた路線一覧の取得
+- 直前路線の再選択禁止
+- 親文脈の保持
 
-### 入力
+### `/route-station-select` 駅選択
+
+#### 入力
 - `from=main|start|destination`
 - `line`
 - `station?`
+- `prefecture?`
+- `group?`
+- `mainRoute`
 
-### 出力
-- `from=main`: `mainRoute.addRoute()` で区間追加して `/` に戻る
-- `from=start|destination`: 選択文脈を保ったまま `/terminal-selection` へ戻す
+#### 内部状態
+- `mode=branch|destination`
+- `branchStations`
+- `destinationStations`
+- `stationDetails`
 
-### 画面モード
-- `branch`: 分岐候補中心
-- `destination`: 路線上の全駅候補
+#### 出力
+- `from=main`:
+  - `mainRoute.addRoute(line, station)`
+  - 成功時は `/` に戻る
+- `from=start|destination`:
+  - 選択文脈を保ったまま `/terminal-selection` フローへ戻す
 
-## `/detail`
+#### 主な WASM 呼び出し
+- `getBranchStationsByLine()`
+- `getStationsByLine()`
+- `getKanaByStation()`
+- `getLinesByStation()`
+- `executeSql()`
 
-### 入力
+### `/detail` 詳細
+
+#### 入力
 - `r`: 圧縮済み経路文字列
 
-### 出力
+#### 内部状態
+- 復元済み route
+- `fareInfo`
+- オプションメニュー配列
+- 共有メッセージ
+- エクスポートメッセージ
+
+#### 出力
 - 共有 URL 共有またはコピー
-- 結果テキストのエクスポート表示
-- WASM オプション切替による詳細の再計算
+- 結果テキストのエクスポート
+- WASM オプション切替による再計算
 
-## `/save`
+### `/save` 保存
 
-### 入力
+#### 入力
 - `mainRoute`
 - `savedRoutes`
 - `ticketHolder`
 
-### 出力
-- 保存済み経路の追加・削除
+#### 内部状態
+- 編集モード
+- 上書き確認状態
+- インポートダイアログ状態
+
+#### 出力
+- 保存済み経路の追加 / 削除
 - 保存済み経路の読込
 - テキスト複数行インポート
-- テキスト共有またはダウンロードによるエクスポート
+- テキスト共有またはコピーによるエクスポート
 
-## `/version`
+### `/version` バージョン情報
 
-### 入力
-- ビルド埋め込み値 `APP_VERSION`, `BUILD_AT`, `GIT_COMMIT_AT`, `GIT_SHA`
+#### 入力
+- `APP_VERSION`, `BUILD_AT`, `GIT_COMMIT_AT`, `GIT_SHA`
 - `databaseInfo()`
 
-### 出力
+#### 出力
 - 更新確認
 - 更新適用
 - サポートサイト遷移
 
-## `/help`
+### `/help` ヘルプ
 
-### 入力
+#### 入力
 - なし
 
-### 出力
-- 外部ブログ導線
+#### 出力
+- 外部導線
 - `/` へ戻る
+
+## 代表フロー
+
+### 新規経路作成
+1. メイン画面から発駅選択へ進む
+2. 発着駅選択で駅を確定する
+3. `mainRoute = new Farert()` と `addStartRoute()` を実行する
+4. メイン画面へ戻る
+5. 経路追加から路線選択、駅選択へ進む
+6. `mainRoute.addRoute()` を繰り返す
+
+### 最短経路作成
+1. メイン画面または路線選択画面から `mode=destination` の発着駅選択へ進む
+2. 着駅を確定する
+3. 新幹線利用確認を行う
+4. `mainRoute.autoRoute()` を実行する
+5. 結果をメイン画面へ反映する
+
+### 保存済み経路の再読込
+1. 保存画面で routeScript を選ぶ
+2. 必要なら上書き確認を行う
+3. `buildRoute(routeScript)` で `mainRoute` を置き換える
+4. メイン画面へ戻る
+
+## SwiftUI 版への分解指針
+- `screen-flow-and-io.md` の `入力` は View 生成時の引数または Router 状態に対応する。
+- `内部状態` は ViewModel の `@Observable` 状態に対応する。
+- `出力` は Coordinator へのイベントまたは Repository 更新に対応する。
+- URL パラメータは SwiftUI では enum ベースのナビゲーションコンテキストへ読み替える。
