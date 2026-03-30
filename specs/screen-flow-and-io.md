@@ -1,5 +1,40 @@
 # 画面遷移と入出力
 
+## 画面遷移図
+
+```mermaid
+flowchart TD
+    main["/ メイン画面"]
+    terminal["/terminal-selection 発着駅選択"]
+    line["/line-selection 路線選択"]
+    routeStation["/route-station-select 駅選択"]
+    detail["/detail 詳細"]
+    save["/save 保存"]
+    version["/version バージョン情報"]
+    help["/help ヘルプ"]
+
+    main -->|発駅選択| terminal
+    main -->|経路追加| line
+    main -->|区間詳細/全経路詳細| detail
+    main -->|保存| save
+    main -->|バージョン情報| version
+    main -->|ヘルプ| help
+
+    terminal -->|グループ/都道府県から選ぶ| line
+    terminal -->|発駅確定| main
+    terminal -->|着駅確定後 autoRoute 成功| main
+
+    line -->|路線選択| routeStation
+
+    routeStation -->|from=main で駅確定| main
+    routeStation -->|from=start or destination の文脈継続| terminal
+
+    detail -->|戻る| main
+    save -->|保存済み経路の読込/閉じる| main
+    version -->|閉じる| main
+    help -->|閉じる| main
+```
+
 ## 共通
 - すべての主要画面は `initFarert()` 完了後に WASM API を利用する。
 - `mainRoute` はメイン画面、発着駅選択、駅選択、保存画面で参照・更新する。
