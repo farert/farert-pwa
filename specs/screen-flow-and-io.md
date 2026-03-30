@@ -2,7 +2,6 @@
 
 ## 目的
 - 画面ごとの遷移関係だけでなく、入力、共有状態、確定時の副作用を整理する。
-- SvelteKit のルーティング資料としてだけでなく、SwiftUI 版の Coordinator / Router / ViewModel 設計資料として使える形を保つ。
 
 ## 画面遷移図
 
@@ -42,7 +41,6 @@ flowchart TD
 ## 共有前提
 - すべての主要画面は `initFarert()` 完了後に WASM API を利用する。
 - アプリ全体の中核状態は `mainRoute` で、画面遷移の中心にもなる。
-- SwiftUI 版では URL クエリを「Navigation Context」と読み替える。
 
 ## 共有状態
 
@@ -75,11 +73,6 @@ flowchart TD
 - `removeTail()`, `removeAll()`, `reverse()`
 - 経路オプション setter
 - きっぷホルダ追加、共有、並べ替え
-
-#### SwiftUI 読み替え
-- `MainView`
-- `MainViewModel`
-- `TicketHolderDrawerState`
 
 ### `/terminal-selection` 発着駅選択
 
@@ -245,9 +238,3 @@ flowchart TD
 2. 必要なら上書き確認を行う
 3. `buildRoute(routeScript)` で `mainRoute` を置き換える
 4. メイン画面へ戻る
-
-## SwiftUI 版への分解指針
-- `screen-flow-and-io.md` の `入力` は View 生成時の引数または Router 状態に対応する。
-- `内部状態` は ViewModel の `@Observable` 状態に対応する。
-- `出力` は Coordinator へのイベントまたは Repository 更新に対応する。
-- URL パラメータは SwiftUI では enum ベースのナビゲーションコンテキストへ読み替える。

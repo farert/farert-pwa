@@ -7,7 +7,6 @@
 ## 画面の役割
 - 選択済み路線に対して、次に確定する駅を選ぶ。
 - 同じ画面を、経路追加用の「分岐駅/着駅選択」と、発着駅探索用の「駅一覧選択」で再利用する。
-- SwiftUI 版では `StationSelectionContext` によって画面モードが変わる設計に向く。
 
 ## 入力クエリ
 - `from=main|start|destination`
@@ -78,7 +77,3 @@
 - `line` がない場合は一覧を構築できないのでエラー表示する。
 - 駅一覧取得失敗時はエラーバナーを表示する。
 - `addRoute()` 失敗時はメッセージを表示し、画面を維持する。
-
-## SwiftUI 移植向けメモ
-- この画面の本質は `StationSelectionContext -> [StationCandidate]` である。
-- PWA の URL クエリは、SwiftUI では enum + associated data のナビゲーション状態へ読み替えられる。

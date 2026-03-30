@@ -23,14 +23,6 @@
   - 共有リンク生成
   - `Farert` を使った表示値再計算
 
-#### SwiftUI 対応
-- View:
-  - `TicketHolderDrawerView`
-- ViewModel:
-  - `TicketHolderDrawerViewModel`
-- Row ViewData:
-  - `TicketHolderRowViewData`
-
 ### `TicketHolderCard.svelte`
 - 役割: きっぷホルダ 1 件分の表示単位。
 - 責務:
@@ -57,12 +49,6 @@
   - 運賃種別変更
   - 並べ替え開始 / 継続 / 確定
 
-#### SwiftUI 対応
-- `Button` 相当の行全体タップ
-- `Picker` または `Menu` 相当の運賃選択
-- `EditMode` 連動の削除表示
-- `onMove` または drag gesture 連動の並べ替え
-
 ### `FarePicker.svelte`
 - 役割: `FareType` の選択 UI に責務を限定する。
 - 責務:
@@ -76,10 +62,6 @@
 #### 注意点
 - `click`, `pointerdown`, `focusin` は親カードへ伝播させない。
 - 運賃種別の選択肢自体は UI 側 enum であり、WASM のオプション設定とは別物である。
-
-#### SwiftUI 対応
-- `Picker` / `Menu` / `SegmentedControl` のいずれでも表現可能。
-- 重要なのは「変更イベントのみを返し、計算責務を持たない」点。
 
 ### `FareSummaryCard.svelte`
 - 役割: メイン画面の簡易サマリー表示。
@@ -134,8 +116,3 @@
 - 複数画面から使う、または単独でテスト価値があるものは `src/lib/components` に置く。
 - その画面の URL 文脈や store 更新を前提にするものは route 直下に置く。
 - 共通部品へ切り出すことで逆に props が肥大化する場合は、画面内ローカル実装のままにする。
-
-## SwiftUI 版の読み替え
-- `src/lib/components` の部品は SwiftUI では `View` に相当する。
-- route 直下に残しているロジックは SwiftUI では `ViewModel` または Coordinator に移す想定で読む。
-- `specs/` では見た目よりも、親子間の責務境界を優先して設計情報として残す。

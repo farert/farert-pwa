@@ -7,7 +7,6 @@
 ## 画面の役割
 - 発駅または着駅候補を選ぶ入口画面。
 - グループ、都道府県、履歴、検索という複数の探索手段を 1 画面に集約する。
-- SwiftUI 版では「駅探索コンテナ画面」として独立させやすいよう、探索手段と確定動作を分離して考える。
 
 ## 画面モード
 - `mode=start`
@@ -27,8 +26,6 @@
 - `searchQuery`: 検索文字列
 - `selectedCompany`, `selectedPrefecture`, `selectedLine`
 - `historyItems`: 駅履歴
-
-SwiftUI 版ではこれを 1 つの ViewModel にまとめ、`tab`, `stage`, `searchMode` を画面状態として持つのが自然。
 
 ## 画面構成
 
@@ -112,8 +109,6 @@ SwiftUI 版ではこれを 1 つの ViewModel にまとめ、`tab`, `stage`, `se
 - 失敗時:
   - `mainScreenErrorMessage` にエラーを設定する
   - メイン画面へ戻る
-
-この流れは SwiftUI 版でもそのまま使え、違うのはダイアログ実装だけである。
 
 ## 履歴管理
 - `stationHistory` を最近順に表示する。

@@ -7,7 +7,6 @@
 ## 役割
 - メイン画面の補助導線として、複数経路の一時保持・比較・再選択を行う。
 - 保存画面のような永続管理ではなく、「いま切り替えて見たい経路群」を素早く扱うための作業領域である。
-- SwiftUI 版では `TicketHolderDrawer` + `TicketHolderList` + `TicketHolderRow` に自然分解できる。
 
 ## 入力
 - `isOpen`
@@ -50,8 +49,6 @@
   - `kmText`
   - `fareValue`
   - `kmValue`
-
-SwiftUI 版ではこれを `TicketHolderRowViewData` として切り出すと扱いやすい。
 
 ## 集計ロジック
 - 総運賃は `items[].fareValue` の合計。
@@ -108,8 +105,3 @@ SwiftUI 版ではこれを `TicketHolderRowViewData` として切り出すと扱
   - 運賃種別 UI
   - 削除ボタン
   - ドラッグハンドル
-
-## SwiftUI 移植向けメモ
-- `DrawerNavigation` は `sheet` / `side panel` / `NavigationSplitView` のいずれにも読み替え可能。
-- 並べ替えは iOS では `List.onMove`、macOS/iPadOS ではドラッグ対応に置き換えられる。
-- `isOpen` と `isEditing` は ViewState、`items` は Repository 派生の表示モデルとして分離するのがよい。

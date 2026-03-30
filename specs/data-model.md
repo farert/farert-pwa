@@ -2,7 +2,7 @@
 
 ## 目的
 - PWA 実装で扱う主要データを整理する。
-- SwiftUI 版で Entity / Repository / ViewState へ分けて再構成しやすいように、永続化表現と画面表示表現を区別して記述する。
+- 永続化表現と画面表示表現を区別して記述する。
 
 ## コアエンティティ
 
@@ -23,7 +23,6 @@
 
 #### 設計上の位置づけ
 - PWA では `mainRoute` が `Farert` インスタンスを直接保持する。
-- SwiftUI 版では `Farert` をそのまま State に持つか、`RouteSession` の内部へ閉じ込めるかを選べる。
 
 ### `routeScript`
 - 経路の永続化・共有用の正本文字列表現。
@@ -199,28 +198,6 @@ const STORAGE_KEYS = {
   - `farert_station_history`
 - `theme` は経路データの全消去とは別系統の設定として扱える。
 
-## SwiftUI 版への分解指針
-
-### Entity
-- `RouteScript`
-- `TicketHolderItem`
-- `StationHistoryEntry`
-
-### Session / Domain Object
-- `Farert` または `RouteSession`
-
-### Repository
-- `CurrentRouteRepository`
-- `SavedRouteRepository`
-- `TicketHolderRepository`
-- `StationHistoryRepository`
-
-### ViewState
-- `FareInfoViewData`
-- `RouteSegmentViewData`
-- `StationCandidateViewData`
-
 ## 補足
-- PWA は `Farert` を直接 UI の近くで扱うが、SwiftUI 版では View に直接露出させず ViewModel 内に閉じ込めてもよい。
 - ただし、保存・共有・比較の正本が `routeScript` である点は維持したほうが移植コストが低い。
 - 共有・エクスポート・インポートは永続化ストレージではなく、文字列転送として扱う。
