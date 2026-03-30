@@ -1,27 +1,48 @@
 # URL ルーティング仕様
 
-## 基本
+## 目的
+- 現在の経路、保存済み経路、きっぷホルダ内経路を、詳細画面や共有導線で同一形式に載せ替える。
+- URL を単なる遷移先ではなく、復元可能な経路データの運搬手段として使う。
+
+## 基本仕様
 - 詳細画面の共有には `r` クエリを使う。
 - 値は `routeScript` を `lz-string` の `compressToEncodedURIComponent()` で圧縮した文字列。
+- 生成先 URL は `{origin}{basePath}/detail?r=...` の形式。
 
-## 実装
+## 対象関数
 - 圧縮: `compressRouteForUrl(route, segmentCount)`
 - 復元: `decompressRouteFromUrl(compressed)`
 - 共有 URL 生成: `generateShareUrl(route, segmentCount, options?)`
 
-## `segmentCount`
-- `-1`: 全経路
-- `0 以上`: 先頭から指定区間数ぶんだけを切り出す
+## `segmentCount` の意味
+- `-1`: 全経路を対象とする。
+- `0 以上`: 先頭から `駅,路線,駅...` のトークン列を必要区間数だけ切り出す。
+- メイン画面の区間カード押下では「その区間まで」、運賃サマリー押下では「全経路」を載せる。
 
-## 復元ルール
-- まず `buildRoute(script)` を試す
-- 一致復元できない場合は `addStartRoute()` と `addRoute()` で再構築する
-- 成功コードとして `0`, `1`, `4`, `5` を許容する
+## 復元戦略
+1. `decompressFromEncodedURIComponent()` で伸長する。
+2. `buildRoute(script)` を試す。
+3. `route.routeScript()` と一致しない場合は、`addStartRoute()` と `addRoute()` で厳密再構築する。
+4. 最終的に同一のトークン列になった場合のみ成功とみなす。
+
+この二段階にしている理由は、WASM 側の `buildRoute()` の成功コードや復元挙動に揺れがあっても、共有 URL の再現性を担保するためである。
+
+## 成功判定
+- `0`, `1`, `4`, `5` を成功コードとして扱う。
+- 数値以外に JSON 文字列や文字列化コードが返る場合も吸収する。
+- 復元後は戻り値だけでなく `routeScript` 一致を確認する。
 
 ## 利用箇所
 - メイン画面から詳細画面への遷移
 - 詳細画面の共有
+- 保存済み経路やきっぷホルダ経路の詳細表示
 
-## エラー
-- 空文字、伸長失敗、`buildRoute()` 失敗時は `null` を返す
-- 画面側はエラーバナーを表示する
+## エラー処理
+- 空文字、伸長失敗、`buildRoute()` 失敗、厳密再構築失敗時は `null` を返す。
+- 呼び出し側画面はエラーバナーと復帰導線を出す。
+- 不正な URL パラメータでもアプリ全体を壊さないことを優先する。
+
+## 設計上の補足
+- `routeScript` を正本表現とすることで、`mainRoute`、保存データ、共有 URL の変換コストを最小化する。
+- `basePath` を吸収するため、GitHub Pages 配下などの配信先でも同じ関数を使える。
+- 共有 URL は永続化の代替ではなく、一時的な受け渡し手段である。
