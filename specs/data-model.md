@@ -89,6 +89,9 @@ interface TicketHolderItem {
 #### 主なカテゴリ
 - 計算結果コード
   - `fareResultCode`
+- 発着表示
+  - `beginStation`
+  - `endStation`
 - キロ
   - `totalSalesKm`
   - `jrSalesKm`
@@ -122,6 +125,12 @@ interface TicketHolderItem {
 #### 正規化ルール
 - km 系フィールドは WASM が 10 倍整数で返す場合があり、画面側で `/10` 正規化する。
 - JSON の構造や数値形式に揺れがあるため、PWA 側で防御的に復元する。
+
+#### 発着表示の意味
+- `beginStation` / `endStation` は、運賃計算結果として採用された発着駅名である。
+- 入力経路上の生の始点 / 終点と一致するとは限らない。
+- 旅客営業規則第86・87条、都区市内発着、特定都区市内発着などの規則適用により、表示上の発着が入力経路の端点から読み替わることがある。
+- 詳細画面の区間カードでは、この `beginStation` / `endStation` を優先して使う。
 
 ### `RouteSegment`
 - `getRoutesJson()` の結果から得る画面表示用区間。
