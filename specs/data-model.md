@@ -170,15 +170,34 @@ const STORAGE_KEYS = {
 } as const;
 ```
 
+### UI 設定キー
+- `theme`
+  - 値は `light` / `dark`
+  - 経路データとは独立した UI 設定
+
 ### 永続化方針
 - `mainRoute` の実体をそのまま保存せず、`routeScript` として保存する。
 - `savedRoutes` は `routeScript[]` として保存する。
 - `ticketHolder` は `TicketHolderItem[]` として保存する。
 - `stationHistory` は `string[]` として保存する。
+- `theme` は UI 設定として別キーで保存する。
+
+### 実装上の担当
+- キー定義: `src/lib/types/index.ts`
+- 復元 / 同期 / クリア: `src/lib/stores/index.ts`
+- テーマ読込 / 保存: `src/routes/+page.svelte`
 
 ### 重複判定
 - 保存済み経路、きっぷホルダ、URL 共有はいずれも `routeScript` ベースで比較する。
 - 文字列正規化後の完全一致を同一経路とみなす。
+
+### クリア方針
+- `clearAllStores()` は以下を削除対象とする。
+  - `farert_current_route`
+  - `farert_saved_routes`
+  - `farert_ticket_holder`
+  - `farert_station_history`
+- `theme` は経路データの全消去とは別系統の設定として扱える。
 
 ## SwiftUI 版への分解指針
 
@@ -204,3 +223,4 @@ const STORAGE_KEYS = {
 ## 補足
 - PWA は `Farert` を直接 UI の近くで扱うが、SwiftUI 版では View に直接露出させず ViewModel 内に閉じ込めてもよい。
 - ただし、保存・共有・比較の正本が `routeScript` である点は維持したほうが移植コストが低い。
+- 共有・エクスポート・インポートは永続化ストレージではなく、文字列転送として扱う。

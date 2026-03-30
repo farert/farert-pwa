@@ -45,6 +45,25 @@
 
 `initStores(Farert)` が起動時復元を担い、各 store の購読で即時保存する。共有 URL やエクスポート文字列は `localStorage` には保存せず、都度生成する。
 
+### 起動時の復元
+1. `initStores(Farert)` を呼ぶ。
+2. `farert_current_route` を復元し `mainRoute` へ反映する。
+3. `farert_saved_routes`, `farert_ticket_holder`, `farert_station_history` を各 store へ反映する。
+4. 以後は store 更新のたびに `localStorage` へ同期する。
+
+### テーマ保存
+- `theme` キーに `light` / `dark` を保存する。
+- テーマは経路データとは別の UI 設定として扱う。
+
+### 保存しないもの
+- `/detail?r=...` の共有 URL パラメータ
+- 一時メッセージ `mainScreenErrorMessage`
+- エクスポート / インポート中の一時文字列
+
+### インポートまわりの補足
+- 保存画面のインポートは `localStorage` を直接編集せず、文字列入力から `savedRoutes` を更新する。
+- クリップボード読み取りが失敗する環境では、手動貼り付け入力へフォールバックする前提で設計する。
+
 ## 画面責務の分離
 - メイン画面は「現在編集中の経路」を直接編集する。
 - 保存画面は `savedRoutes` と `mainRoute` を読み書きするが、計算エンジンそのものは持たない。
@@ -72,3 +91,4 @@
 - 仕様書では URL クエリを「ナビゲーション入力コンテキスト」と読み替えられるように書く。
 - Svelte store は SwiftUI では `Observable` な状態コンテナや Repository に置き換える前提で読む。
 - 画面仕様は View の見た目だけでなく、入力、内部状態、確定結果、エラー出力までを含めて残す。
+- `localStorage` キー群は SwiftUI では `UserDefaults` やローカル DB の永続化キーへ読み替えられる。
