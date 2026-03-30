@@ -62,3 +62,31 @@
 - SvelteKit 固有の記述と、UI フレームワーク非依存の振る舞いを混同しない。
 - ルート名の正本は `src/routes` 配下のディレクトリ名とする。
 - WASM API の返却形式や利用可能関数は `../farert-wasm/docs/API.md` を優先する。
+
+## SwiftUI 版の推奨読順
+1. `specs/app.md`
+   アプリ全体像、責務分割、永続化方針を把握する。
+2. `specs/data-model.md`
+   `Farert`, `routeScript`, Repository, ViewState の境界を把握する。
+3. `specs/screen-flow-and-io.md`
+   画面遷移、入力コンテキスト、確定時の副作用を把握する。
+4. 各 `*-screen.md`
+   画面ごとの View / ViewModel 設計へ落とす。
+5. `specs/component-design.md` と `specs/drawer-navigation.md`
+   再利用 View と親子責務を整理する。
+6. `specs/design-tokens.md` と `specs/ui-guidelines.md`
+   Theme, Color, Typography, Spacing の設計へ落とす。
+7. `specs/url-routing.md` と `specs/fuzzy-search.md`
+   共有 URL と検索 API のフレームワーク非依存契約を確認する。
+
+## SwiftUI 版への対応表
+| 仕様書 | 主に対応する SwiftUI 側の関心 |
+|---|---|
+| `specs/app.md` | アプリ構成、Coordinator 方針 |
+| `specs/data-model.md` | Entity / Repository / Session |
+| `specs/screen-flow-and-io.md` | Router / Coordinator / ViewModel 入出力 |
+| `specs/*-screen.md` | View / ViewModel |
+| `specs/component-design.md` | 再利用 View と親子責務 |
+| `specs/design-tokens.md` | Theme / Color / Typography / Spacing |
+| `specs/url-routing.md` | Deep Link / Share Link 契約 |
+| `specs/fuzzy-search.md` | Search Service / Search ViewModel |
