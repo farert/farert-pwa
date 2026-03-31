@@ -1482,7 +1482,7 @@ function scrollToBottom(): void {
 
 	.split-columns {
 		display: grid;
-		grid-template-columns: minmax(18rem, 24rem) minmax(0, 1fr);
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 		gap: 1rem;
 		align-items: start;
 	}
