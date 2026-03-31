@@ -12,6 +12,7 @@ import {
 	executeSql
 } from '$lib/wasm';
 import { mainRoute } from '$lib/stores';
+import { scrollPageToBottom, scrollPageToTop } from '$lib/utils/responsiveLayout';
 import type { FaretClass } from '$lib/wasm/types';
 
 type ScreenMode = 'branch' | 'destination';
@@ -390,15 +391,11 @@ function stationMeta(name: string): string {
 }
 
 function scrollToTop(): void {
-	window.scrollTo({ top: 0, behavior: 'smooth' });
+	scrollPageToTop();
 }
 
 function scrollToBottom(): void {
-	const scrollHeight = Math.max(
-		document.documentElement.scrollHeight,
-		document.body?.scrollHeight ?? 0
-	);
-	window.scrollTo({ top: scrollHeight, behavior: 'smooth' });
+	scrollPageToBottom();
 }
 </script>
 
