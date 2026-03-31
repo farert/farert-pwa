@@ -14,7 +14,8 @@ import {
 	getStationsByLine,
 	searchStationFuzzy,
 	getKanaByStation,
-	getPrefectureByStation
+	getPrefectureByStation,
+	getLinesByStation
 } from '$lib/wasm';
 import { addToStationHistory, mainRoute, mainScreenErrorMessage, stationHistory } from '$lib/stores';
 import {
@@ -41,6 +42,11 @@ interface SearchResultItem {
 interface SearchMeta {
 	kana: string;
 	prefecture: string;
+}
+
+interface StationListMeta {
+	kana: string;
+	lines: string[];
 }
 
 interface FuzzySearchItem {
@@ -118,6 +124,7 @@ let selectedCompany = $state('');
 let selectedPrefecture = $state('');
 let selectedLine = $state('');
 let historyItems = $state<string[]>([]);
+let stationListMeta = $state<Record<string, StationListMeta>>({});
 let historySwipeOffsets = $state<Record<string, number>>({});
 let activeSwipeStation = $state<string | null>(null);
 let swipeSession: { station: string; startX: number; pointerId: number; initialOffset: number } | null = null;
@@ -285,6 +292,7 @@ function resetSelections(): void {
 	stage = 'root';
 	lines = [];
 	stations = [];
+	stationListMeta = {};
 	selectedLine = '';
 	selectedCompany = '';
 	selectedPrefecture = '';
@@ -363,12 +371,14 @@ function handleBack(): void {
 	}
 	if (splitViewEnabled && stage === 'lines' && selectedLine) {
 		stations = [];
+		stationListMeta = {};
 		selectedLine = '';
 		return;
 	}
 	if (stage === 'stations') {
 		stage = 'lines';
 		stations = [];
+		stationListMeta = {};
 		selectedLine = '';
 		return;
 	}
@@ -423,6 +433,7 @@ async function loadLines(fetcher: () => string): Promise<void> {
 		}
 		lines = fetchedLines;
 		stations = [];
+		stationListMeta = {};
 		selectedLine = '';
 	} finally {
 		panelLoading = false;
@@ -557,20 +568,53 @@ async function openStations(line: string): Promise<void> {
 	}
 	panelLoading = true;
 	try {
+		let nextStations: string[] = [];
 		if (selectionBase === 'group' && selectedCompany) {
-			stations = parseList(
+			nextStations = parseList(
 				getStationsByCompanyAndLine(selectedCompany, line),
 				'駅一覧の取得に失敗しました',
 				'stations'
 			);
 		} else if (selectionBase === 'prefecture' && selectedPrefecture) {
-			stations = resolveStationsByPrefecture(line, selectedPrefecture);
+			nextStations = resolveStationsByPrefecture(line, selectedPrefecture);
 		} else {
-			stations = [];
+			nextStations = [];
 		}
+		stations = nextStations;
+		stationListMeta = buildStationListMeta(nextStations, line);
 	} finally {
 		panelLoading = false;
 	}
+}
+
+function buildStationListMeta(stationNames: string[], currentLine: string): Record<string, StationListMeta> {
+	const result: Record<string, StationListMeta> = {};
+	for (const station of stationNames) {
+		try {
+			const kana = (getKanaByStation(station) ?? '').trim();
+			const lines = parseList(getLinesByStation(station), '所属路線の取得に失敗しました', undefined, {
+				suppressError: true
+			}).filter((line) => line.trim() !== currentLine.trim());
+			result[station] = { kana, lines };
+		} catch (err) {
+			console.warn('[TERMINAL_SELECTION] 駅表示メタデータ取得失敗', station, err);
+			result[station] = { kana: '', lines: [] };
+		}
+	}
+	return result;
+}
+
+function stationMetaText(station: string): string {
+	const meta = stationListMeta[station];
+	if (!meta) return '';
+	const parts: string[] = [];
+	if (meta.kana) {
+		parts.push(`(${meta.kana})`);
+	}
+	if (meta.lines.length > 0) {
+		parts.push(meta.lines.join(' / '));
+	}
+	return parts.join(' / ');
 }
 
 async function handleStationSelect(station: string): Promise<void> {
@@ -1015,6 +1059,9 @@ function scrollToBottom(): void {
 									onclick={() => handleStationSelect(station)}
 								>
 									<span class="primary">{station}</span>
+									{#if stationMetaText(station)}
+										<span class="secondary">{stationMetaText(station)}</span>
+									{/if}
 								</button>
 						</li>
 					{/each}
@@ -1064,6 +1111,9 @@ function scrollToBottom(): void {
 										onclick={() => handleStationSelect(station)}
 									>
 										<span class="primary">{station}</span>
+										{#if stationMetaText(station)}
+											<span class="secondary">{stationMetaText(station)}</span>
+										{/if}
 									</button>
 								</li>
 							{/each}

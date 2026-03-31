@@ -150,7 +150,8 @@ const wasmApi = {
 	getStationsByPrefectureAndLine: vi.fn<[string, string], string>(),
 	searchStationFuzzy: vi.fn<[string, number], string>(),
 	getKanaByStation: vi.fn<[string], string>(),
-	getPrefectureByStation: vi.fn<[string], string>()
+	getPrefectureByStation: vi.fn<[string], string>(),
+	getLinesByStation: vi.fn<[string], string>()
 };
 
 vi.mock('$lib/wasm', () => ({
@@ -167,7 +168,8 @@ vi.mock('$lib/wasm', () => ({
 		wasmApi.getStationsByPrefectureAndLine(prefecture, line),
 	searchStationFuzzy: (keyword: string, limit: number) => wasmApi.searchStationFuzzy(keyword, limit),
 	getKanaByStation: (station: string) => wasmApi.getKanaByStation(station),
-	getPrefectureByStation: (station: string) => wasmApi.getPrefectureByStation(station)
+	getPrefectureByStation: (station: string) => wasmApi.getPrefectureByStation(station),
+	getLinesByStation: (station: string) => wasmApi.getLinesByStation(station)
 }));
 
 const mainRouteStore: Writable<FaretClass | null> = writable(null);
@@ -208,6 +210,7 @@ describe('/terminal-selection/+page.svelte', () => {
 		wasmApi.searchStationFuzzy.mockReset();
 		wasmApi.getKanaByStation.mockReset();
 		wasmApi.getPrefectureByStation.mockReset();
+		wasmApi.getLinesByStation.mockReset();
 
 		wasmApi.initFarert.mockResolvedValue(undefined);
 		wasmApi.getCompanys.mockReturnValue(JSON.stringify(['JR東日本', 'JR西日本']));
@@ -248,6 +251,12 @@ describe('/terminal-selection/+page.svelte', () => {
 		wasmApi.getPrefectureByStation.mockImplementation((station: string) =>
 			station === '品川' ? '東京都' : '宮城県'
 		);
+		wasmApi.getLinesByStation.mockImplementation((station: string) => {
+			if (station === '北仙台') return JSON.stringify(['仙山線', '東北本線']);
+			if (station === '仙台') return JSON.stringify(['東北新幹線', '東北本線']);
+			if (station === '盛岡') return JSON.stringify(['東北新幹線', '田沢湖線']);
+			return JSON.stringify(['仙山線']);
+		});
 	});
 
 	it('shows destination mode title when requested', async () => {
@@ -629,6 +638,30 @@ describe('/terminal-selection/+page.svelte', () => {
 
 		const shinagawaButton = page.getByRole('button', { name: '品川' });
 		await expect.element(shinagawaButton).not.toBeInTheDocument();
+	});
+
+	it('shows kana and other lines on the station list after selecting a line', async () => {
+		render(TerminalSelectionPage);
+
+		await page.getByRole('tab', { name: '都道府県' }).click();
+		await page.getByRole('button', { name: '宮城県' }).click();
+		await page.getByRole('button', { name: '仙山線' }).click();
+
+		await expect.element(page.getByText('(北仙台かな) / 東北本線')).toBeInTheDocument();
+	});
+
+	it('shows kana and other lines in the split station pane on wide screens', async () => {
+		Object.defineProperty(window, 'innerWidth', {
+			configurable: true,
+			value: 1280
+		});
+
+		render(TerminalSelectionPage, { initialMode: 'destination' });
+
+		await page.getByRole('button', { name: 'JR東日本' }).click();
+		await page.getByRole('button', { name: '東北新幹線' }).click();
+
+		await expect.element(page.getByText('(盛岡かな) / 田沢湖線')).toBeInTheDocument();
 	});
 
 	it('keeps showing lines even when prefecture filtering cannot inspect their stations', async () => {
