@@ -123,7 +123,8 @@ flowchart TD
 - `group?`
 
 #### 出力
-- 選択した路線を付与して `/route-station-select` へ遷移
+- 狭幅時は、選択した路線を付与して `/route-station-select` へ遷移
+- 広幅時は、同一画面内の駅選択ペインへ選択路線を渡して表示更新
 - `from=main` では `最短経路` 導線で `/terminal-selection?mode=destination` へ遷移
 
 #### 主な責務

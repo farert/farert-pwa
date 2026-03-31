@@ -117,6 +117,7 @@ let initialFetchDone = $state(false);
 let searchToken = 0;
 const linePrefectureCache = new Map<string, Set<string>>();
 let screenMode = $state<'start' | 'destination'>('start');
+let splitViewEnabled = $state(false);
 const screenTitle = $derived(
 	screenMode === 'destination' ? DESTINATION_SCREEN_TITLE : START_SCREEN_TITLE
 );
@@ -136,6 +137,16 @@ interface ParseListOptions {
 }
 
 onMount(() => {
+	const syncSplitView = () => {
+		if (typeof window === 'undefined') {
+			splitViewEnabled = false;
+			return;
+		}
+		splitViewEnabled = window.innerWidth >= 1080;
+	};
+	syncSplitView();
+	window.addEventListener('resize', syncSplitView);
+
 	const unsubRoute = mainRoute.subscribe((value) => {
 		routeRef = value;
 	});
@@ -170,6 +181,7 @@ onMount(() => {
 	})();
 
 	return () => {
+		window.removeEventListener('resize', syncSplitView);
 		unsubRoute?.();
 		unsubHistory?.();
 	};
@@ -382,6 +394,11 @@ function clearSearch(): void {
 function handleBack(): void {
 	if (searchMode) {
 		clearSearch();
+		return;
+	}
+	if (splitViewEnabled && stage === 'lines' && selectedLine) {
+		stations = [];
+		selectedLine = '';
 		return;
 	}
 	if (stage === 'stations') {
@@ -683,7 +700,9 @@ function filterStationsByPrefecture(stationList: string[], prefecture: string): 
 
 async function openStations(line: string): Promise<void> {
 	selectedLine = line;
-	stage = 'stations';
+	if (!splitViewEnabled) {
+		stage = 'stations';
+	}
 	panelLoading = true;
 	try {
 		if (selectionBase === 'group' && selectedCompany) {
@@ -1017,7 +1036,7 @@ function showHistory(): boolean {
 }
 
 const showFloatingScrollButtons = $derived(
-	(tab === 'prefecture' && stage === 'root') || stage === 'stations'
+	(tab === 'prefecture' && stage === 'root') || stage === 'stations' || (splitViewEnabled && stage === 'lines' && Boolean(selectedLine))
 );
 
 function scrollToTop(): void {
@@ -1107,7 +1126,7 @@ function scrollToBottom(): void {
 
 	<p class="list-title">{getListTitle()}</p>
 
-	<section class="list-panel" aria-busy={loading || panelLoading || searchLoading}>
+	<section class:split-layout={splitViewEnabled && stage === 'lines'} class="list-panel" aria-busy={loading || panelLoading || searchLoading}>
 		{#if loading && !initialFetchDone}
 			<p class="placeholder">一覧を読み込み中...</p>
 		{:else if searchMode}
@@ -1153,6 +1172,57 @@ function scrollToBottom(): void {
 					{/each}
 				</ul>
 			{/if}
+		{:else if stage === 'lines' && splitViewEnabled}
+			<div class="split-columns">
+				<div class="split-column">
+					{#if panelLoading && lines.length === 0}
+						<p class="placeholder">路線を読み込み中...</p>
+					{:else if lines.length === 0}
+						<p class="placeholder">路線が見つかりません</p>
+					{:else}
+						<ul>
+							{#each lines as line}
+								<li>
+									<button
+										type="button"
+										class:list-active={selectedLine === line}
+										class="list-item"
+										aria-label={line}
+										onclick={() => openStations(line)}
+									>
+										<span class="primary">{line}</span>
+									</button>
+								</li>
+							{/each}
+						</ul>
+					{/if}
+				</div>
+				<div class="split-column station-column">
+					{#if panelLoading && selectedLine}
+						<p class="placeholder">駅を読み込み中...</p>
+					{:else if !selectedLine}
+						<p class="placeholder">路線を選ぶと駅候補を表示します</p>
+					{:else if stations.length === 0}
+						<p class="placeholder">駅が見つかりません</p>
+					{:else}
+						<p class="split-station-title">{selectedLine}</p>
+						<ul>
+							{#each stations as station}
+								<li>
+									<button
+										type="button"
+										class="list-item station"
+										aria-label={station}
+										onclick={() => handleStationSelect(station)}
+									>
+										<span class="primary">{station}</span>
+									</button>
+								</li>
+							{/each}
+						</ul>
+					{/if}
+				</div>
+			</div>
 		{:else if stage === 'lines'}
 			{#if panelLoading}
 				<p class="placeholder">路線を読み込み中...</p>
@@ -1508,6 +1578,33 @@ function scrollToBottom(): void {
 		box-shadow: var(--card-shadow);
 	}
 
+	.list-panel.split-layout {
+		padding: 1rem;
+	}
+
+	.split-columns {
+		display: grid;
+		grid-template-columns: minmax(18rem, 24rem) minmax(0, 1fr);
+		gap: 1rem;
+		align-items: start;
+	}
+
+	.split-column {
+		min-width: 0;
+	}
+
+	.station-column {
+		border-left: 1px solid var(--border-color);
+		padding-left: 1rem;
+	}
+
+	.split-station-title {
+		margin: 0 0 0.75rem;
+		font-size: 0.95rem;
+		font-weight: 700;
+		color: var(--text-main);
+	}
+
 	.list-panel ul {
 		list-style: none;
 		padding: 0;
@@ -1532,6 +1629,10 @@ function scrollToBottom(): void {
 
 	.list-item.station {
 		background: var(--list-item-active);
+	}
+
+	.list-item.list-active {
+		background: var(--secondary-btn-bg);
 	}
 
 	.primary {

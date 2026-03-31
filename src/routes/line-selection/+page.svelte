@@ -3,6 +3,7 @@ import { goto } from '$app/navigation';
 import { base } from '$app/paths';
 import { onMount } from 'svelte';
 import { initFarert, getLinesByStation, getLinesByCompany, getLinesByPrefect } from '$lib/wasm';
+import RouteStationSelectPage from '../route-station-select/+page.svelte';
 
 type ScreenSource = 'main' | 'start' | 'destination';
 
@@ -19,9 +20,21 @@ let errorMessage = $state('');
 let lines = $state<string[]>([]);
 let params = $state<LineSelectionParams>({ from: 'main' });
 let listTitle = $state('');
+let selectedLine = $state('');
+let splitViewEnabled = $state(false);
 let { presetParams = null } = $props<{ presetParams?: Partial<LineSelectionParams> | null }>();
 
 onMount(() => {
+	const syncSplitView = () => {
+		if (typeof window === 'undefined') {
+			splitViewEnabled = false;
+			return;
+		}
+		splitViewEnabled = window.innerWidth >= 1080;
+	};
+	syncSplitView();
+	window.addEventListener('resize', syncSplitView);
+
 	(async () => {
 		try {
 			await initFarert();
@@ -36,6 +49,10 @@ onMount(() => {
 			loading = false;
 		}
 	})();
+
+	return () => {
+		window.removeEventListener('resize', syncSplitView);
+	};
 });
 
 function resolveParams(): LineSelectionParams {
@@ -328,6 +345,10 @@ function isDisabled(lineName: string): boolean {
 
 function handleLineSelect(lineName: string): void {
 	if (isDisabled(lineName)) return;
+	if (splitViewEnabled) {
+		selectedLine = lineName;
+		return;
+	}
 	const search = new URLSearchParams();
 	search.set('from', params.from ?? 'main');
 	search.set('line', lineName);
@@ -338,7 +359,7 @@ function handleLineSelect(lineName: string): void {
 }
 </script>
 
-<div class="line-selection">
+<div class:split-view={splitViewEnabled} class="line-selection">
 	<header class="toolbar">
 		<button type="button" class="text-button" onclick={goBack}>
 			戻る
@@ -360,31 +381,56 @@ function handleLineSelect(lineName: string): void {
 			<p>{errorMessage}</p>
 		</div>
 	{:else}
-		<section class="line-section">
-			{#if listTitle}
-				<p class="list-title">{listTitle}</p>
-			{/if}
+		<div class="content-layout">
+			<section class="line-section">
+				{#if listTitle}
+					<p class="list-title">{listTitle}</p>
+				{/if}
 
-			{#if lines.length === 0}
-				<p class="placeholder">路線が見つかりませんでした。</p>
-			{:else}
-				<ul class="line-list">
-					{#each lines as lineName (lineName)}
-						<li>
-							<button
-								type="button"
-								class:selected={isDisabled(lineName)}
-								disabled={isDisabled(lineName)}
-								aria-disabled={isDisabled(lineName)}
-								onclick={() => handleLineSelect(lineName)}
-							>
-								{lineName}
-							</button>
-						</li>
-					{/each}
-				</ul>
+				{#if lines.length === 0}
+					<p class="placeholder">路線が見つかりませんでした。</p>
+				{:else}
+					<ul class="line-list">
+						{#each lines as lineName (lineName)}
+							<li>
+								<button
+									type="button"
+									class:selected={isDisabled(lineName) || (splitViewEnabled && selectedLine === lineName)}
+									disabled={isDisabled(lineName)}
+									aria-disabled={isDisabled(lineName)}
+									onclick={() => handleLineSelect(lineName)}
+								>
+									{lineName}
+								</button>
+							</li>
+						{/each}
+					</ul>
+				{/if}
+			</section>
+
+			{#if splitViewEnabled}
+				<section class="station-pane">
+					{#if selectedLine}
+						{#key `${params.from}:${params.station ?? ''}:${params.prefecture ?? ''}:${params.group ?? ''}:${selectedLine}`}
+							<RouteStationSelectPage
+								embedded={true}
+								presetParams={{
+									from: params.from,
+									station: params.station,
+									line: selectedLine,
+									prefecture: params.prefecture,
+									group: params.group
+								}}
+							/>
+						{/key}
+					{:else}
+						<div class="station-placeholder">
+							<p>路線を選ぶと駅候補を表示します。</p>
+						</div>
+					{/if}
+				</section>
 			{/if}
-		</section>
+		</div>
 	{/if}
 </div>
 
@@ -445,6 +491,33 @@ function handleLineSelect(lineName: string): void {
 		box-shadow: var(--card-shadow);
 	}
 
+	.content-layout {
+		display: block;
+	}
+
+	.line-selection.split-view .content-layout {
+		display: grid;
+		grid-template-columns: minmax(18rem, 26rem) minmax(0, 1fr);
+		gap: 1rem;
+		align-items: start;
+	}
+
+	.station-pane {
+		background: var(--card-bg);
+		border-radius: 0.75rem;
+		padding: 1rem;
+		box-shadow: var(--card-shadow);
+		min-height: 24rem;
+	}
+
+	.station-placeholder {
+		min-height: 100%;
+		display: grid;
+		place-items: center;
+		color: var(--text-sub);
+		text-align: center;
+	}
+
 	.list-title {
 		font-weight: 600;
 		color: var(--text-main);
@@ -481,10 +554,10 @@ function handleLineSelect(lineName: string): void {
 	.line-list button.selected {
 		background: var(--secondary-btn-bg);
 		color: var(--subtitle-color);
-		cursor: not-allowed;
 	}
 
 	.line-list button:disabled {
 		border-color: var(--border-color);
+		cursor: not-allowed;
 	}
 </style>

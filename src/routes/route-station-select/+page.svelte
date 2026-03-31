@@ -38,7 +38,10 @@ let branchStations = $state<string[]>([]);
 let destinationStations = $state<string[]>([]);
 let stationDetails = $state<Record<string, StationMetaInfo>>({});
 let routeRef = $state<FaretClass | null>(null);
-let { presetParams = null } = $props<{ presetParams?: Partial<StationSelectionParams> | null }>();
+let {
+	presetParams = null,
+	embedded = false
+} = $props<{ presetParams?: Partial<StationSelectionParams> | null; embedded?: boolean }>();
 
 onMount(() => {
 	const unsubscribe = mainRoute.subscribe((value) => {
@@ -399,9 +402,13 @@ function scrollToBottom(): void {
 }
 </script>
 
-<div class="station-selection">
+<div class:embedded class="station-selection">
 	<header class="toolbar">
-		<button type="button" class="text-button" onclick={goBack}>戻る</button>
+		{#if !embedded}
+			<button type="button" class="text-button" onclick={goBack}>戻る</button>
+		{:else}
+			<span class="toolbar-spacer" aria-hidden="true"></span>
+		{/if}
 		<h1>{headerTitle}{#if params.line} - {params.line}{/if}</h1>
 		{#if params.from === 'main'}
 			<button type="button" class="text-button" onclick={toggleMode}>
@@ -455,7 +462,7 @@ function scrollToBottom(): void {
 		</section>
 	{/if}
 
-	<div class="floating-scroll-buttons" aria-label="スクロール操作">
+	<div class:embedded class="floating-scroll-buttons" aria-label="スクロール操作">
 		<button type="button" class="floating-scroll-button" aria-label="一覧の先頭へスクロール" onclick={scrollToTop}>
 			<span class="material-symbols-rounded" aria-hidden="true">vertical_align_top</span>
 		</button>
@@ -472,6 +479,13 @@ function scrollToBottom(): void {
 		padding-bottom: 6.5rem;
 		background: var(--page-bg);
 		font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+	}
+
+	.station-selection.embedded {
+		min-height: auto;
+		padding: 0;
+		padding-bottom: 0;
+		background: transparent;
 	}
 
 	.toolbar {
@@ -521,6 +535,12 @@ function scrollToBottom(): void {
 		border-radius: 0.75rem;
 		padding: 1rem;
 		box-shadow: var(--card-shadow);
+	}
+
+	.station-selection.embedded .station-section {
+		padding: 0;
+		box-shadow: none;
+		background: transparent;
 	}
 
 	.station-list {
@@ -582,6 +602,11 @@ function scrollToBottom(): void {
 		flex-direction: column;
 		gap: 0.75rem;
 		z-index: 30;
+	}
+
+	.floating-scroll-buttons.embedded {
+		right: max(1rem, env(safe-area-inset-right, 0.75rem));
+		bottom: max(1rem, env(safe-area-inset-bottom, 0.75rem));
 	}
 
 	.floating-scroll-button {

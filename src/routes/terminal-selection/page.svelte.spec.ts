@@ -345,6 +345,39 @@ describe('/terminal-selection/+page.svelte', () => {
 		expect(wasmApi.getLinesByPrefect).toHaveBeenCalledWith('宮城県');
 	});
 
+	it('shows split line and station panes on wide screens for prefecture flow', async () => {
+		Object.defineProperty(window, 'innerWidth', {
+			configurable: true,
+			value: 1280
+		});
+
+		render(TerminalSelectionPage);
+
+		await page.getByRole('tab', { name: '都道府県' }).click();
+		await page.getByRole('button', { name: '宮城県' }).click();
+		await page.getByRole('button', { name: '仙山線' }).click();
+
+		await expect.element(page.getByText('路線を選ぶと駅候補を表示します')).not.toBeInTheDocument();
+		await expect.element(page.getByText('仙山線')).toBeInTheDocument();
+		await expect.element(page.getByRole('button', { name: '北仙台' })).toBeInTheDocument();
+		await expect.element(page.getByRole('button', { name: '一覧の先頭へスクロール' })).toBeInTheDocument();
+	});
+
+	it('shows split line and station panes on wide screens in destination mode', async () => {
+		Object.defineProperty(window, 'innerWidth', {
+			configurable: true,
+			value: 1280
+		});
+
+		render(TerminalSelectionPage, { initialMode: 'destination' });
+
+		await page.getByRole('button', { name: 'JR東日本' }).click();
+		await page.getByRole('button', { name: '東北新幹線' }).click();
+
+		await expect.element(page.getByRole('button', { name: '仙台' })).toBeInTheDocument();
+		await expect.element(page.getByRole('button', { name: '盛岡' })).toBeInTheDocument();
+	});
+
 	it('runs autoRoute after confirming a destination station selection', async () => {
 		const seededRoute = new MockFarert();
 		seededRoute.addStartRoute('柏木平');
