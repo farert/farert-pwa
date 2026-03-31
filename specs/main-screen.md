@@ -88,6 +88,10 @@
   - 成功後 `mainRoute.set(route)` で再反映する
 - 失敗時:
   - エラーバナーを表示する
+- 永続化と共有:
+  - この設定は `routeScript` に反映される経路オプションとして扱う
+  - そのため保存、詳細画面遷移、共有 URL でも保持される
+  - 共有 URL では個別のクエリ項目を増やさず、圧縮された経路データの一部として `r` に含まれる
 
 ### 小倉-博多間別線扱い
 - WASM API と状態取得処理は `isNotSameKokuraHakataShinZai()` / `setNotSameKokuraHakataShinZai()` を持つ。

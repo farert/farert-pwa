@@ -9,6 +9,13 @@
 - 値は `routeScript` を `lz-string` の `compressToEncodedURIComponent()` で圧縮した文字列。
 - 生成先 URL は `{origin}{basePath}/detail?r=...` の形式。
 
+## `r` クエリに含まれるもの
+- `r` クエリは個別フラグではなく、共有用に圧縮した経路全体データである。
+- 大阪環状線遠回りフラグのような経路オプションは、個別の URL パラメータとしては持たない。
+- それらのオプションは `routeScript` に含まれ、その結果として `r` クエリの中へ入る。
+- したがって `r` は「大阪環状線遠回りフラグ」そのものではなく、「そのフラグを含みうる経路データ全体」を表す。
+- URL 上で `r` の文字列だけを見ても、どのオプションが有効かは人間には判別しにくい。
+
 ## 対象関数
 - 圧縮: `compressRouteForUrl(route, segmentCount)`
 - 復元: `decompressRouteFromUrl(compressed)`

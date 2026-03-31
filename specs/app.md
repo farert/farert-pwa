@@ -75,6 +75,7 @@
 - 詳細画面共有では `routeScript` を `lz-string` で圧縮して `r` クエリに載せる。
 - 復元時は `buildRoute()` を優先し、一致しない場合は `addStartRoute()` / `addRoute()` で再構築する。
 - これにより、編集中経路・保存済み経路・きっぷホルダ経路を同一表現で受け渡せる。
+- 大阪環状線遠回りのような経路オプションも `routeScript` 側に含まれる前提で扱う。
 
 ## PWA 要件
 - Service Worker は `src/lib/service-worker.js` で提供する。
