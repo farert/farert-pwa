@@ -1,10 +1,10 @@
-export const WIDE_SCREEN_MIN_WIDTH = 900;
+export const WIDE_SCREEN_MIN_WIDTH = 700;
 
 export function isWideScreenViewport(): boolean {
 	if (typeof window === 'undefined') {
 		return false;
 	}
-	return window.innerWidth >= WIDE_SCREEN_MIN_WIDTH;
+	return window.innerWidth >= WIDE_SCREEN_MIN_WIDTH && window.innerWidth > window.innerHeight;
 }
 
 export function observeWideScreenViewport(callback: (isWide: boolean) => void): () => void {
