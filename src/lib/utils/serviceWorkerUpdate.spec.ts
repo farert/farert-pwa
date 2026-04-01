@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
-import { waitForPendingWorker } from './serviceWorkerUpdate';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { getReadyServiceWorkerRegistration, waitForPendingWorker } from './serviceWorkerUpdate';
 
 function createWorker(initialState: ServiceWorkerState) {
 	let state = initialState;
@@ -61,6 +61,11 @@ function createRegistration() {
 }
 
 describe('serviceWorkerUpdate', () => {
+	afterEach(() => {
+		vi.useRealTimers();
+		vi.unstubAllGlobals();
+	});
+
 	it('returns waiting worker immediately when already present', async () => {
 		const { registration, setWaiting } = createRegistration();
 		const { worker } = createWorker('installed');
@@ -93,6 +98,38 @@ describe('serviceWorkerUpdate', () => {
 		candidate.setState('installed');
 
 		await expect(pending).resolves.toBe(candidate.worker);
-		vi.useRealTimers();
+	});
+
+	it('falls back to getRegistration when serviceWorker.ready does not resolve promptly', async () => {
+		vi.useFakeTimers();
+		const registration = { scope: '/' } as ServiceWorkerRegistration;
+		const getRegistration = vi.fn().mockResolvedValue(registration);
+		vi.stubGlobal('navigator', {
+			serviceWorker: {
+				ready: new Promise<ServiceWorkerRegistration>(() => {}),
+				getRegistration
+			}
+		});
+
+		const pending = getReadyServiceWorkerRegistration();
+		await vi.advanceTimersByTimeAsync(1500);
+
+		await expect(pending).resolves.toBe(registration);
+		expect(getRegistration).toHaveBeenCalled();
+	});
+
+	it('returns ready registration immediately when it resolves before timeout', async () => {
+		vi.useFakeTimers();
+		const registration = { scope: '/' } as ServiceWorkerRegistration;
+		const getRegistration = vi.fn().mockResolvedValue(null);
+		vi.stubGlobal('navigator', {
+			serviceWorker: {
+				ready: Promise.resolve(registration),
+				getRegistration
+			}
+		});
+
+		await expect(getReadyServiceWorkerRegistration()).resolves.toBe(registration);
+		expect(getRegistration).not.toHaveBeenCalled();
 	});
 });

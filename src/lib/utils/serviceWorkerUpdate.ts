@@ -3,13 +3,20 @@ export interface PendingWorkerResult {
 	worker: ServiceWorker | null;
 }
 
+const READY_REGISTRATION_TIMEOUT_MS = 1500;
+
 export async function getReadyServiceWorkerRegistration(): Promise<ServiceWorkerRegistration | null> {
 	if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) {
 		return null;
 	}
 
 	try {
-		const readyRegistration = await navigator.serviceWorker.ready;
+		const readyRegistration = await Promise.race<ServiceWorkerRegistration | null>([
+			navigator.serviceWorker.ready,
+			new Promise<null>((resolve) => {
+				setTimeout(() => resolve(null), READY_REGISTRATION_TIMEOUT_MS);
+			})
+		]);
 		if (readyRegistration) {
 			return readyRegistration;
 		}
