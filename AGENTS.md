@@ -30,6 +30,15 @@ Farert PWA 開発時の最小運用ルール。
   - 2 行目は空行
   - 3 行目以降は変更理由や要点を簡潔に書く `body`
 
+## テスト時のルール
+- Dockerコンテナ内で実施する
+- Docker コンテナ起動は、以下
+ ```
+./docker.sh start
+./docker.sh shell
+```
+- 詳細は、 README.md を参照
+
 ## 関連リポジトリ
 - WASM 実装: `../farert-wasm/`
 - WASM 元ソース（マスター）: `../farert/`
