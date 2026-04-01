@@ -178,7 +178,14 @@ if (isDev) {
 			try {
 				const response = await fetch(event.request);
 
-				if (shouldServeShellFallback(event.request.mode, response.status)) {
+				if (
+					shouldServeShellFallback(
+						event.request.mode,
+						response.status,
+						event.request.destination,
+						event.request.headers.get('accept')
+					)
+				) {
 					const cachedShell = await getCachedShell(cache);
 					if (cachedShell) {
 						return cachedShell;
@@ -198,7 +205,14 @@ if (isDev) {
 					return cachedResponse;
 				}
 
-				if (shouldServeShellFallback(event.request.mode)) {
+				if (
+					shouldServeShellFallback(
+						event.request.mode,
+						undefined,
+						event.request.destination,
+						event.request.headers.get('accept')
+					)
+				) {
 					return (await getCachedShell(cache)) || new Response('Not found', { status: 404 });
 				}
 
