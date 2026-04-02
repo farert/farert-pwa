@@ -10,7 +10,8 @@ const sw = self;
 
 const precacheManifest = self.__WB_MANIFEST ?? [];
 const manifestUrls = precacheManifest.map((entry) => entry.url);
-const basePath = new URL(import.meta.env.BASE_URL || '/', self.location.origin).pathname;
+const scopeUrl = self.registration?.scope ?? new URL(import.meta.env.BASE_URL || '/', self.location.href).href;
+const basePath = new URL(scopeUrl).pathname;
 const shellPath = basePath.endsWith('/') ? basePath : `${basePath}/`;
 
 // 開発モードでは何もしない

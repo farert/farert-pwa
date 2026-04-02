@@ -10,5 +10,7 @@ describe('app.html', () => {
 		expect(source).toContain('navigator.onLine === false');
 		expect(source).toContain("document.createElement('link')");
 		expect(source).toContain("document.createElement('script')");
+		expect(source).toContain("navigator.serviceWorker");
+		expect(source).toContain("register('%sveltekit.assets%/service-worker.js'");
 	});
 });
