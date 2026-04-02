@@ -142,7 +142,7 @@
 
 <svelte:head>
 	<title>経路運賃営業キロ計算アプリ Farert</title>
-	<link rel="icon" href="/favicon.png" />
+	<link rel="icon" href={`${base}/favicon.png`} />
 </svelte:head>
 
 {#if updateAvailable && !dismissUpdate}

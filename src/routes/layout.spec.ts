@@ -10,4 +10,11 @@ describe('/+layout.svelte', () => {
 		expect(source).not.toContain('will-change: transform, opacity;');
 		expect(source).not.toContain('will-change: transform;');
 	});
+
+	it('resolves the favicon path from the app base path', () => {
+		const layoutPath = fileURLToPath(new URL('./+layout.svelte', import.meta.url));
+		const source = readFileSync(layoutPath, 'utf-8');
+
+		expect(source).toContain('<link rel="icon" href={`${base}/favicon.png`} />');
+	});
 });
