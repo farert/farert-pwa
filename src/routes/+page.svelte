@@ -1300,6 +1300,7 @@ function updateHolderView(): void {
 
 	.bottom-nav-icon {
 		font-size: 1.6rem;
+		pointer-events: none;
 	}
 
 	.menu-section-title {
