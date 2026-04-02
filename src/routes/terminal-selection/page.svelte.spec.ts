@@ -194,6 +194,14 @@ const { default: TerminalSelectionPage } = await import('./+page.svelte');
 describe('/terminal-selection/+page.svelte', () => {
 	beforeEach(() => {
 		vi.unstubAllGlobals();
+		Object.defineProperty(window, 'innerWidth', {
+			configurable: true,
+			value: 640
+		});
+		Object.defineProperty(window, 'innerHeight', {
+			configurable: true,
+			value: 1024
+		});
 		gotoMock.mockReset();
 		addToStationHistorySpy.mockClear();
 		mainRouteStore.set(null);
@@ -359,6 +367,10 @@ describe('/terminal-selection/+page.svelte', () => {
 			configurable: true,
 			value: 1280
 		});
+		Object.defineProperty(window, 'innerHeight', {
+			configurable: true,
+			value: 720
+		});
 
 		render(TerminalSelectionPage);
 
@@ -367,7 +379,7 @@ describe('/terminal-selection/+page.svelte', () => {
 		await page.getByRole('button', { name: '仙山線' }).click();
 
 		await expect.element(page.getByText('路線を選ぶと駅候補を表示します')).not.toBeInTheDocument();
-		await expect.element(page.getByText('仙山線')).toBeInTheDocument();
+		await expect.element(page.getByText('仙山線').nth(1)).toBeInTheDocument();
 		await expect.element(page.getByRole('button', { name: '北仙台' })).toBeInTheDocument();
 		await expect.element(page.getByRole('button', { name: '一覧の先頭へスクロール' })).toBeInTheDocument();
 	});
@@ -376,6 +388,10 @@ describe('/terminal-selection/+page.svelte', () => {
 		Object.defineProperty(window, 'innerWidth', {
 			configurable: true,
 			value: 1280
+		});
+		Object.defineProperty(window, 'innerHeight', {
+			configurable: true,
+			value: 720
 		});
 
 		render(TerminalSelectionPage, { initialMode: 'destination' });
@@ -654,6 +670,10 @@ describe('/terminal-selection/+page.svelte', () => {
 		Object.defineProperty(window, 'innerWidth', {
 			configurable: true,
 			value: 1280
+		});
+		Object.defineProperty(window, 'innerHeight', {
+			configurable: true,
+			value: 720
 		});
 
 		render(TerminalSelectionPage, { initialMode: 'destination' });

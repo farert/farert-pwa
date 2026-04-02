@@ -129,8 +129,7 @@ function buildFareOptionMenus(info: FareInfo | null, route: FaretClass | null): 
 	const isRule115specificTerm = pickBoolean(info, ['isRule115specificTerm', 'rule115SpecificTerm'], false);
 	const isJRCentralStock = pickBoolean(info, ['isJRCentralStock'], false);
 
-	const hasAnyOptionEnable = isRuleAppliedEnable || isMeihanCityStartTerminalEnable || isEnableLongRoute || isEnableRule115 || isJRCentralStockEnable;
-	if (!isFareOptEnabled && !hasAnyOptionEnable) return [];
+	if (!isFareOptEnabled) return [];
 
 	const options: FareOptionMenuItem[] = [];
 	if (isRuleAppliedEnable) {

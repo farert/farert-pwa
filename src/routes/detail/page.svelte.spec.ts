@@ -58,8 +58,7 @@ const { default: DetailPage } = await import('./+page.svelte');
 
 		render(DetailPage, { initialCompressedRoute: 'dummy' });
 
-		const heading = page.getByRole('heading', { name: '運賃詳細' });
-		await expect.element(heading).toBeInTheDocument();
+		await expect.element(page.getByText('運賃詳細')).toBeInTheDocument();
 
 		const fare = page.getByText('¥8,910');
 		await expect.element(fare).toBeInTheDocument();
@@ -69,7 +68,9 @@ const { default: DetailPage } = await import('./+page.svelte');
 
 		await page.getByRole('button', { name: '結果エクスポート' }).click();
 		const exportText = page.getByTestId('fare-export-text');
-		await expect.element(exportText).toHaveTextContent('FARE_EXPORT_TEXT');
+		await expect
+			.element(exportText)
+			.toHaveTextContent('FARE_EXPORT_TEXT[指定経路]\n東京,東海道新幹線,新大阪');
 	});
 
 	it('uses beginStation and endStation from FareInfo when available', async () => {
@@ -94,7 +95,7 @@ const { default: DetailPage } = await import('./+page.svelte');
 
 		render(DetailPage, { initialCompressedRoute: 'encoded-city-info' });
 
-		await expect.element(page.getByRole('heading', { name: '運賃詳細' })).toBeInTheDocument();
+		await expect.element(page.getByText('運賃詳細')).toBeInTheDocument();
 		await expect.element(page.getByText('都区内 → 勝田')).toBeInTheDocument();
 	});
 
@@ -147,7 +148,7 @@ const { default: DetailPage } = await import('./+page.svelte');
 
 		render(DetailPage, { initialCompressedRoute: 'encoded' });
 
-		await expect.element(page.getByRole('heading', { name: '運賃詳細' })).toBeInTheDocument();
+		await expect.element(page.getByText('運賃詳細')).toBeInTheDocument();
 		await expect.element(page.getByText('キロ程')).toBeInTheDocument();
 		const kilometerSection = page.getByRole('heading', { name: 'キロ程' }).locator('..');
 		await expect.element(kilometerSection.getByText('218.3km').first()).toBeInTheDocument();
@@ -185,7 +186,11 @@ const { default: DetailPage } = await import('./+page.svelte');
 			.element(page.getByText('旅客営業取扱基準規程第114条適用営業キロ計算駅:甲斐住吉'))
 			.toBeInTheDocument();
 		await page.getByRole('button', { name: '結果エクスポート' }).click();
-		await expect.element(page.getByTestId('fare-export-text')).toHaveTextContent('EXPORT_SAMPLE');
+		await expect
+			.element(page.getByTestId('fare-export-text'))
+			.toHaveTextContent(
+				'EXPORT_SAMPLE[指定経路]\n長津田,横浜線,東神奈川,東海道線,富士,身延線,国母'
+			);
 	});
 
 	it('toggles city-station option and recalculates', async () => {
@@ -306,6 +311,7 @@ const { default: DetailPage } = await import('./+page.svelte');
 	it('shows fare options for legacy route output including fare opt flags', async () => {
 		let noRuleCalled = 0;
 		let arrivalAsCityCalled = 0;
+		let startAsCityCalled = 0;
 		const fakeRoute = {
 			routeScript: () => '大高,東海道線,大阪,大阪環状線,天王寺,阪和線,杉本町',
 			departureStationName: () => '大高',
@@ -313,6 +319,7 @@ const { default: DetailPage } = await import('./+page.svelte');
 			showFare: () => 'EXPORT_LEGACY_FLAGS',
 			setNoRule: () => noRuleCalled++,
 			setArrivalAsCity: () => arrivalAsCityCalled++,
+			setStartAsCity: () => startAsCityCalled++,
 			getFareInfoObjectJson: () =>
 				JSON.stringify({
 					fareResultCode: 0,
@@ -343,7 +350,10 @@ const { default: DetailPage } = await import('./+page.svelte');
 		await expect.element(ruleMenu).toBeInTheDocument();
 
 		await terminalMenu.click();
-		expect(arrivalAsCityCalled).toBe(1);
+		expect(arrivalAsCityCalled).toBe(0);
+		expect(startAsCityCalled).toBe(1);
+		expect(noRuleCalled).toBe(0);
+		await page.getByRole('button', { name: 'メニュー' }).click();
 		await ruleMenu.click();
 		expect(noRuleCalled).toBe(1);
 	});
@@ -371,7 +381,9 @@ const { default: DetailPage } = await import('./+page.svelte');
 		await page.getByRole('button', { name: '結果エクスポート' }).click();
 
 		expect(writeTextMock).toHaveBeenCalledTimes(1);
-		expect(writeTextMock).toHaveBeenCalledWith('EXPORT_FOR_CLIPBOARD');
+		expect(writeTextMock).toHaveBeenCalledWith(
+			'EXPORT_FOR_CLIPBOARD[指定経路]\n東京,東海道線,熱海'
+		);
 	});
 
 	it('shares URL with base path', async () => {
