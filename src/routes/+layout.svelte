@@ -60,7 +60,7 @@
 		}
 
 		if ('serviceWorker' in navigator) {
-			getReadyServiceWorkerRegistration()
+			getReadyServiceWorkerRegistration(base)
 				.then(async (registration) => {
 					if (!registration) return;
 					registerWaitingWorker(registration.waiting);

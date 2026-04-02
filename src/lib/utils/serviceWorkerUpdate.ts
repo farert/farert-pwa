@@ -5,9 +5,33 @@ export interface PendingWorkerResult {
 
 const READY_REGISTRATION_TIMEOUT_MS = 1500;
 
-export async function getReadyServiceWorkerRegistration(): Promise<ServiceWorkerRegistration | null> {
+function normalizeBasePath(basePath = ''): string {
+	if (!basePath || basePath === '/') {
+		return '';
+	}
+
+	const prefixed = basePath.startsWith('/') ? basePath : `/${basePath}`;
+	return prefixed.endsWith('/') ? prefixed.slice(0, -1) : prefixed;
+}
+
+export async function getReadyServiceWorkerRegistration(
+	basePath = ''
+): Promise<ServiceWorkerRegistration | null> {
 	if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) {
 		return null;
+	}
+
+	const normalizedBase = normalizeBasePath(basePath);
+	const scope = `${normalizedBase}/`;
+	const scriptUrl = `${normalizedBase}/service-worker.js`;
+
+	try {
+		const existingRegistration = await navigator.serviceWorker.getRegistration(scope);
+		if (!existingRegistration) {
+			await navigator.serviceWorker.register(scriptUrl, { scope });
+		}
+	} catch {
+		// 登録確認失敗時も ready/getRegistration フォールバックへ進む
 	}
 
 	try {
@@ -25,7 +49,7 @@ export async function getReadyServiceWorkerRegistration(): Promise<ServiceWorker
 	}
 
 	try {
-		return await navigator.serviceWorker.getRegistration();
+		return await navigator.serviceWorker.getRegistration(scope);
 	} catch {
 		return null;
 	}

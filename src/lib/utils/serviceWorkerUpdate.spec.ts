@@ -104,10 +104,12 @@ describe('serviceWorkerUpdate', () => {
 		vi.useFakeTimers();
 		const registration = { scope: '/' } as ServiceWorkerRegistration;
 		const getRegistration = vi.fn().mockResolvedValue(registration);
+		const register = vi.fn().mockResolvedValue(registration);
 		vi.stubGlobal('navigator', {
 			serviceWorker: {
 				ready: new Promise<ServiceWorkerRegistration>(() => {}),
-				getRegistration
+				getRegistration,
+				register
 			}
 		});
 
@@ -115,21 +117,45 @@ describe('serviceWorkerUpdate', () => {
 		await vi.advanceTimersByTimeAsync(1500);
 
 		await expect(pending).resolves.toBe(registration);
-		expect(getRegistration).toHaveBeenCalled();
+		expect(getRegistration).toHaveBeenCalledWith('/');
+		expect(register).not.toHaveBeenCalled();
 	});
 
 	it('returns ready registration immediately when it resolves before timeout', async () => {
 		vi.useFakeTimers();
 		const registration = { scope: '/' } as ServiceWorkerRegistration;
 		const getRegistration = vi.fn().mockResolvedValue(null);
+		const register = vi.fn().mockResolvedValue(registration);
 		vi.stubGlobal('navigator', {
 			serviceWorker: {
 				ready: Promise.resolve(registration),
-				getRegistration
+				getRegistration,
+				register
 			}
 		});
 
 		await expect(getReadyServiceWorkerRegistration()).resolves.toBe(registration);
-		expect(getRegistration).not.toHaveBeenCalled();
+		expect(getRegistration).toHaveBeenCalledWith('/');
+		expect(register).toHaveBeenCalledWith('/service-worker.js', { scope: '/' });
+	});
+
+	it('registers service worker with base path aware URL when missing', async () => {
+		vi.useFakeTimers();
+		const registration = { scope: '/farert-pwa/' } as ServiceWorkerRegistration;
+		const getRegistration = vi.fn().mockResolvedValue(null);
+		const register = vi.fn().mockResolvedValue(registration);
+		vi.stubGlobal('navigator', {
+			serviceWorker: {
+				ready: Promise.resolve(registration),
+				getRegistration,
+				register
+			}
+		});
+
+		await expect(getReadyServiceWorkerRegistration('/farert-pwa')).resolves.toBe(registration);
+		expect(getRegistration).toHaveBeenCalledWith('/farert-pwa/');
+		expect(register).toHaveBeenCalledWith('/farert-pwa/service-worker.js', {
+			scope: '/farert-pwa/'
+		});
 	});
 });

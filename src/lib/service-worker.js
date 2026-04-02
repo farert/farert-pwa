@@ -12,8 +12,6 @@ const precacheManifest = self.__WB_MANIFEST ?? [];
 const manifestUrls = precacheManifest.map((entry) => entry.url);
 const basePath = new URL(import.meta.env.BASE_URL || '/', self.location.origin).pathname;
 const shellPath = basePath.endsWith('/') ? basePath : `${basePath}/`;
-const shellIndexPath = `${shellPath}index.html`;
-const fallbackShellPath = `${shellPath}404.html`;
 
 // 開発モードでは何もしない
 const isDev = import.meta.env.DEV;
@@ -39,7 +37,7 @@ if (isDev) {
 	const CACHE_NAME = `farert-cache-${hashManifest(precacheManifest)}`;
 
 	// キャッシュするファイル
-	const assetSet = new Set([...manifestUrls, shellPath, shellIndexPath, fallbackShellPath]);
+	const assetSet = new Set([...manifestUrls, shellPath]);
 	const ASSETS = Array.from(assetSet);
 
 	/**
@@ -105,7 +103,7 @@ if (isDev) {
 	 */
 	function getShellCandidates() {
 		const shellCandidates = new Set(['/']);
-		for (const path of [shellPath, shellIndexPath, fallbackShellPath]) {
+		for (const path of [shellPath]) {
 			for (const candidate of getPathCandidates(path)) {
 				shellCandidates.add(candidate);
 			}
@@ -132,7 +130,22 @@ if (isDev) {
 	sw.addEventListener('install', (event) => {
 		async function addFilesToCache() {
 			const cache = await caches.open(CACHE_NAME);
-			await cache.addAll(ASSETS);
+			await Promise.all(
+				ASSETS.map(async (assetPath) => {
+					try {
+						const response = await fetch(assetPath, { cache: 'no-cache' });
+						if (!response.ok) {
+							throw new Error(`HTTP ${response.status}`);
+						}
+						await cache.put(assetPath, response.clone());
+					} catch (error) {
+						if (assetPath === shellPath) {
+							throw error;
+						}
+						console.warn('[SW] precache skipped', assetPath, error);
+					}
+				})
+			);
 		}
 
 		event.waitUntil(addFilesToCache());

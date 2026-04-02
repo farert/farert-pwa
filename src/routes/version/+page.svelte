@@ -138,7 +138,7 @@ import { base } from '$app/paths';
 		updateWorker = null;
 
 		try {
-			const registration = await getReadyServiceWorkerRegistration();
+			const registration = await getReadyServiceWorkerRegistration(base);
 			if (!registration) {
 				updateMessage = '更新は見つかりませんでした。';
 				return;
