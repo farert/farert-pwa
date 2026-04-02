@@ -70,7 +70,7 @@ const { default: DetailPage } = await import('./+page.svelte');
 		const exportText = page.getByTestId('fare-export-text');
 		await expect
 			.element(exportText)
-			.toHaveTextContent('FARE_EXPORT_TEXT[指定経路]\n東京,東海道新幹線,新大阪');
+			.toHaveTextContent(/FARE_EXPORT_TEXT\[指定経路\]\s+東京,東海道新幹線,新大阪/);
 	});
 
 	it('uses beginStation and endStation from FareInfo when available', async () => {
@@ -189,7 +189,7 @@ const { default: DetailPage } = await import('./+page.svelte');
 		await expect
 			.element(page.getByTestId('fare-export-text'))
 			.toHaveTextContent(
-				'EXPORT_SAMPLE[指定経路]\n長津田,横浜線,東神奈川,東海道線,富士,身延線,国母'
+				/EXPORT_SAMPLE\[指定経路\]\s+長津田,横浜線,東神奈川,東海道線,富士,身延線,国母/
 			);
 	});
 
