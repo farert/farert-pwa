@@ -262,9 +262,9 @@ describe('/route-station-select/+page.svelte', () => {
 			presetParams: { from: 'main', station: '北上', line: '東北新幹線' }
 		});
 
-		const stationMeta = page.getByText('(水沢かな) / 東北本線 / 北上線');
+		const stationMeta = page.getByText('（水沢かな）/東北新幹線/東北本線/北上線');
 		await expect.element(stationMeta).toBeInTheDocument();
-		await expect.element(page.getByText('(北上かな)')).toBeInTheDocument();
+		await expect.element(page.getByText('（北上かな）')).toBeInTheDocument();
 		expect(wasmApi.getLinesByStation).toHaveBeenCalledWith('水沢');
 	});
 
@@ -301,7 +301,7 @@ describe('/route-station-select/+page.svelte', () => {
 		await expect.element(stationButtons.nth(2)).toHaveAttribute('data-testid', 'station-option-伊香牛');
 		await expect.element(stationButtons.nth(3)).toHaveAttribute('data-testid', 'station-option-網走');
 		await expect.element(page.getByText('<発駅>')).toBeInTheDocument();
-		await expect.element(page.getByText('(いかうし)')).toBeInTheDocument();
+		await expect.element(page.getByText('（いかうし）')).toBeInTheDocument();
 		expect(wasmApi.getBranchStationsByLine).toHaveBeenCalledWith('石北線', '伊香牛');
 	});
 
@@ -325,7 +325,7 @@ describe('/route-station-select/+page.svelte', () => {
 
 		const stationButton = page.getByRole('button', { name: '金山(中)' });
 		await expect.element(stationButton).toBeInTheDocument();
-		await expect.element(page.getByText('(かなやま)')).toBeInTheDocument();
+		await expect.element(page.getByText('（かなやま）')).toBeInTheDocument();
 	});
 
 	it('同名駅の識別子を経由して路線追加を実行する', async () => {
@@ -352,6 +352,40 @@ describe('/route-station-select/+page.svelte', () => {
 
 		await page.getByTestId('station-option-金山').click();
 		expect(seededRoute.addRouteMock).toHaveBeenCalledWith('東海道本線', '金山(中)');
+	});
+
+	it('同名駅の路線絞り込みが空でも再照会してかなと乗換路線を表示する', async () => {
+		wasmApi.getBranchStationsByLine.mockReturnValue(JSON.stringify(['追分']));
+		wasmApi.getStationsByLine.mockReturnValue(JSON.stringify(['追分']));
+		wasmApi.getKanaByStation.mockImplementation((station: string) => {
+			if (station === '追分') return '';
+			if (station === '追分(室)') return 'おいわけ';
+			return `${station}かな`;
+		});
+		wasmApi.getLinesByStation.mockImplementation((station: string) => {
+			if (station === '追分') return JSON.stringify([]);
+			if (station === '追分(室)') return JSON.stringify(['室蘭線', '石勝線']);
+			return JSON.stringify(['室蘭線']);
+		});
+		wasmApi.executeSql
+			.mockReturnValueOnce(JSON.stringify({
+				columns: ['samename'],
+				rows: [],
+				rowCount: 0
+			}))
+			.mockReturnValueOnce(JSON.stringify({
+				columns: ['samename'],
+				rows: [['室']],
+				rowCount: 1
+			}));
+
+		render(RouteStationSelectPage, {
+			presetParams: { from: 'main', station: '追分', line: '室蘭線' }
+		});
+
+		await expect.element(page.getByRole('button', { name: '追分(室)' })).toBeInTheDocument();
+		await expect.element(page.getByText('（おいわけ）/室蘭線/石勝線')).toBeInTheDocument();
+		expect(wasmApi.getLinesByStation).toHaveBeenCalledWith('追分(室)');
 	});
 
 	it('shows duplicate route message when addRoute returns duplicate error', async () => {

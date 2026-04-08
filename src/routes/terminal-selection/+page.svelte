@@ -15,7 +15,8 @@ import {
 	searchStationFuzzy,
 	getKanaByStation,
 	getPrefectureByStation,
-	getLinesByStation
+	getLinesByStation,
+	executeSql
 } from '$lib/wasm';
 import { addToStationHistory, mainRoute, mainScreenErrorMessage, stationHistory } from '$lib/stores';
 import {
@@ -27,6 +28,7 @@ import {
 	scrollPageToBottom,
 	scrollPageToTop
 } from '$lib/utils/responsiveLayout';
+import { buildStationDisplayMeta } from '$lib/utils/stationDisplay';
 import type { FaretClass } from '$lib/wasm/types';
 
 type Tab = 'group' | 'prefecture' | 'history';
@@ -45,6 +47,7 @@ interface SearchMeta {
 }
 
 interface StationListMeta {
+	name: string;
 	kana: string;
 	lines: string[];
 }
@@ -588,20 +591,15 @@ async function openStations(line: string): Promise<void> {
 }
 
 function buildStationListMeta(stationNames: string[], currentLine: string): Record<string, StationListMeta> {
-	const result: Record<string, StationListMeta> = {};
-	for (const station of stationNames) {
-		try {
-			const kana = (getKanaByStation(station) ?? '').trim();
-			const lines = parseList(getLinesByStation(station), '所属路線の取得に失敗しました', undefined, {
+	return buildStationDisplayMeta(stationNames, currentLine, {
+		executeSql,
+		getKanaByStation,
+		getLinesByStation,
+		parseList: (raw) =>
+			parseList(raw, '所属路線の取得に失敗しました', undefined, {
 				suppressError: true
-			}).filter((line) => line.trim() !== currentLine.trim());
-			result[station] = { kana, lines };
-		} catch (err) {
-			console.warn('[TERMINAL_SELECTION] 駅表示メタデータ取得失敗', station, err);
-			result[station] = { kana: '', lines: [] };
-		}
-	}
-	return result;
+			})
+	});
 }
 
 function stationMetaText(station: string): string {
@@ -609,18 +607,19 @@ function stationMetaText(station: string): string {
 	if (!meta) return '';
 	const parts: string[] = [];
 	if (meta.kana) {
-		parts.push(`(${meta.kana})`);
+		parts.push(`（${meta.kana}）`);
 	}
-	if (meta.lines.length > 0) {
-		parts.push(meta.lines.join(' / '));
+	if (meta.lines.length > 1) {
+		parts.push(meta.lines.join('/'));
 	}
-	return parts.join(' / ');
+	return parts.join('/');
 }
 
 async function handleStationSelect(station: string): Promise<void> {
 	if (!station) return;
+	const selectedStation = stationListMeta[station]?.name ?? station;
 	if (screenMode === 'destination') {
-		pendingDestinationStation = station;
+		pendingDestinationStation = selectedStation;
 		autoRouteDialogOpen = true;
 		return;
 	}
@@ -634,14 +633,14 @@ async function handleStationSelect(station: string): Promise<void> {
 			return;
 		}
 		route.removeAll();
-		const result = route.addStartRoute(station);
+		const result = route.addStartRoute(selectedStation);
 		if (result < 0) {
 			handleError('発駅の設定に失敗しました', new Error(`addStartRoute rc=${result}`));
 			return;
 		}
 		mainRoute.set(route);
 		routeRef = route;
-		addToStationHistory(station);
+		addToStationHistory(selectedStation);
 		await goto(`${base}/`);
 	} catch (err) {
 		handleError('発駅の設定に失敗しました', err);
@@ -1058,7 +1057,7 @@ function scrollToBottom(): void {
 									aria-label={station}
 									onclick={() => handleStationSelect(station)}
 								>
-									<span class="primary">{station}</span>
+									<span class="primary">{stationListMeta[station]?.name ?? station}</span>
 									{#if stationMetaText(station)}
 										<span class="secondary">{stationMetaText(station)}</span>
 									{/if}
@@ -1110,7 +1109,7 @@ function scrollToBottom(): void {
 										aria-label={station}
 										onclick={() => handleStationSelect(station)}
 									>
-										<span class="primary">{station}</span>
+										<span class="primary">{stationListMeta[station]?.name ?? station}</span>
 										{#if stationMetaText(station)}
 											<span class="secondary">{stationMetaText(station)}</span>
 										{/if}

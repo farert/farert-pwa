@@ -13,6 +13,7 @@ import {
 } from '$lib/wasm';
 import { mainRoute } from '$lib/stores';
 import { scrollPageToBottom, scrollPageToTop } from '$lib/utils/responsiveLayout';
+import { buildStationDisplayMeta, normalizeStationName } from '$lib/utils/stationDisplay';
 import type { FaretClass } from '$lib/wasm/types';
 
 type ScreenMode = 'branch' | 'destination';
@@ -178,130 +179,12 @@ function sortStationsByLineOrder(stations: string[], lineStations: string[]): st
 }
 
 function buildStationDetails(stations: string[], lineName: string): Record<string, StationMetaInfo> {
-	const info: Record<string, StationMetaInfo> = {};
-	const stationNameMap = resolveDisplayNames(stations, lineName);
-
-	for (const station of stations) {
-		let kana = '';
-		let lines: string[] = [];
-		const displayName = stationNameMap[station] ?? station;
-		const normalized = normalizeStationName(displayName);
-
-		try {
-			kana = getKanaByStation(displayName);
-		} catch (err) {
-			console.warn('かな情報の取得に失敗しました', station, err);
-		}
-		if (!kana && normalized !== displayName) {
-			try {
-				kana = getKanaByStation(normalized);
-			} catch (err) {
-				console.warn('かな情報の再取得に失敗しました', station, err);
-			}
-		}
-		try {
-			lines = parseList(getLinesByStation(station));
-		} catch (err) {
-			console.warn('所属路線情報の取得に失敗しました', station, err);
-		}
-		info[station] = { name: displayName, kana, lines };
-	}
-	return info;
-}
-
-function normalizeStationName(raw: string): string {
-	const trimmed = raw.trim();
-	return trimmed.replace(/[（(][^（）()]*[）)]$/g, '').trim();
-}
-
-function hasSamenameSuffix(raw: string): boolean {
-	return /[（(][^（）()]*[）)]$/.test(raw.trim());
-}
-
-function formatSamenameSuffix(raw: string): string {
-	const trimmed = raw.trim();
-	if (!trimmed) return '';
-	return trimmed.startsWith('(') || trimmed.startsWith('（') ? trimmed : `(${trimmed})`;
-}
-
-function resolveDisplayNames(stations: string[], lineName: string): Record<string, string> {
-	const map: Record<string, string> = {};
-	const stationBaseNames = [...new Set(stations.map((station) => normalizeStationName(station)))];
-	const sameNameByBase = resolveSameNameSuffix(stationBaseNames, lineName);
-
-	for (const station of stations) {
-		if (map[station] !== undefined) {
-			continue;
-		}
-		if (hasSamenameSuffix(station)) {
-			map[station] = station;
-			continue;
-		}
-		const base = normalizeStationName(station);
-		const suffix = sameNameByBase[base] ?? '';
-		map[station] = suffix ? `${base}${suffix}` : station;
-	}
-	return map;
-}
-
-function resolveSameNameSuffix(stationNames: string[], lineName: string): Record<string, string> {
-	const result: Record<string, string> = {};
-	if (typeof executeSql !== 'function') {
-		return result;
-	}
-
-	const query = (name: string, useLineFilter: boolean): string => {
-		const escapedName = name.replace(/'/g, "''");
-		const escapedLine = lineName.replace(/'/g, "''");
-		const lineClause = useLineFilter ? ` and ln.name='${escapedLine}'` : '';
-		return (
-			`select distinct t.samename from t_station t`
-			+ ` left join t_lines l on t.rowid=l.station_id`
-			+ ` left join t_line ln on ln.rowid=l.line_id`
-			+ ` where t.name='${escapedName}'${lineClause}`
-			+ ` and t.samename<>'' and (t.sflg&(1<<18))=0`
-		);
-	};
-
-	const parse = (payload: string): string[] => {
-		try {
-			const parsed = JSON.parse(payload) as {
-				rows?: Array<[string]>;
-			};
-			const rows = parsed.rows;
-			if (!Array.isArray(rows)) return [];
-			return rows.map((row) => {
-				const value = row?.[0];
-				return typeof value === 'string' ? value : '';
-			});
-		} catch {
-			return [];
-		}
-	};
-
-	for (const station of stationNames) {
-		try {
-		const response = executeSql(query(station, true));
-		const values = parse(response).filter((value) => value.length > 0);
-		const suffix = values[0] ?? '';
-		if (suffix) {
-			result[station] = formatSamenameSuffix(suffix);
-		}
-		} catch {
-			try {
-				const fallback = executeSql(query(station, false));
-				const values = parse(fallback).filter((value) => value.length > 0);
-				const suffix = values[0] ?? '';
-				if (suffix) {
-					result[station] = formatSamenameSuffix(suffix);
-				}
-			} catch {
-				// SQLクエリ失敗時は無視
-			}
-		}
-	}
-
-	return result;
+	return buildStationDisplayMeta(stations, lineName, {
+		executeSql,
+		getKanaByStation,
+		getLinesByStation,
+		parseList
+	});
 }
 
 function toggleMode(): void {
@@ -378,16 +261,15 @@ function isStartStation(name: string): boolean {
 
 function stationMeta(name: string): string {
 	const kana = stationDetails[name]?.kana ?? '';
-	const selectedLine = (params.line ?? '').trim();
-	const lines = (stationDetails[name]?.lines ?? []).filter((line) => line.trim() !== selectedLine);
+	const lines = stationDetails[name]?.lines ?? [];
 	const metaParts: string[] = [];
 	if (kana) {
-		metaParts.push(`(${kana})`);
+		metaParts.push(`（${kana}）`);
 	}
-	if (lines.length > 0) {
-		metaParts.push(lines.join(' / '));
+	if (lines.length > 1) {
+		metaParts.push(lines.join('/'));
 	}
-	return metaParts.join(' / ');
+	return metaParts.join('/');
 }
 
 function scrollToTop(): void {

@@ -1,0 +1,165 @@
+export interface StationDisplayMeta {
+	name: string;
+	kana: string;
+	lines: string[];
+}
+
+interface StationDisplayDeps {
+	executeSql?: ((sql: string) => string) | null;
+	getKanaByStation: (station: string) => string;
+	getLinesByStation: (station: string) => string;
+	parseList: (raw: string) => string[];
+}
+
+export function normalizeStationName(raw: string): string {
+	const trimmed = raw.trim();
+	return trimmed.replace(/[（(][^（）()]*[）)]$/g, '').trim();
+}
+
+function hasSamenameSuffix(raw: string): boolean {
+	return /[（(][^（）()]*[）)]$/.test(raw.trim());
+}
+
+function formatSamenameSuffix(raw: string): string {
+	const trimmed = raw.trim();
+	if (!trimmed) return '';
+	return trimmed.startsWith('(') || trimmed.startsWith('（') ? trimmed : `(${trimmed})`;
+}
+
+function dedupe(values: string[]): string[] {
+	return [...new Set(values.map((value) => value.trim()).filter((value) => value.length > 0))];
+}
+
+function parseSqlRows(payload: string): string[] {
+	try {
+		const parsed = JSON.parse(payload) as { rows?: Array<[string]> };
+		if (!Array.isArray(parsed.rows)) return [];
+		return parsed.rows
+			.map((row) => row?.[0])
+			.filter((value): value is string => typeof value === 'string');
+	} catch {
+		return [];
+	}
+}
+
+function resolveSameNameSuffix(
+	stationNames: string[],
+	lineName: string,
+	executeSql?: ((sql: string) => string) | null
+): Record<string, string> {
+	const result: Record<string, string> = {};
+	if (typeof executeSql !== 'function') {
+		return result;
+	}
+
+	const query = (name: string, useLineFilter: boolean): string => {
+		const escapedName = name.replace(/'/g, "''");
+		const escapedLine = lineName.replace(/'/g, "''");
+		const lineClause = useLineFilter ? ` and ln.name='${escapedLine}'` : '';
+		return (
+			`select distinct t.samename from t_station t`
+			+ ` left join t_lines l on t.rowid=l.station_id`
+			+ ` left join t_line ln on ln.rowid=l.line_id`
+			+ ` where t.name='${escapedName}'${lineClause}`
+			+ ` and t.samename<>'' and (t.sflg&(1<<18))=0`
+		);
+	};
+
+	const lookupSuffix = (station: string, useLineFilter: boolean): string => {
+		const response = executeSql(query(station, useLineFilter));
+		const values = parseSqlRows(response).filter((value) => value.length > 0);
+		const suffix = values[0] ?? '';
+		return suffix ? formatSamenameSuffix(suffix) : '';
+	};
+
+	for (const station of stationNames) {
+		try {
+			const suffix = lookupSuffix(station, true);
+			if (suffix) {
+				result[station] = suffix;
+				continue;
+			}
+		} catch {
+			// line 条件付きの問い合わせ失敗時は全体検索へフォールバックする
+		}
+		try {
+			const fallbackSuffix = lookupSuffix(station, false);
+			if (fallbackSuffix) {
+				result[station] = fallbackSuffix;
+			}
+		} catch {
+			// SQL クエリ失敗時は無視する
+		}
+	}
+
+	return result;
+}
+
+function resolveDisplayNames(
+	stations: string[],
+	lineName: string,
+	executeSql?: ((sql: string) => string) | null
+): Record<string, string> {
+	const map: Record<string, string> = {};
+	const stationBaseNames = [...new Set(stations.map((station) => normalizeStationName(station)))];
+	const sameNameByBase = resolveSameNameSuffix(stationBaseNames, lineName, executeSql);
+
+	for (const station of stations) {
+		if (map[station] !== undefined) continue;
+		if (hasSamenameSuffix(station)) {
+			map[station] = station;
+			continue;
+		}
+		const base = normalizeStationName(station);
+		const suffix = sameNameByBase[base] ?? '';
+		map[station] = suffix ? `${base}${suffix}` : station;
+	}
+
+	return map;
+}
+
+export function buildStationDisplayMeta(
+	stations: string[],
+	lineName: string,
+	deps: StationDisplayDeps
+): Record<string, StationDisplayMeta> {
+	const info: Record<string, StationDisplayMeta> = {};
+	const stationNameMap = resolveDisplayNames(stations, lineName, deps.executeSql);
+
+	for (const station of stations) {
+		const displayName = stationNameMap[station] ?? station;
+		const normalized = normalizeStationName(displayName);
+		let kana = '';
+		let lines: string[] = [];
+
+		try {
+			kana = (deps.getKanaByStation(displayName) ?? '').trim();
+		} catch {
+			kana = '';
+		}
+		if (!kana && normalized !== displayName) {
+			try {
+				kana = (deps.getKanaByStation(normalized) ?? '').trim();
+			} catch {
+				kana = '';
+			}
+		}
+
+		try {
+			lines = dedupe(deps.parseList(deps.getLinesByStation(displayName)));
+		} catch {
+			lines = [];
+		}
+		if (lines.length === 0 && normalized !== displayName) {
+			try {
+				lines = dedupe(deps.parseList(deps.getLinesByStation(normalized)));
+			} catch {
+				lines = [];
+			}
+		}
+
+		info[station] = { name: displayName, kana, lines };
+	}
+
+	return info;
+}
