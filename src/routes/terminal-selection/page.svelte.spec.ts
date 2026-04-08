@@ -564,7 +564,7 @@ describe('/terminal-selection/+page.svelte', () => {
 		const tokyoButton = page.getByRole('button', { name: /^東京$/ });
 		await expect.element(tokyoButton).toBeInTheDocument();
 
-		const kanaText = page.getByText('東京かな (宮城県)');
+		const kanaText = page.getByText('（東京かな） (宮城県)');
 		await expect.element(kanaText).toBeInTheDocument();
 
 		const clearButton = page.getByRole('button', { name: '検索をクリア' });
@@ -620,6 +620,47 @@ describe('/terminal-selection/+page.svelte', () => {
 
 		await expect.element(page.getByRole('button', { name: /^龍ヶ崎$/ })).toBeInTheDocument();
 		await expect.element(page.getByRole('button', { name: /^竜ケ崎$/ })).toBeInTheDocument();
+	});
+
+	it('disambiguates same-name search results by samename and kana', async () => {
+		wasmApi.searchStationFuzzy.mockImplementation((keyword: string) => {
+			if (keyword === 'かしわ') {
+				return JSON.stringify({
+					results: [
+						{ name: '柏原', kana: 'かしわばら', samename: ['東'], score: 0 },
+						{ name: '柏原', kana: 'かしわら', samename: ['関'], score: 1 }
+					]
+				});
+			}
+			return JSON.stringify({ results: [] });
+		});
+		wasmApi.getPrefectureByStation.mockImplementation((station: string) => {
+			if (station === '柏原(東)') return '滋賀県';
+			if (station === '柏原(関)') return '大阪府';
+			return '宮城県';
+		});
+		wasmApi.getKanaByStation.mockImplementation((station: string) => {
+			if (station === '柏原(東)') return 'かしわばら';
+			if (station === '柏原(関)') return 'かしわら';
+			return `${station}かな`;
+		});
+
+		render(TerminalSelectionPage);
+
+		const searchField = page.getByPlaceholder('駅名を検索');
+		await searchField.click();
+		await searchField.fill('かしわ');
+
+		await expect.element(page.getByRole('button', { name: '柏原(東)' })).toBeInTheDocument();
+		await expect.element(page.getByRole('button', { name: '柏原(関)' })).toBeInTheDocument();
+		await expect.element(page.getByText('（かしわばら） (滋賀県)')).toBeInTheDocument();
+		await expect.element(page.getByText('（かしわら） (大阪府)')).toBeInTheDocument();
+
+		await page.getByRole('button', { name: '柏原(東)' }).click();
+
+		expect(gotoMock).toHaveBeenCalledWith('/');
+		expect(addToStationHistorySpy).toHaveBeenCalledWith('柏原(東)');
+		expect(get(mainRouteStore)?.routeScript()).toBe('柏原(東)');
 	});
 
 	it('shows prefecture based line labels on station list title', async () => {

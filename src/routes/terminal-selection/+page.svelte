@@ -28,7 +28,7 @@ import {
 	scrollPageToBottom,
 	scrollPageToTop
 } from '$lib/utils/responsiveLayout';
-import { buildStationDisplayMeta } from '$lib/utils/stationDisplay';
+import { buildStationDisplayMeta, normalizeStationName } from '$lib/utils/stationDisplay';
 import type { FaretClass } from '$lib/wasm/types';
 
 type Tab = 'group' | 'prefecture' | 'history';
@@ -37,6 +37,7 @@ type SelectionBase = 'group' | 'prefecture';
 
 interface SearchResultItem {
 	name: string;
+	displayName: string;
 	kana: string;
 	prefecture: string;
 }
@@ -55,6 +56,7 @@ interface StationListMeta {
 interface FuzzySearchItem {
 	name: string;
 	kana?: string;
+	samename?: string[];
 	score?: number;
 }
 
@@ -795,9 +797,25 @@ function readStationMeta(station: string): SearchMeta {
 			prefecture: getPrefectureByStation(station) ?? ''
 		};
 	} catch (err) {
+		const normalized = normalizeStationName(station);
+		if (normalized !== station) {
+			try {
+				return {
+					kana: getKanaByStation(normalized) ?? '',
+					prefecture: getPrefectureByStation(normalized) ?? ''
+				};
+			} catch {
+				// ベース名でも失敗した場合は空を返す
+			}
+		}
 		console.warn('[TERMINAL_SELECTION] 駅メタデータ取得失敗', err);
 		return { kana: '', prefecture: '' };
 	}
+}
+
+function buildSearchDisplayName(name: string, samename?: string[]): string {
+	const suffix = samename?.find((value) => value.trim().length > 0) ?? '';
+	return suffix ? `${name}(${suffix})` : name;
 }
 
 function parseFuzzySearchItems(payload: string): FuzzySearchItem[] {
@@ -812,8 +830,14 @@ function parseFuzzySearchItems(payload: string): FuzzySearchItem[] {
 			const name = typeof record.name === 'string' ? record.name.trim() : '';
 			if (!name) continue;
 			const kana = typeof record.kana === 'string' ? record.kana.trim() : '';
+			const samename = Array.isArray(record.samename)
+				? record.samename
+					.filter((value): value is string => typeof value === 'string')
+					.map((value) => value.trim())
+					.filter((value) => value.length > 0)
+				: [];
 			const score = typeof record.score === 'number' ? record.score : undefined;
-			items.push({ name, kana, score });
+			items.push({ name, kana, samename, score });
 		}
 		return items;
 	} catch (err) {
@@ -829,9 +853,11 @@ async function performSearch(keyword: string): Promise<void> {
 		const fuzzyItems = parseFuzzySearchItems(searchStationFuzzy(keyword, 50));
 		const enriched = fuzzyItems
 			.map((item) => {
-				const { kana, prefecture } = readStationMeta(item.name);
+				const displayName = buildSearchDisplayName(item.name, item.samename);
+				const { kana, prefecture } = readStationMeta(displayName);
 				return {
 					name: item.name,
+					displayName,
 					kana: item.kana && item.kana.length > 0 ? item.kana : kana,
 					prefecture,
 					score: item.score ?? 99
@@ -839,10 +865,10 @@ async function performSearch(keyword: string): Promise<void> {
 			})
 			.sort((a, b) => {
 				if (a.score !== b.score) return a.score - b.score;
-				return a.name.localeCompare(b.name, 'ja');
+				return a.displayName.localeCompare(b.displayName, 'ja');
 			})
 			.slice(0, 50)
-			.map(({ name, kana, prefecture }) => ({ name, kana, prefecture }));
+			.map(({ name, displayName, kana, prefecture }) => ({ name, displayName, kana, prefecture }));
 		if (token === searchToken) {
 			searchResults = enriched;
 		}
@@ -1032,11 +1058,11 @@ function scrollToBottom(): void {
 							<button
 								type="button"
 								class="list-item station"
-								aria-label={result.name}
-								onclick={() => handleStationSelect(result.name)}
+								aria-label={result.displayName}
+								onclick={() => handleStationSelect(result.displayName)}
 							>
-								<span class="primary">{result.name}</span>
-								<span class="secondary">{result.kana} ({result.prefecture || '不明'})</span>
+								<span class="primary">{result.displayName}</span>
+								<span class="secondary">（{result.kana || 'よみ不明'}） ({result.prefecture || '不明'})</span>
 							</button>
 						</li>
 					{/each}
