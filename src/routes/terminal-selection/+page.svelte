@@ -1080,7 +1080,7 @@ function scrollToBottom(): void {
 								<button
 									type="button"
 									class="list-item station"
-									aria-label={station}
+									aria-label={stationListMeta[station]?.name ?? station}
 									onclick={() => handleStationSelect(station)}
 								>
 									<span class="primary">{stationListMeta[station]?.name ?? station}</span>
@@ -1132,7 +1132,7 @@ function scrollToBottom(): void {
 									<button
 										type="button"
 										class="list-item station"
-										aria-label={station}
+										aria-label={stationListMeta[station]?.name ?? station}
 										onclick={() => handleStationSelect(station)}
 									>
 										<span class="primary">{stationListMeta[station]?.name ?? station}</span>
