@@ -13,17 +13,58 @@ interface StationDisplayDeps {
 
 export function normalizeStationName(raw: string): string {
 	const trimmed = raw.trim();
-	return trimmed.replace(/[（(][^（）()]*[）)]$/g, '').trim();
+	const suffixStart = findTrailingSuffixStart(trimmed);
+	if (suffixStart === null) {
+		return trimmed.replace(/[（(][^（）()]*[）)]$/g, '').trim();
+	}
+	return trimmed.slice(0, suffixStart).trim();
+}
+
+export function buildStationDisplayName(name: string, rawSuffix?: string): string {
+	const base = normalizeStationName(name);
+	const suffix = formatSamenameSuffix(rawSuffix ?? '');
+	return suffix ? `${base}${suffix}` : base;
 }
 
 function hasSamenameSuffix(raw: string): boolean {
-	return /[（(][^（）()]*[）)]$/.test(raw.trim());
+	return findTrailingSuffixStart(raw.trim()) !== null;
 }
 
 function formatSamenameSuffix(raw: string): string {
+	const value = unwrapSamenameLabel(raw);
+	return value ? `(${value})` : '';
+}
+
+function unwrapSamenameLabel(raw: string): string {
 	const trimmed = raw.trim();
 	if (!trimmed) return '';
-	return trimmed.startsWith('(') || trimmed.startsWith('（') ? trimmed : `(${trimmed})`;
+	let value = trimmed;
+	while (
+		(value.startsWith('(') || value.startsWith('（'))
+		&& (value.endsWith(')') || value.endsWith('）'))
+	) {
+		value = value.slice(1, -1).trim();
+	}
+	return value;
+}
+
+function findTrailingSuffixStart(raw: string): number | null {
+	const trimmed = raw.trim();
+	if (!trimmed.endsWith(')') && !trimmed.endsWith('）')) return null;
+	const normalized = trimmed.replaceAll('（', '(').replaceAll('）', ')');
+	let depth = 0;
+	for (let i = normalized.length - 1; i >= 0; i -= 1) {
+		const char = normalized[i];
+		if (char === ')') {
+			depth += 1;
+			continue;
+		}
+		if (char === '(') {
+			depth -= 1;
+			if (depth === 0) return i;
+		}
+	}
+	return null;
 }
 
 function dedupe(values: string[]): string[] {
@@ -107,12 +148,14 @@ function resolveDisplayNames(
 	for (const station of stations) {
 		if (map[station] !== undefined) continue;
 		if (hasSamenameSuffix(station)) {
-			map[station] = station;
+			const suffixStart = findTrailingSuffixStart(station.trim());
+			const rawSuffix = suffixStart === null ? '' : station.trim().slice(suffixStart);
+			map[station] = buildStationDisplayName(station, rawSuffix);
 			continue;
 		}
 		const base = normalizeStationName(station);
 		const suffix = sameNameByBase[base] ?? '';
-		map[station] = suffix ? `${base}${suffix}` : station;
+		map[station] = suffix ? buildStationDisplayName(base, suffix) : station;
 	}
 
 	return map;

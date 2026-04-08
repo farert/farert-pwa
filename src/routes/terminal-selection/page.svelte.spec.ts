@@ -627,7 +627,7 @@ describe('/terminal-selection/+page.svelte', () => {
 			if (keyword === 'かしわ') {
 				return JSON.stringify({
 					results: [
-						{ name: '柏原', kana: 'かしわばら', samename: ['東'], score: 0 },
+						{ name: '柏原', kana: 'かしわばら', samename: ['((東))'], score: 0 },
 						{ name: '柏原', kana: 'かしわら', samename: ['関'], score: 1 }
 					]
 				});
