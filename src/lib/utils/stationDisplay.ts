@@ -26,6 +26,14 @@ export function buildStationDisplayName(name: string, rawSuffix?: string): strin
 	return suffix ? `${base}${suffix}` : base;
 }
 
+export function buildStationDisplayNameFromCandidates(
+	name: string,
+	rawSuffixes?: string[]
+): string {
+	const suffix = rawSuffixes?.find((value) => value.trim().length > 0) ?? '';
+	return buildStationDisplayName(name, suffix);
+}
+
 function hasSamenameSuffix(raw: string): boolean {
 	return findTrailingSuffixStart(raw.trim()) !== null;
 }

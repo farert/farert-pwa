@@ -28,7 +28,11 @@ import {
 	scrollPageToBottom,
 	scrollPageToTop
 } from '$lib/utils/responsiveLayout';
-import { buildStationDisplayMeta, buildStationDisplayName, normalizeStationName } from '$lib/utils/stationDisplay';
+import {
+	buildStationDisplayMeta,
+	buildStationDisplayNameFromCandidates,
+	normalizeStationName
+} from '$lib/utils/stationDisplay';
 import type { FaretClass } from '$lib/wasm/types';
 
 type Tab = 'group' | 'prefecture' | 'history';
@@ -814,8 +818,7 @@ function readStationMeta(station: string): SearchMeta {
 }
 
 function buildSearchDisplayName(name: string, samename?: string[]): string {
-	const suffix = samename?.find((value) => value.trim().length > 0) ?? '';
-	return buildStationDisplayName(name, suffix);
+	return buildStationDisplayNameFromCandidates(name, samename);
 }
 
 function parseFuzzySearchItems(payload: string): FuzzySearchItem[] {

@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { buildStationDisplayMeta, buildStationDisplayName, normalizeStationName } from './stationDisplay';
+import {
+	buildStationDisplayMeta,
+	buildStationDisplayName,
+	buildStationDisplayNameFromCandidates,
+	normalizeStationName
+} from './stationDisplay';
 
 describe('stationDisplay', () => {
 	it('normalizes nested station suffix parentheses to the base station name', () => {
@@ -62,5 +67,6 @@ describe('stationDisplay', () => {
 	it('builds search display names with normalized suffix parentheses', () => {
 		expect(buildStationDisplayName('追分', '((奥))')).toBe('追分(奥)');
 		expect(buildStationDisplayName('追分((奥))', '((奥))')).toBe('追分(奥)');
+		expect(buildStationDisplayNameFromCandidates('柏原', ['', '((東))'])).toBe('柏原(東)');
 	});
 });
