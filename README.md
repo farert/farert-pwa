@@ -1,4 +1,4 @@
-# トライアル中）経路運賃営業キロ計算アプリ Farert　PWA版
+# 経路運賃営業キロ計算アプリ Farert Web版
 
 ## すぐ使ってみたい
 
@@ -10,6 +10,14 @@
 - [farert](https://github.com/farert/farert): Android, iOS, macOS, Windows, database すべてのソースが格納（Active)(下図-左)
 - [farert-wasm](https://github.com/farert/farert-wasm): WebAssembly. [farert](https://github.com/farert/farert)の[コアロジック](https://github.com/farert/farert/tree/main/app/alps)に依存しています（参照しています)(Active-ほぼ確)
 - [farert-pwa](https://github.com/farert/farert-pwa): このリポジトリで、[farert-wasm](https://github.com/farert/farert-wasm) に依存します。(下図-右)
+
+このリポジトリは Farert の **Web版** です。実装方式としては **SPA** で構成し、配布・利用形態としては **PWA** として提供します。
+
+- **Web版**: ブラウザで利用する Farert の配布形態を指します。
+- **SPA**: SvelteKit で構成したクライアントサイド中心の画面遷移方式を指します。
+- **PWA**: Service Worker とキャッシュを使い、ホーム画面追加やオフライン利用に対応する配布形態を指します。
+
+初回起動または必要アセットの未キャッシュ時を除き、起動後の画面遷移と主要操作はオフラインで継続利用できます。
 
 <table>
 <tr>
@@ -188,11 +196,11 @@ farert-pwa/
 
 ## 技術スタック
 
-- **SvelteKit**: SPAモード
+- **SvelteKit**: Web版 UI の実装基盤（SPA構成）
 - **TypeScript**: strict モード
 - **Tailwind CSS v4**: スタイリング
 - **WASM**: 運賃計算エンジン (farert-wasm)
-- **PWA**: オフライン対応
+- **PWA**: Service Worker による配布とオフライン対応
 
 ## 開発ガイド
 
