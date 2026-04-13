@@ -28,7 +28,7 @@ describe('/version/+page.svelte', () => {
 		);
 	});
 
-	it('renders app version and db info', async () => {
+	it('renders app version, db info, and change history link', async () => {
 		render(VersionPage);
 
 		await expect.element(page.getByText(/Farert /i)).toBeInTheDocument();
@@ -38,5 +38,19 @@ describe('/version/+page.svelte', () => {
 			.toBeInTheDocument();
 		await expect.element(page.getByText('DB Rev. [2023年10月改正] (2023-10-01)')).toBeInTheDocument();
 		await expect.element(page.getByText('消費税: 10%')).toBeInTheDocument();
+		await expect
+			.element(page.getByRole('link', { name: '変更履歴' }))
+			.toHaveAttribute('href', 'https://github.com/farert/farert-pwa/commits/main/');
+		await expect.element(page.getByRole('link', { name: 'README.md' })).toHaveClass(/doc-link/);
+		await expect.element(page.getByRole('link', { name: 'LICENSE' })).toHaveClass(/doc-link/);
+		await expect.element(page.getByRole('link', { name: '変更履歴' })).toHaveClass(/doc-link/);
+	});
+
+	it('falls back to inferred tax rate when databaseInfo does not include tax', async () => {
+		databaseInfoMock.mockReturnValue(JSON.stringify({ dbName: '2017', createdate: '2017-03-14 12:43:43' }));
+
+		render(VersionPage);
+
+		await expect.element(page.getByText('消費税: 8%')).toBeInTheDocument();
 	});
 });

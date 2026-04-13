@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-import { base } from '$app/paths';
+	import { base } from '$app/paths';
 	import { onMount } from 'svelte';
 	import { initFarert, databaseInfo } from '$lib/wasm';
 	import { APP_VERSION, BUILD_AT, GIT_COMMIT_AT, GIT_SHA } from '$lib/version';
@@ -14,6 +14,25 @@ import { base } from '$app/paths';
 		createDate: string;
 		tax: number | null;
 	}
+
+	type DatabaseInfoPayload = {
+		dbName?: string;
+		createdate?: string;
+		tax?: number | string;
+		taxValue?: number | string;
+		name?: string;
+		create_date?: string;
+		createdbdate?: string;
+		dbverInf?: {
+			dbName?: string;
+			createdate?: string;
+			name?: string;
+			create_date?: string;
+			createdbdate?: string;
+			tax?: number | string;
+			taxValue?: number | string;
+		};
+	};
 
 	let loading = $state(true);
 	let error = $state('');
@@ -43,15 +62,7 @@ import { base } from '$app/paths';
 	function parseDatabaseInfo(raw: unknown): DbMeta {
 		if (typeof raw !== 'string') return { name: '', createDate: '', tax: null };
 		try {
-			const parsed = JSON.parse(raw) as {
-				dbName?: string;
-				createdate?: string;
-				tax?: number;
-				name?: string;
-				create_date?: string;
-				createdbdate?: string;
-				dbverInf?: { dbName?: string; createdate?: string; name?: string; create_date?: string; createdbdate?: string; tax?: number };
-			};
+			const parsed = JSON.parse(raw) as DatabaseInfoPayload;
 			const name =
 				parsed.dbName ??
 				parsed.dbverInf?.dbName ??
@@ -66,7 +77,12 @@ import { base } from '$app/paths';
 				parsed.dbverInf?.createdbdate ??
 				parsed.dbverInf?.create_date ??
 				'';
-			const rawTax = parsed.tax ?? parsed.dbverInf?.tax ?? null;
+			const rawTax =
+				parsed.tax ??
+				parsed.dbverInf?.tax ??
+				parsed.taxValue ??
+				parsed.dbverInf?.taxValue ??
+				inferTaxFromDbMeta(name, createDate);
 			const tax =
 				typeof rawTax === 'number'
 					? rawTax
@@ -78,6 +94,23 @@ import { base } from '$app/paths';
 			console.warn('DB情報の解析に失敗しました', err);
 			return { name: '', createDate: '', tax: null };
 		}
+	}
+
+	function inferTaxFromDbMeta(name: string, createDate: string): number | null {
+		const normalizedName = name.trim();
+		const yearMatch = normalizedName.match(/\b(20\d{2})\b/);
+		if (yearMatch) {
+			const year = Number(yearMatch[1]);
+			if (year <= 2014) return 5;
+			if (year <= 2018) return 8;
+			return 10;
+		}
+
+		const timestamp = Date.parse(createDate.replace(' ', 'T'));
+		if (Number.isNaN(timestamp)) return null;
+		if (timestamp < Date.parse('2014-04-01T00:00:00+09:00')) return 5;
+		if (timestamp < Date.parse('2019-10-01T00:00:00+09:00')) return 8;
+		return 10;
 	}
 
 	function openSupport(): void {
@@ -223,6 +256,7 @@ import { base } from '$app/paths';
 				複製・2次使用は許可なく利用できますが、アプリにより発生したあらゆる損害は作者は負いません。<br />
 				免責・ライセンスの詳細は
 				<a
+					class="doc-link"
 					href="https://github.com/farert/farert-pwa/blob/main/README.md"
 					target="_blank"
 					rel="noopener noreferrer"
@@ -230,10 +264,25 @@ import { base } from '$app/paths';
 					README.md
 				</a>
 				の「免責・利用上の注意」と
-				<a href="https://github.com/farert/farert-pwa/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">
+				<a
+					class="doc-link"
+					href="https://github.com/farert/farert-pwa/blob/main/LICENSE"
+					target="_blank"
+					rel="noopener noreferrer"
+				>
 					<code>LICENSE</code>
 				</a>
 				をご確認ください。  
+			</p>
+			<p>
+				<a
+					class="doc-link"
+					href="https://github.com/farert/farert-pwa/commits/main/"
+					target="_blank"
+					rel="noopener noreferrer"
+				>
+					変更履歴
+				</a>
 			</p>
 		</section>
 
@@ -337,6 +386,17 @@ import { base } from '$app/paths';
 		color: var(--text-main);
 		font-size: 0.95rem;
 		line-height: 1.6;
+	}
+
+	.doc-link {
+		color: var(--link, #2563eb);
+		text-decoration: underline;
+		text-decoration-thickness: 1px;
+		text-underline-offset: 2px;
+	}
+
+	.doc-link code {
+		color: inherit;
 	}
 
 	.link-button {

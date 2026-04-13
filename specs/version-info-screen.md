@@ -21,6 +21,7 @@
 - 著作権表示
 - 免責・ライセンス案内
 - README / LICENSE へのリンク
+- 変更履歴へのリンク
 - サポートサイト URL
 - 更新確認ボタン
 - 閉じるボタン
@@ -29,6 +30,7 @@
 - 初回表示時に `initFarert()` 後、`databaseInfo()` を取得する。
 - 取得値は `parseDatabaseInfo()` で吸収する。
 - DB 名称や作成日は `dbName` / `name` / `create_date` / `createdate` など複数キー候補から読み取る。
+- 消費税率は `tax` を優先し、未返却時は DB 名称または作成日から 5% / 8% / 10% を補完する。
 - ビルド情報は `src/lib/version.ts` に埋め込まれた `APP_VERSION`, `BUILD_AT`, `GIT_COMMIT_AT`, `GIT_SHA` を使う。
 
 ## 更新確認フロー
@@ -48,4 +50,6 @@
 ## 外部導線
 - サポートサイトは別タブで開く。
 - README / LICENSE は GitHub 上の文書へ遷移する。
+- 変更履歴は `https://github.com/farert/farert-pwa/commits/main/` へ遷移する。
+- README / LICENSE / 変更履歴リンクは通常リンクと分かる視覚表現にする。
 - 閉じる操作は `/` に戻る。
