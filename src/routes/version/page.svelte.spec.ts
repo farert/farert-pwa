@@ -46,11 +46,13 @@ describe('/version/+page.svelte', () => {
 		await expect.element(page.getByRole('link', { name: '変更履歴' })).toHaveClass(/doc-link/);
 	});
 
-	it('falls back to inferred tax rate when databaseInfo does not include tax', async () => {
-		databaseInfoMock.mockReturnValue(JSON.stringify({ dbName: '2017', createdate: '2017-03-14 12:43:43' }));
+	it('renders tax rate from runtime database info payload', async () => {
+		databaseInfoMock.mockReturnValue(
+			JSON.stringify({ dbName: '2025', createdate: '2025-11-12 13:11:18', tax: 10 })
+		);
 
 		render(VersionPage);
 
-		await expect.element(page.getByText('消費税: 8%')).toBeInTheDocument();
+		await expect.element(page.getByText('消費税: 10%')).toBeInTheDocument();
 	});
 });

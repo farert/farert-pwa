@@ -19,7 +19,6 @@
 		dbName?: string;
 		createdate?: string;
 		tax?: number | string;
-		taxValue?: number | string;
 		name?: string;
 		create_date?: string;
 		createdbdate?: string;
@@ -30,7 +29,6 @@
 			create_date?: string;
 			createdbdate?: string;
 			tax?: number | string;
-			taxValue?: number | string;
 		};
 	};
 
@@ -80,9 +78,7 @@
 			const rawTax =
 				parsed.tax ??
 				parsed.dbverInf?.tax ??
-				parsed.taxValue ??
-				parsed.dbverInf?.taxValue ??
-				inferTaxFromDbMeta(name, createDate);
+				null;
 			const tax =
 				typeof rawTax === 'number'
 					? rawTax
@@ -94,23 +90,6 @@
 			console.warn('DB情報の解析に失敗しました', err);
 			return { name: '', createDate: '', tax: null };
 		}
-	}
-
-	function inferTaxFromDbMeta(name: string, createDate: string): number | null {
-		const normalizedName = name.trim();
-		const yearMatch = normalizedName.match(/\b(20\d{2})\b/);
-		if (yearMatch) {
-			const year = Number(yearMatch[1]);
-			if (year <= 2014) return 5;
-			if (year <= 2018) return 8;
-			return 10;
-		}
-
-		const timestamp = Date.parse(createDate.replace(' ', 'T'));
-		if (Number.isNaN(timestamp)) return null;
-		if (timestamp < Date.parse('2014-04-01T00:00:00+09:00')) return 5;
-		if (timestamp < Date.parse('2019-10-01T00:00:00+09:00')) return 8;
-		return 10;
 	}
 
 	function openSupport(): void {

@@ -30,7 +30,7 @@
 - 初回表示時に `initFarert()` 後、`databaseInfo()` を取得する。
 - 取得値は `parseDatabaseInfo()` で吸収する。
 - DB 名称や作成日は `dbName` / `name` / `create_date` / `createdate` など複数キー候補から読み取る。
-- 消費税率は `tax` を優先し、未返却時は DB 名称または作成日から 5% / 8% / 10% を補完する。
+- 消費税率は `databaseInfo()` が返す実行時税率 `tax` を表示する。
 - ビルド情報は `src/lib/version.ts` に埋め込まれた `APP_VERSION`, `BUILD_AT`, `GIT_COMMIT_AT`, `GIT_SHA` を使う。
 
 ## 更新確認フロー
