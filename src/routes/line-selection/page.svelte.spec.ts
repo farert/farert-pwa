@@ -18,6 +18,7 @@ const wasmApi = {
 	getBranchStationsByLine: vi.fn<[string, string], string>(),
 	getStationsByLine: vi.fn<[string], string>(),
 	getKanaByStation: vi.fn<[string], string>(),
+	getPrefectureByStation: vi.fn<[string], string>(),
 	executeSql: vi.fn<[string], string>()
 };
 
@@ -29,6 +30,7 @@ vi.mock('$lib/wasm', () => ({
 		wasmApi.getBranchStationsByLine(line, station),
 	getStationsByLine: (line: string) => wasmApi.getStationsByLine(line),
 	getKanaByStation: (station: string) => wasmApi.getKanaByStation(station),
+	getPrefectureByStation: (station: string) => wasmApi.getPrefectureByStation(station),
 	getLinesByStation: (station: string) => wasmApi.getLinesByStation(station),
 	executeSql: (sql: string) => wasmApi.executeSql(sql)
 }));
@@ -51,8 +53,10 @@ describe('/line-selection/+page.svelte', () => {
 		wasmApi.getBranchStationsByLine.mockReset();
 		wasmApi.getStationsByLine.mockReset();
 		wasmApi.getKanaByStation.mockReset();
+		wasmApi.getPrefectureByStation.mockReset();
 		wasmApi.executeSql.mockReset();
 		wasmApi.executeSql.mockReturnValue('{"columns":["samename"],"rows":[],"rowCount":0}');
+		wasmApi.getPrefectureByStation.mockReturnValue('岩手県');
 		mainRouteStore.set(null);
 	});
 
