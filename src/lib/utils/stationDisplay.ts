@@ -2,12 +2,14 @@ export interface StationDisplayMeta {
 	name: string;
 	kana: string;
 	lines: string[];
+	prefecture: string;
 }
 
 interface StationDisplayDeps {
 	executeSql?: ((sql: string) => string) | null;
 	getKanaByStation: (station: string) => string;
 	getLinesByStation: (station: string) => string;
+	getPrefectureByStation?: (station: string) => string;
 	parseList: (raw: string) => string[];
 }
 
@@ -182,6 +184,7 @@ export function buildStationDisplayMeta(
 		const normalized = normalizeStationName(displayName);
 		let kana = '';
 		let lines: string[] = [];
+		let prefecture = '';
 
 		try {
 			kana = (deps.getKanaByStation(displayName) ?? '').trim();
@@ -209,7 +212,22 @@ export function buildStationDisplayMeta(
 			}
 		}
 
-		info[station] = { name: displayName, kana, lines };
+		if (deps.getPrefectureByStation) {
+			try {
+				prefecture = (deps.getPrefectureByStation(displayName) ?? '').trim();
+			} catch {
+				prefecture = '';
+			}
+			if (!prefecture && normalized !== displayName) {
+				try {
+					prefecture = (deps.getPrefectureByStation(normalized) ?? '').trim();
+				} catch {
+					prefecture = '';
+				}
+			}
+		}
+
+		info[station] = { name: displayName, kana, lines, prefecture };
 	}
 
 	return info;

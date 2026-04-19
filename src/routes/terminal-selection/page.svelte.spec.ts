@@ -564,8 +564,9 @@ describe('/terminal-selection/+page.svelte', () => {
 		const tokyoButton = page.getByRole('button', { name: /^東京$/ });
 		await expect.element(tokyoButton).toBeInTheDocument();
 
-		const kanaText = page.getByText('（東京かな） (宮城県)');
+		const kanaText = page.getByText('（東京かな）');
 		await expect.element(kanaText).toBeInTheDocument();
+		await expect.element(page.getByTestId('search-result-prefecture-東京')).toHaveTextContent('宮城県');
 
 		const clearButton = page.getByRole('button', { name: '検索をクリア' });
 		await clearButton.click();
@@ -653,8 +654,10 @@ describe('/terminal-selection/+page.svelte', () => {
 
 		await expect.element(page.getByRole('button', { name: '柏原(東)' })).toBeInTheDocument();
 		await expect.element(page.getByRole('button', { name: '柏原(関)' })).toBeInTheDocument();
-		await expect.element(page.getByText('（かしわばら） (滋賀県)')).toBeInTheDocument();
-		await expect.element(page.getByText('（かしわら） (大阪府)')).toBeInTheDocument();
+		await expect.element(page.getByText('（かしわばら）')).toBeInTheDocument();
+		await expect.element(page.getByText('（かしわら）')).toBeInTheDocument();
+		await expect.element(page.getByTestId('search-result-prefecture-柏原(東)')).toHaveTextContent('滋賀県');
+		await expect.element(page.getByTestId('search-result-prefecture-柏原(関)')).toHaveTextContent('大阪府');
 
 		await page.getByRole('button', { name: '柏原(東)' }).click();
 
@@ -752,6 +755,14 @@ describe('/terminal-selection/+page.svelte', () => {
 			if (station === '千歳') return JSON.stringify([]);
 			return JSON.stringify(['仙山線']);
 		});
+		wasmApi.getPrefectureByStation.mockImplementation((station: string) => {
+			if (station === '愛子') return '宮城県';
+			if (station === '追分(室)') return '秋田県';
+			if (station === '追分') return '';
+			if (station === '千歳(千)') return '北海道';
+			if (station === '千歳') return '';
+			return '宮城県';
+		});
 		wasmApi.executeSql.mockImplementation((sql: string) => {
 			if (sql.includes("t.name='追分'") && sql.includes("ln.name='仙山線'")) {
 				return JSON.stringify({ columns: ['samename'], rows: [], rowCount: 0 });
@@ -776,12 +787,39 @@ describe('/terminal-selection/+page.svelte', () => {
 
 		await expect.element(page.getByRole('button', { name: '愛子' })).toBeInTheDocument();
 		await expect.element(page.getByText('（あやし）')).toBeInTheDocument();
+		await expect.element(page.getByTestId('station-prefecture-愛子')).toHaveTextContent('宮城県');
 		await expect.element(page.getByRole('button', { name: '追分(室)' })).toBeInTheDocument();
 		await expect.element(page.getByText('（おいわけ）/室蘭線/石勝線')).toBeInTheDocument();
+		await expect.element(page.getByTestId('station-prefecture-追分')).toHaveTextContent('秋田県');
 		await expect.element(page.getByRole('button', { name: '千歳(千)' })).toBeInTheDocument();
 		await expect.element(page.getByText('（ちとせ）')).toBeInTheDocument();
 		expect(wasmApi.getLinesByStation).toHaveBeenCalledWith('追分(室)');
 		expect(wasmApi.getLinesByStation).toHaveBeenCalledWith('千歳(千)');
+	});
+
+	it('omits prefecture on consecutive station rows within the same prefecture', async () => {
+		wasmApi.getStationsByPrefectureAndLine.mockImplementation((prefecture: string, line: string) => {
+			if (prefecture === '宮城' && line === '仙山線') {
+				return JSON.stringify(['北仙台', '愛子', '山寺']);
+			}
+			return JSON.stringify([]);
+		});
+		wasmApi.getKanaByStation.mockImplementation((station: string) => `${station}かな`);
+		wasmApi.getLinesByStation.mockReturnValue(JSON.stringify(['仙山線']));
+		wasmApi.getPrefectureByStation.mockImplementation((station: string) => {
+			if (station === '山寺') return '山形県';
+			return '宮城県';
+		});
+
+		render(TerminalSelectionPage);
+
+		await page.getByRole('tab', { name: '都道府県' }).click();
+		await page.getByRole('button', { name: '宮城県' }).click();
+		await page.getByRole('button', { name: '仙山線' }).click();
+
+		await expect.element(page.getByTestId('station-prefecture-北仙台')).toHaveTextContent('宮城県');
+		await expect.element(page.getByTestId('station-prefecture-愛子')).toHaveTextContent('');
+		await expect.element(page.getByTestId('station-prefecture-山寺')).toHaveTextContent('山形県');
 	});
 
 	it('keeps showing lines even when prefecture filtering cannot inspect their stations', async () => {

@@ -55,6 +55,7 @@ interface StationListMeta {
 	name: string;
 	kana: string;
 	lines: string[];
+	prefecture: string;
 }
 
 interface FuzzySearchItem {
@@ -601,11 +602,28 @@ function buildStationListMeta(stationNames: string[], currentLine: string): Reco
 		executeSql,
 		getKanaByStation,
 		getLinesByStation,
+		getPrefectureByStation,
 		parseList: (raw) =>
 			parseList(raw, '所属路線の取得に失敗しました', undefined, {
 				suppressError: true
 			})
 	});
+}
+
+function stationPrefecture(station: string, stationNames: string[], index: number): string {
+	const prefecture = stationListMeta[station]?.prefecture ?? '';
+	if (!prefecture) return '';
+	const previousStation = stationNames[index - 1];
+	if (!previousStation) return prefecture;
+	const previousPrefecture = stationListMeta[previousStation]?.prefecture ?? '';
+	return previousPrefecture === prefecture ? '' : prefecture;
+}
+
+function searchResultPrefecture(index: number): string {
+	const prefecture = searchResults[index]?.prefecture?.trim() ?? '';
+	if (!prefecture) return '';
+	const previousPrefecture = searchResults[index - 1]?.prefecture?.trim() ?? '';
+	return previousPrefecture === prefecture ? '' : prefecture;
 }
 
 function stationMetaText(station: string): string {
@@ -1056,7 +1074,7 @@ function scrollToBottom(): void {
 				<p class="placeholder">該当する駅がありません</p>
 			{:else}
 				<ul>
-					{#each searchResults as result}
+					{#each searchResults as result, index}
 						<li>
 							<button
 								type="button"
@@ -1064,8 +1082,17 @@ function scrollToBottom(): void {
 								aria-label={result.displayName}
 								onclick={() => handleStationSelect(result.displayName)}
 							>
-								<span class="primary">{result.displayName}</span>
-								<span class="secondary">（{result.kana || 'よみ不明'}） ({result.prefecture || '不明'})</span>
+								<span class="item-header">
+									<span class="primary">{result.displayName}</span>
+									<span
+										class="item-prefecture"
+										data-testid={`search-result-prefecture-${result.displayName}`}
+										aria-hidden="true"
+									>
+										{searchResultPrefecture(index)}
+									</span>
+								</span>
+								<span class="secondary">（{result.kana || 'よみ不明'}）</span>
 							</button>
 						</li>
 					{/each}
@@ -1078,7 +1105,7 @@ function scrollToBottom(): void {
 				<p class="placeholder">駅が見つかりません</p>
 			{:else}
 				<ul>
-					{#each stations as station}
+					{#each stations as station, index}
 						<li>
 								<button
 									type="button"
@@ -1086,7 +1113,16 @@ function scrollToBottom(): void {
 									aria-label={stationListMeta[station]?.name ?? station}
 									onclick={() => handleStationSelect(station)}
 								>
-									<span class="primary">{stationListMeta[station]?.name ?? station}</span>
+									<span class="item-header">
+										<span class="primary">{stationListMeta[station]?.name ?? station}</span>
+										<span
+											class="item-prefecture"
+											data-testid={`station-prefecture-${station}`}
+											aria-hidden="true"
+										>
+											{stationPrefecture(station, stations, index)}
+										</span>
+									</span>
 									{#if stationMetaText(station)}
 										<span class="secondary">{stationMetaText(station)}</span>
 									{/if}
@@ -1130,7 +1166,7 @@ function scrollToBottom(): void {
 					{:else}
 						<p class="split-station-title">{selectedLine}</p>
 						<ul>
-							{#each stations as station}
+							{#each stations as station, index}
 								<li>
 									<button
 										type="button"
@@ -1138,7 +1174,16 @@ function scrollToBottom(): void {
 										aria-label={stationListMeta[station]?.name ?? station}
 										onclick={() => handleStationSelect(station)}
 									>
-										<span class="primary">{stationListMeta[station]?.name ?? station}</span>
+										<span class="item-header">
+											<span class="primary">{stationListMeta[station]?.name ?? station}</span>
+											<span
+												class="item-prefecture"
+												data-testid={`station-prefecture-${station}`}
+												aria-hidden="true"
+											>
+												{stationPrefecture(station, stations, index)}
+											</span>
+										</span>
 										{#if stationMetaText(station)}
 											<span class="secondary">{stationMetaText(station)}</span>
 										{/if}
@@ -1557,6 +1602,13 @@ function scrollToBottom(): void {
 		background: var(--list-item-active);
 	}
 
+	.item-header {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 0.75rem;
+	}
+
 	.list-item.list-active {
 		background: var(--secondary-btn-bg);
 	}
@@ -1569,6 +1621,15 @@ function scrollToBottom(): void {
 	.secondary {
 		font-size: 0.85rem;
 		color: var(--text-sub);
+	}
+
+	.item-prefecture {
+		flex: 0 0 auto;
+		font-size: 0.78rem;
+		font-weight: 600;
+		color: var(--text-sub);
+		text-align: right;
+		min-height: 1.2em;
 	}
 
 	.placeholder {

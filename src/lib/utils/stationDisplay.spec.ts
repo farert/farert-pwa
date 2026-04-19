@@ -41,7 +41,8 @@ describe('stationDisplay', () => {
 		expect(info['追分']).toEqual({
 			name: '追分(奥)',
 			kana: 'おいわけ',
-			lines: ['奥羽本線']
+			lines: ['奥羽本線'],
+			prefecture: ''
 		});
 		expect(getKanaByStation).toHaveBeenCalledWith('追分(奥)');
 		expect(getLinesByStation).toHaveBeenCalledWith('追分(奥)');
@@ -60,7 +61,8 @@ describe('stationDisplay', () => {
 		expect(info['追分((奥))']).toEqual({
 			name: '追分(奥)',
 			kana: 'おいわけ',
-			lines: ['奥羽本線']
+			lines: ['奥羽本線'],
+			prefecture: ''
 		});
 	});
 
@@ -68,5 +70,28 @@ describe('stationDisplay', () => {
 		expect(buildStationDisplayName('追分', '((奥))')).toBe('追分(奥)');
 		expect(buildStationDisplayName('追分((奥))', '((奥))')).toBe('追分(奥)');
 		expect(buildStationDisplayNameFromCandidates('柏原', ['', '((東))'])).toBe('柏原(東)');
+	});
+
+	it('reads prefecture with display-name-first fallback to normalized station name', () => {
+		const info = buildStationDisplayMeta(['金山'], '東海道本線', {
+			executeSql: vi.fn(() =>
+				JSON.stringify({ columns: ['samename'], rows: [['中']], rowCount: 1 })
+			),
+			getKanaByStation: vi.fn(() => 'かなやま'),
+			getLinesByStation: vi.fn(() => JSON.stringify(['東海道本線'])),
+			getPrefectureByStation: vi.fn((station: string) => {
+				if (station === '金山(中)') return '';
+				if (station === '金山') return '愛知県';
+				return '';
+			}),
+			parseList: (payload: string) => JSON.parse(payload) as string[]
+		});
+
+		expect(info['金山']).toEqual({
+			name: '金山(中)',
+			kana: 'かなやま',
+			lines: ['東海道本線'],
+			prefecture: '愛知県'
+		});
 	});
 });

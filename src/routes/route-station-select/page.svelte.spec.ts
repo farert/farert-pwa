@@ -152,6 +152,7 @@ const wasmApi = {
 	getStationsByLine: vi.fn<[string], string>(),
 	getKanaByStation: vi.fn<[string], string>(),
 	getLinesByStation: vi.fn<[string], string>(),
+	getPrefectureByStation: vi.fn<[string], string>(),
 	executeSql: vi.fn<[string], string>()
 };
 
@@ -162,6 +163,7 @@ vi.mock('$lib/wasm', () => ({
 	getStationsByLine: (line: string) => wasmApi.getStationsByLine(line),
 	getKanaByStation: (station: string) => wasmApi.getKanaByStation(station),
 	getLinesByStation: (station: string) => wasmApi.getLinesByStation(station),
+	getPrefectureByStation: (station: string) => wasmApi.getPrefectureByStation(station),
 	executeSql: (sql: string) => wasmApi.executeSql(sql)
 }));
 
@@ -181,8 +183,10 @@ describe('/route-station-select/+page.svelte', () => {
 		wasmApi.getStationsByLine.mockReset();
 		wasmApi.getKanaByStation.mockReset();
 		wasmApi.getLinesByStation.mockReset();
+		wasmApi.getPrefectureByStation.mockReset();
 		wasmApi.executeSql.mockReset();
 		wasmApi.executeSql.mockReturnValue('{"columns":["samename"],"rows":[],"rowCount":0}');
+		wasmApi.getPrefectureByStation.mockReturnValue('岩手県');
 		mainRouteStore.set(null);
 	});
 
@@ -266,6 +270,25 @@ describe('/route-station-select/+page.svelte', () => {
 		await expect.element(stationMeta).toBeInTheDocument();
 		await expect.element(page.getByText('（北上かな）')).toBeInTheDocument();
 		expect(wasmApi.getLinesByStation).toHaveBeenCalledWith('水沢');
+	});
+
+	it('shows prefecture on the upper right and omits consecutive duplicates', async () => {
+		wasmApi.getBranchStationsByLine.mockReturnValue(JSON.stringify(['北上', '水沢', '一ノ関']));
+		wasmApi.getStationsByLine.mockReturnValue(JSON.stringify(['北上', '水沢', '一ノ関']));
+		wasmApi.getKanaByStation.mockImplementation((station: string) => `${station}かな`);
+		wasmApi.getLinesByStation.mockReturnValue(JSON.stringify(['東北本線']));
+		wasmApi.getPrefectureByStation.mockImplementation((station: string) => {
+			if (station === '一ノ関') return '宮城県';
+			return '岩手県';
+		});
+
+		render(RouteStationSelectPage, {
+			presetParams: { from: 'main', station: '北上', line: '東北本線' }
+		});
+
+		await expect.element(page.getByTestId('station-prefecture-北上')).toHaveTextContent('岩手県');
+		await expect.element(page.getByTestId('station-prefecture-水沢')).toHaveTextContent('');
+		await expect.element(page.getByTestId('station-prefecture-一ノ関')).toHaveTextContent('宮城県');
 	});
 
 	it('sorts branch stations by line order and inserts the route start station with prefix', async () => {

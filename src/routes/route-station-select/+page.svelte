@@ -9,6 +9,7 @@ import {
 	getStationsByLine,
 	getKanaByStation,
 	getLinesByStation,
+	getPrefectureByStation,
 	executeSql
 } from '$lib/wasm';
 import { mainRoute } from '$lib/stores';
@@ -30,6 +31,7 @@ interface StationMetaInfo {
 	name: string;
 	kana: string;
 	lines: string[];
+	prefecture: string;
 }
 
 let loading = $state(true);
@@ -183,8 +185,18 @@ function buildStationDetails(stations: string[], lineName: string): Record<strin
 		executeSql,
 		getKanaByStation,
 		getLinesByStation,
+		getPrefectureByStation,
 		parseList
 	});
+}
+
+function stationPrefecture(name: string, index: number): string {
+	const prefecture = stationDetails[name]?.prefecture ?? '';
+	if (!prefecture) return '';
+	const previousStation = visibleStations[index - 1];
+	if (!previousStation) return prefecture;
+	const previousPrefecture = stationDetails[previousStation]?.prefecture ?? '';
+	return previousPrefecture === prefecture ? '' : prefecture;
 }
 
 function toggleMode(): void {
@@ -312,7 +324,7 @@ function scrollToBottom(): void {
 						<p class="placeholder">駅が見つかりませんでした。</p>
 					{:else}
 						<ul class="station-list" data-testid="station-list">
-							{#each visibleStations as station (station)}
+							{#each visibleStations as station, index (station)}
 								<li>
 									<button
 										type="button"
@@ -322,11 +334,20 @@ function scrollToBottom(): void {
 										aria-disabled={isDisabledStation(station)}
 										onclick={() => handleSelectStation(station)}
 									>
-										<span class="station-name">
-											{#if params.from === 'main' && isStartStation(station)}
-												<span class="station-prefix">&lt;発駅&gt;</span>
-											{/if}
-											{stationDetails[station]?.name ?? station}
+										<span class="station-header">
+											<span class="station-name">
+												{#if params.from === 'main' && isStartStation(station)}
+													<span class="station-prefix">&lt;発駅&gt;</span>
+												{/if}
+												{stationDetails[station]?.name ?? station}
+											</span>
+											<span
+												class="station-prefecture"
+												data-testid={`station-prefecture-${station}`}
+												aria-hidden="true"
+											>
+												{stationPrefecture(station, index)}
+											</span>
 										</span>
 										{#if stationMeta(station)}
 											<span class="station-meta">{stationMeta(station)}</span>
@@ -462,10 +483,26 @@ function scrollToBottom(): void {
 		color: var(--text-main);
 	}
 
+	.station-header {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 0.75rem;
+	}
+
 	.station-prefix {
 		font-size: 0.78rem;
 		font-weight: 700;
 		color: var(--link);
+	}
+
+	.station-prefecture {
+		flex: 0 0 auto;
+		font-size: 0.78rem;
+		font-weight: 600;
+		color: var(--text-sub);
+		text-align: right;
+		min-height: 1.2em;
 	}
 
 	.station-meta {
