@@ -108,8 +108,8 @@ function loadStations(context: StationSelectionParams): void {
 		destinationStations = parseList(getStationsByLine(context.line));
 
 		if (context.from === 'main' && context.station) {
-			const startStation = routeRef?.departureStationName?.().trim() ?? '';
-			const branchBaseStation = startStation || context.station;
+			const routeStartStation = routeRef?.departureStationName?.().trim() ?? '';
+			const branchBaseStation = routeStartStation || context.station;
 			const rawBranches = parseList(
 				getBranchStationsByLine(context.line, branchBaseStation)
 			);
@@ -120,8 +120,8 @@ function loadStations(context: StationSelectionParams): void {
 				return true;
 			});
 			const candidates = [context.station, ...deduped];
-			if (startStation && destinationStations.includes(startStation)) {
-				candidates.push(startStation);
+			if (routeStartStation && destinationStations.includes(routeStartStation)) {
+				candidates.push(routeStartStation);
 			}
 			branchStations = sortStationsByLineOrder(candidates, destinationStations);
 		} else {

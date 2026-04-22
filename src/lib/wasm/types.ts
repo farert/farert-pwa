@@ -72,7 +72,7 @@ export interface FaretModule {
 	getKanaByStation: (stationName: string) => string;
 	searchStationByKeyword: (keyword: string) => string;
 	searchStationFuzzy?: (keyword: string, limit: number) => string;
-	getBranchStationsByLine: (lineName: string, stationName: string) => string;
+	getBranchStationsByLine: (lineName: string, includeStationName: string) => string;
 	getStationsByLine: (lineName: string) => string;
 
 	// Developer tools

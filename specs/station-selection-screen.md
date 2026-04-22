@@ -26,7 +26,7 @@
 
 ## データ取得
 - 路線上の全駅: `getStationsByLine(line)`
-- 分岐駅候補: `getBranchStationsByLine(line, station)`
+- 分岐駅候補: `getBranchStationsByLine(line, includeStationName)`
 - 駅かな: `getKanaByStation(station)`
 - 所属路線: `getLinesByStation(station)`
 - 同名駅補助情報:
@@ -80,19 +80,21 @@
 ## `from=main` のとき
 
 ### 分岐駅モード
-- `mainRoute` の発駅または現在駅を基準に `getBranchStationsByLine()` を呼ぶ。
+- `getBranchStationsByLine()` の第2引数は、全体経路の開始駅、つまり `routeList` 先頭駅を渡す。
+- `mainRoute` の発駅を取得できない場合だけ、現在駅をフォールバックとして使う。
 - 現在駅をリスト先頭側に含める。
-- 発駅が同一路線上にある場合は候補に含める。
+- 発駅は分岐駅でなくても、同一路線上にある場合は候補に含める。
 - 全駅リスト順に並び替え、路線上の順序を保つ。
 
 ### 分岐駅候補の組み立て手順
 1. `destinationStations = getStationsByLine(line)` を取得する。
-2. `branchBaseStation = departureStationName() || params.station` とする。
-3. `getBranchStationsByLine(line, branchBaseStation)` を取得する。
-4. 分岐候補から空文字、`params.station` 自身、重複要素を除く。
-5. 候補列は `[params.station, ...dedupedBranches]` を基本とする。
-6. 発駅が `destinationStations` に含まれるときだけ末尾へ加える。
-7. 最終候補は `destinationStations` の出現順で安定ソートする。
+2. `routeStartStation = departureStationName()` を取得する。
+3. `branchBaseStation = routeStartStation || params.station` とする。
+4. `getBranchStationsByLine(line, branchBaseStation)` を取得する。
+5. 分岐候補から空文字、`params.station` 自身、重複要素を除く。
+6. 候補列は `[params.station, ...dedupedBranches]` を基本とする。
+7. 発駅が `destinationStations` に含まれるときだけ末尾へ加える。
+8. 最終候補は `destinationStations` の出現順で安定ソートする。
 
 ### 着駅モード
 - `getStationsByLine(line)` の全駅を表示する。

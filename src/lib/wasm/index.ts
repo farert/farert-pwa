@@ -312,8 +312,8 @@ export function searchStationFuzzy(keyword: string, limit = 50): string {
 	return module.searchStationByKeyword(keyword);
 }
 
-export function getBranchStationsByLine(lineName: string, stationName: string): string {
-	return getModule().getBranchStationsByLine(lineName, stationName);
+export function getBranchStationsByLine(lineName: string, includeStationName: string): string {
+	return getModule().getBranchStationsByLine(lineName, includeStationName);
 }
 
 export function getStationsByLine(lineName: string): string {
