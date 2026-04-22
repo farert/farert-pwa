@@ -648,4 +648,63 @@ it('hides fare summary card before route selection', async () => {
 		const picker = document.querySelector('select[aria-label="運賃タイプ選択"]');
 		expect((picker as HTMLSelectElement).value).toBe(FareType.NORMAL);
 	});
+
+	it('does not show stock discount x2 for non-Tokai shareholder discount routes', async () => {
+		MockFarert.defaultFareInfoJson = JSON.stringify({
+			fare: 10000,
+			totalSalesKm: 1200,
+			ticketAvailDays: 3,
+			stockDiscounts: [
+				{
+					stockDiscountTitle: 'JR東日本株主優待',
+					stockDiscountFare: 6000
+				}
+			]
+		});
+		const seededRoute = new MockFarert();
+		mainRouteStore.set(seededRoute);
+		ticketHolderStore.set([
+			{ order: 1, routeScript: '仙台,東北線,盛岡', fareType: FareType.NORMAL }
+		]);
+
+		render(Page);
+
+		await page.getByRole('button', { name: 'きっぷホルダ', exact: true }).click();
+
+		const picker = document.querySelector('select[aria-label="運賃タイプ選択"]');
+		expect(picker).not.toBeNull();
+		const optionValues = Array.from((picker as HTMLSelectElement).options).map(
+			(option) => option.value
+		);
+
+		expect(optionValues).toContain(FareType.STOCK_DISCOUNT);
+		expect(optionValues).not.toContain(FareType.STOCK_DISCOUNT_X2);
+	});
+
+	it('calculates Tokai stock discount x2 as 20 percent off the normal fare', async () => {
+		MockFarert.defaultFareInfoJson = JSON.stringify({
+			fare: 3810,
+			totalSalesKm: 1200,
+			ticketAvailDays: 3,
+			stockDiscounts: [
+				{
+					stockDiscountTitle: 'JR東海株主優待',
+					stockDiscountFare: 3400
+				}
+			]
+		});
+		const seededRoute = new MockFarert();
+		mainRouteStore.set(seededRoute);
+		ticketHolderStore.set([
+			{ order: 1, routeScript: '静岡,東海道線,名古屋', fareType: FareType.STOCK_DISCOUNT_X2 }
+		]);
+
+		render(Page);
+
+		await page.getByRole('button', { name: 'きっぷホルダ', exact: true }).click();
+
+		await expect.element(page.getByText('¥3,040')).toBeInTheDocument();
+		const picker = document.querySelector('select[aria-label="運賃タイプ選択"]');
+		expect((picker as HTMLSelectElement).value).toBe(FareType.STOCK_DISCOUNT_X2);
+	});
 });

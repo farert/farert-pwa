@@ -512,9 +512,9 @@ function handleUndo() {
 			case FareType.ROUND_TRIP:
 				return info.roundTripFareWithCompanyLine ?? 0;
 			case FareType.STOCK_DISCOUNT:
-				return info.stockDiscounts?.[0]?.stockDiscountFare ?? 0;
+				return resolvePrimaryStockDiscountFare(info);
 			case FareType.STOCK_DISCOUNT_X2:
-				return (info.stockDiscounts?.[0]?.stockDiscountFare ?? 0) * 2;
+				return resolveTokaiStockDiscountFareX2(info);
 			case FareType.STUDENT:
 				return info.academicFare ?? 0;
 			case FareType.STUDENT_ROUND_TRIP:
@@ -525,6 +525,26 @@ function handleUndo() {
 			default:
 				return info.fare ?? 0;
 		}
+	}
+
+	function resolvePrimaryStockDiscountFare(info: FareInfo): number {
+		const stock = (info.stockDiscounts ?? []).find(
+			(item) => (item?.stockDiscountFare ?? 0) > 0
+		);
+		return stock?.stockDiscountFare ?? 0;
+	}
+
+	function isTokaiStockDiscountTitle(title: string | undefined): boolean {
+		if (!title) return false;
+		return title.includes('JR東海');
+	}
+
+	function resolveTokaiStockDiscountFareX2(info: FareInfo): number {
+		const tokaiStock = (info.stockDiscounts ?? []).find((item) =>
+			isTokaiStockDiscountTitle(item?.stockDiscountTitle)
+		);
+		if (!tokaiStock || (info.fare ?? 0) <= 0) return 0;
+		return Math.floor((info.fare * 0.8) / 10) * 10;
 	}
 
 	function resolveAvailableFareTypes(info: FareInfo | null): FareType[] {
@@ -541,11 +561,18 @@ function handleUndo() {
 			available.push(FareType.ROUND_TRIP);
 		}
 
-		const hasStockDiscount = (info.stockDiscounts ?? []).some(
+		const stockDiscounts = info.stockDiscounts ?? [];
+		const hasStockDiscount = stockDiscounts.some(
 			(stock) => (stock?.stockDiscountFare ?? 0) > 0
 		);
 		if (hasStockDiscount) {
-			available.push(FareType.STOCK_DISCOUNT, FareType.STOCK_DISCOUNT_X2);
+			available.push(FareType.STOCK_DISCOUNT);
+		}
+		const hasTokaiStockDiscount = stockDiscounts.some((stock) =>
+			isTokaiStockDiscountTitle(stock?.stockDiscountTitle)
+		);
+		if (hasTokaiStockDiscount) {
+			available.push(FareType.STOCK_DISCOUNT_X2);
 		}
 
 		if (info.isAcademicFare && (info.academicFare ?? 0) > 0) {
