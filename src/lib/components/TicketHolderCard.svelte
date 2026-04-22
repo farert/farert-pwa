@@ -8,6 +8,8 @@
 		title,
 		fareText,
 		kmText,
+		availableFareTypes = [],
+		selectedFareType,
 		onSelect,
 		onDelete,
 		onFareTypeChange,
@@ -24,6 +26,8 @@
 		title: string;
 		fareText: string;
 		kmText: string;
+		availableFareTypes?: FareType[];
+		selectedFareType?: FareType;
 		onSelect?: () => void;
 		onDelete?: () => void;
 		onFareTypeChange?: (type: FareType) => void;
@@ -123,7 +127,11 @@
 	</header>
 
 	<div class="controls">
-		<FarePicker value={item.fareType} onChange={(type) => onFareTypeChange?.(type)} />
+		<FarePicker
+			value={selectedFareType ?? item.fareType}
+			availableTypes={availableFareTypes}
+			onChange={(type) => onFareTypeChange?.(type)}
+		/>
 		{#if showDelete}
 			<button type="button" class="icon-button" aria-label="削除" onclick={handleDelete}>
 				<span class="material-symbols-rounded" aria-hidden="true">delete</span>

@@ -40,12 +40,16 @@ let holderItems = $state<TicketHolderItem[]>([]);
 let holderView = $state<
 	{
 		key: string;
-		item: TicketHolderItem;
+		order: number;
+		routeScript: string;
+		fareType: FareType;
 		title: string;
 		fareText: string;
 		kmText: string;
 		fareValue: number;
 		kmValue: number;
+		availableFareTypes: FareType[];
+		selectedFareType: FareType;
 	}[]
 >([]);
 let info = $state('');
@@ -523,6 +527,43 @@ function handleUndo() {
 		}
 	}
 
+	function resolveAvailableFareTypes(info: FareInfo | null): FareType[] {
+		if (!info) {
+			return [FareType.NORMAL, FareType.DISABLED];
+		}
+
+		const available: FareType[] = [FareType.NORMAL];
+
+		if ((info.childFare ?? 0) > 0) {
+			available.push(FareType.CHILD);
+		}
+		if (info.isRoundtripDiscount || (info.roundTripFareWithCompanyLine ?? 0) > 0) {
+			available.push(FareType.ROUND_TRIP);
+		}
+
+		const hasStockDiscount = (info.stockDiscounts ?? []).some(
+			(stock) => (stock?.stockDiscountFare ?? 0) > 0
+		);
+		if (hasStockDiscount) {
+			available.push(FareType.STOCK_DISCOUNT, FareType.STOCK_DISCOUNT_X2);
+		}
+
+		if (info.isAcademicFare && (info.academicFare ?? 0) > 0) {
+			available.push(FareType.STUDENT);
+		}
+		if (info.isAcademicFare && (info.roundtripAcademicFare ?? 0) > 0) {
+			available.push(FareType.STUDENT_ROUND_TRIP);
+		}
+
+		available.push(FareType.DISABLED);
+		return available;
+	}
+
+	function resolveHolderFareType(info: FareInfo | null, fareType: FareType): FareType {
+		const available = resolveAvailableFareTypes(info);
+		return available.includes(fareType) ? fareType : FareType.NORMAL;
+	}
+
 	function deriveTitle(script: string): string {
 		const tokens = script.split(',').map((t) => t.trim()).filter(Boolean);
 		if (tokens.length >= 3) {
@@ -546,16 +587,22 @@ function handleUndo() {
 function updateHolderView(): void {
 		const views: {
 			key: string;
-			item: TicketHolderItem;
+			order: number;
+			routeScript: string;
+			fareType: FareType;
 			title: string;
 			fareText: string;
 			kmText: string;
 			fareValue: number;
 			kmValue: number;
+			availableFareTypes: FareType[];
+			selectedFareType: FareType;
 		}[] = [];
 		for (const [index, item] of holderItems.entries()) {
 			let fare = 0;
 			let km = 0;
+			let availableFareTypes: FareType[] = [FareType.NORMAL, FareType.DISABLED];
+			let selectedFareType = FareType.NORMAL;
 			try {
 				const tmp = new Farert();
 				const rc = tmp.buildRoute(item.routeScript);
@@ -566,7 +613,9 @@ function updateHolderView(): void {
 						console.warn('きっぷホルダ項目の運賃計算に失敗しました', err);
 					}
 					const info = parseFareInfoJson(tmp.getFareInfoObjectJson());
-					fare = parseFareForHolder(info, item.fareType);
+					availableFareTypes = resolveAvailableFareTypes(info);
+					selectedFareType = resolveHolderFareType(info, item.fareType);
+					fare = parseFareForHolder(info, selectedFareType);
 					km = info?.totalSalesKm ?? 0;
 				}
 			} catch (err) {
@@ -574,12 +623,16 @@ function updateHolderView(): void {
 			}
 			views.push({
 				key: String(item.order),
-				item,
+				order: item.order,
+				routeScript: item.routeScript,
+				fareType: item.fareType,
 				title: deriveTitle(item.routeScript),
 				fareText: formatFare(fare),
 				kmText: formatKm(km),
 				fareValue: fare,
-				kmValue: km
+				kmValue: km,
+				availableFareTypes,
+				selectedFareType
 			});
 		}
 		holderView = views;
@@ -636,8 +689,8 @@ function updateHolderView(): void {
 		});
 	}
 
-	async function handleHolderSelect(drawerItem: { item: TicketHolderItem }): Promise<void> {
-		const script = drawerItem.item.routeScript;
+	async function handleHolderSelect(drawerItem: TicketHolderItem): Promise<void> {
+		const script = drawerItem.routeScript;
 		if (!script) return;
 		if (shouldConfirmRouteOverwrite(script) && !(await confirmRouteOverwrite())) {
 			return;

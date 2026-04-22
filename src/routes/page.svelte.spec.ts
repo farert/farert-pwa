@@ -3,18 +3,21 @@ import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import LZString from 'lz-string';
 import { get, writable, type Writable } from 'svelte/store';
+import { FareType } from '$lib/types';
 import type { FaretClass } from '$lib/wasm/types';
 
 class MockFarert implements FaretClass {
-	script = '';
-	buildRouteResult = 1;
-	private osakaDetour = false;
-	private notSameKokura = false;
-	fareInfoJson = JSON.stringify({
+	static defaultFareInfoJson = JSON.stringify({
 		fare: 1520,
 		totalSalesKm: 1200,
 		ticketAvailDays: 3
 	});
+
+	script = '';
+	buildRouteResult = 1;
+	private osakaDetour = false;
+	private notSameKokura = false;
+	fareInfoJson = MockFarert.defaultFareInfoJson;
 
 	addStartRoute(station: string): number {
 		this.script = station;
@@ -216,6 +219,11 @@ const { default: Page } = await import('./+page.svelte');
 describe('/+page.svelte', () => {
 	beforeEach(() => {
 		vi.unstubAllGlobals();
+		MockFarert.defaultFareInfoJson = JSON.stringify({
+			fare: 1520,
+			totalSalesKm: 1200,
+			ticketAvailDays: 3
+		});
 		mainRouteStore.set(null);
 		mainScreenErrorMessageStore.set('');
 		ticketHolderStore.set([]);
@@ -588,5 +596,56 @@ it('hides fare summary card before route selection', async () => {
 		});
 
 		expect(childLabels).toEqual(['運賃タイプ選択', '削除']);
+	});
+
+	it('hides stock discount options in ticket holder picker when the route has no stock discount fare', async () => {
+		MockFarert.defaultFareInfoJson = JSON.stringify({
+			fare: 1520,
+			childFare: 760,
+			totalSalesKm: 1200,
+			ticketAvailDays: 3,
+			stockDiscounts: []
+		});
+		const seededRoute = new MockFarert();
+		mainRouteStore.set(seededRoute);
+		ticketHolderStore.set([
+			{ order: 1, routeScript: '仙台,東北線,盛岡', fareType: FareType.NORMAL }
+		]);
+
+		render(Page);
+
+		await page.getByRole('button', { name: 'きっぷホルダ', exact: true }).click();
+
+		const picker = document.querySelector('select[aria-label="運賃タイプ選択"]');
+		expect(picker).not.toBeNull();
+		const optionValues = Array.from((picker as HTMLSelectElement).options).map(
+			(option) => option.value
+		);
+
+		expect(optionValues).not.toContain(FareType.STOCK_DISCOUNT);
+		expect(optionValues).not.toContain(FareType.STOCK_DISCOUNT_X2);
+	});
+
+	it('falls back to normal fare when a stored ticket holder item has an unsupported stock discount type', async () => {
+		MockFarert.defaultFareInfoJson = JSON.stringify({
+			fare: 1520,
+			childFare: 760,
+			totalSalesKm: 1200,
+			ticketAvailDays: 3,
+			stockDiscounts: []
+		});
+		const seededRoute = new MockFarert();
+		mainRouteStore.set(seededRoute);
+		ticketHolderStore.set([
+			{ order: 1, routeScript: '仙台,東北線,盛岡', fareType: FareType.STOCK_DISCOUNT }
+		]);
+
+		render(Page);
+
+		await page.getByRole('button', { name: 'きっぷホルダ', exact: true }).click();
+
+		await expect.element(page.getByText('¥1,520')).toBeInTheDocument();
+		const picker = document.querySelector('select[aria-label="運賃タイプ選択"]');
+		expect((picker as HTMLSelectElement).value).toBe(FareType.NORMAL);
 	});
 });

@@ -10,6 +10,8 @@
 		kmText: string;
 		fareValue?: number;
 		kmValue?: number;
+		availableFareTypes?: FareType[];
+		selectedFareType?: FareType;
 	};
 
 let {
@@ -40,8 +42,8 @@ let {
 		canAdd?: boolean;
 	}>();
 
-	const totalFare = $derived(items.reduce((sum, item) => sum + (item.fareValue ?? 0), 0));
-	const totalKm = $derived(items.reduce((sum, item) => sum + (item.kmValue ?? 0), 0));
+	const totalFare = $derived(items.reduce((sum: number, item: DrawerItem) => sum + (item.fareValue ?? 0), 0));
+	const totalKm = $derived(items.reduce((sum: number, item: DrawerItem) => sum + (item.kmValue ?? 0), 0));
 	let draggingFromOrder = $state<number | null>(null);
 	let dropTargetOrder = $state<number | null>(null);
 	let dropTargetPosition = $state<'before' | 'after' | null>(null);
@@ -251,6 +253,8 @@ let {
 					title={item.title}
 					fareText={item.fareText}
 					kmText={item.kmText}
+					availableFareTypes={item.availableFareTypes}
+					selectedFareType={item.selectedFareType}
 					onSelect={() => onItemClick?.(item)}
 					onDelete={() => onItemDelete?.(parseOrder(item.key))}
 					onFareTypeChange={(fareType) => onFareTypeChange?.(parseOrder(item.key), fareType)}

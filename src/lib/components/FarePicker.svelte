@@ -1,8 +1,13 @@
 <script lang="ts">
 	import { FareType, FareTypeLabels } from '$lib/types';
 
-	let { value = FareType.NORMAL, onChange } = $props<{
+	let {
+		value = FareType.NORMAL,
+		availableTypes = Object.values(FareType) as FareType[],
+		onChange
+	} = $props<{
 		value?: FareType;
+		availableTypes?: FareType[];
 		onChange?: (fareType: FareType) => void;
 	}>();
 
@@ -15,6 +20,10 @@
 	function stopInteractionPropagation(event: Event): void {
 		event.stopPropagation();
 	}
+
+	function labelFor(type: FareType): string {
+		return FareTypeLabels[type];
+	}
 </script>
 
 <select
@@ -26,8 +35,8 @@
 	onfocusin={stopInteractionPropagation}
 	aria-label="運賃タイプ選択"
 >
-	{#each Object.values(FareType) as type}
-		<option value={type} selected={type === value}>{FareTypeLabels[type]}</option>
+	{#each availableTypes as type}
+		<option value={type} selected={type === value}>{labelFor(type)}</option>
 	{/each}
 </select>
 
