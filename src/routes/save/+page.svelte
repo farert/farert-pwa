@@ -8,6 +8,7 @@ import { initStores, mainRoute, savedRoutes, ticketHolder } from '$lib/stores';
 import type { FaretClass } from '$lib/wasm/types';
 import type { TicketHolderItem } from '$lib/types';
 import { getSerializedRouteScript } from '$lib/utils/routeScriptPersistence';
+import { restoreRouteFromScript } from '$lib/utils/urlRoute';
 
 type BuildRouteResult = {
 	rc: number;
@@ -240,9 +241,9 @@ type BuildRouteResult = {
 				const route = new Farert();
 				const lineNumber = lineIndex + 1;
 				try {
-					const result = route.buildRoute(candidate);
-					const parsed = parseBuildRouteResult(result);
-					if (!isBuildSuccessResult(parsed)) {
+					const restored = restoreRouteFromScript(route, candidate);
+					if (!restored) {
+						const parsed = parseBuildRouteResult(route.buildRoute(candidate));
 						failed += 1;
 						if (!lastErrorMessage) {
 							lastErrorMessage = formatImportError(parsed, lineNumber);
@@ -355,8 +356,9 @@ type BuildRouteResult = {
 			}
 	        try {
 	            const route = new Farert();
-	            const result = route.buildRoute(normalizedScript);
-            if (!isBuildSuccess(result)) {
+	            const restored = restoreRouteFromScript(route, normalizedScript);
+            if (!restored) {
+				const result = route.buildRoute(normalizedScript);
                 showError(`経路の復元に失敗しました (コード: ${result})`);
                 return;
             }

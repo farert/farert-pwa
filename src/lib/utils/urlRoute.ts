@@ -56,7 +56,7 @@ export function decompressRouteFromUrl(
 		}
 
 		const route = new RouteCtor();
-		const restored = restoreRouteStrict(route, script);
+		const restored = restoreRouteFromScript(route, script);
 		if (!restored) {
 			console.error('[URL_ROUTE] route.buildRouteが失敗しました。スクリプト:', script);
 			return null;
@@ -138,6 +138,10 @@ function normalizeBasePath(path: string | undefined): string {
 	const prefixed = path.startsWith('/') ? path : `/${path}`;
 	if (prefixed === '/') return '';
 	return prefixed.endsWith('/') ? prefixed.slice(0, -1) : prefixed;
+}
+
+export function restoreRouteFromScript(route: FaretClass, script: string): boolean {
+	return restoreRouteStrict(route, script);
 }
 
 function selectRouteScript(routeScript: string, segmentCount: number): string {

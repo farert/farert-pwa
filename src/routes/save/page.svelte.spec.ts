@@ -7,6 +7,7 @@ import type { FaretClass } from '$lib/wasm/types';
 class MockFarert implements FaretClass {
 	script = '';
 	static buildRouteMock = vi.fn<[string], number | string>(() => 0);
+	static addRouteMock = vi.fn<[string, string], number>(() => 0);
 
 	addStartRoute(station: string): number {
 		this.script = station;
@@ -14,6 +15,10 @@ class MockFarert implements FaretClass {
 	}
 
 	addRoute(line: string, station: string): number {
+		const result = MockFarert.addRouteMock(line, station);
+		if (result < 0) {
+			return result;
+		}
 		if (!this.script) {
 			this.script = station;
 		} else {
@@ -167,6 +172,8 @@ describe('/save/+page.svelte', () => {
 		initFarertMock.mockResolvedValue(undefined);
 		MockFarert.buildRouteMock.mockReset();
 		MockFarert.buildRouteMock.mockReturnValue(0);
+		MockFarert.addRouteMock.mockReset();
+		MockFarert.addRouteMock.mockReturnValue(0);
 		mainRouteStore.set(null);
 		savedRoutesStore.set([]);
 		ticketHolderStore.set([]);
@@ -326,6 +333,25 @@ describe('/save/+page.svelte', () => {
 	await expect.element(page.getByText('インポートしました。')).toBeInTheDocument();
 	});
 
+	it('インポート時に azusa が受理した省略経路を取り込める', async () => {
+		MockFarert.buildRouteMock.mockImplementation((routeStr: string) => {
+			if (routeStr === '長崎 西九州新幹線 諫早 長崎線 長与') {
+				return 0;
+			}
+			return 0;
+		});
+		render(SavePage);
+
+		await page.getByRole('button', { name: 'インポート' }).click();
+		const textArea = page.getByRole('textbox', { name: '経路テキスト' });
+		await textArea.fill('長崎 西九州新幹線 諫早 長崎線 長与');
+		await page.getByRole('button', { name: 'インポート実行', exact: true }).click();
+		await page.getByRole('button', { name: 'はい' }).click();
+
+		expect(get(savedRoutesStore)).toEqual(['長崎 西九州新幹線 諫早 長崎線 長与']);
+		await expect.element(page.getByText('インポートしました。')).toBeInTheDocument();
+	});
+
 	it('インポート時に確認ダイアログでいいえを選ぶと取り込まない', async () => {
 		render(SavePage);
 
@@ -340,7 +366,7 @@ describe('/save/+page.svelte', () => {
 	});
 
 	it('不正な経路は詳細を含むエラーメッセージを表示する', async () => {
-		MockFarert.buildRouteMock.mockReturnValueOnce('{"rc":-200,"failItem":"？？","offset":2}');
+		MockFarert.buildRouteMock.mockReturnValue('{"rc":-200,"failItem":"？？","offset":2}');
 		render(SavePage);
 
 	await page.getByRole('button', { name: 'インポート' }).click();
