@@ -512,9 +512,9 @@ function handleUndo() {
 			case FareType.ROUND_TRIP:
 				return info.roundTripFareWithCompanyLine ?? 0;
 			case FareType.STOCK_DISCOUNT:
-				return resolvePrimaryStockDiscountFare(info);
+				return resolveSingleStockDiscountFare(info);
 			case FareType.STOCK_DISCOUNT_X2:
-				return resolveTokaiStockDiscountFareX2(info);
+				return resolveTokaiDoubleStockDiscountFare(info);
 			case FareType.STUDENT:
 				return info.academicFare ?? 0;
 			case FareType.STUDENT_ROUND_TRIP:
@@ -527,24 +527,28 @@ function handleUndo() {
 		}
 	}
 
-	function resolvePrimaryStockDiscountFare(info: FareInfo): number {
-		const stock = (info.stockDiscounts ?? []).find(
-			(item) => (item?.stockDiscountFare ?? 0) > 0
-		);
+	function normalizeStockDiscountTitle(title: string | undefined): string {
+		return (title ?? '').replace(/\s+/g, '');
+	}
+
+	function resolveSingleStockDiscountFare(info: FareInfo): number {
+		const stock = (info.stockDiscounts ?? []).find((item) => {
+			const title = normalizeStockDiscountTitle(item?.stockDiscountTitle);
+			return (item?.stockDiscountFare ?? 0) > 0 && !title.includes('2割');
+		});
 		return stock?.stockDiscountFare ?? 0;
 	}
 
-	function isTokaiStockDiscountTitle(title: string | undefined): boolean {
-		if (!title) return false;
-		return title.includes('JR東海');
+	function isTokaiDoubleStockDiscountTitle(title: string | undefined): boolean {
+		const normalized = normalizeStockDiscountTitle(title);
+		return normalized.includes('JR東海') && normalized.includes('2割');
 	}
 
-	function resolveTokaiStockDiscountFareX2(info: FareInfo): number {
+	function resolveTokaiDoubleStockDiscountFare(info: FareInfo): number {
 		const tokaiStock = (info.stockDiscounts ?? []).find((item) =>
-			isTokaiStockDiscountTitle(item?.stockDiscountTitle)
+			isTokaiDoubleStockDiscountTitle(item?.stockDiscountTitle)
 		);
-		if (!tokaiStock || (info.fare ?? 0) <= 0) return 0;
-		return Math.floor((info.fare * 0.8) / 10) * 10;
+		return tokaiStock?.stockDiscountFare ?? 0;
 	}
 
 	function resolveAvailableFareTypes(info: FareInfo | null): FareType[] {
@@ -569,7 +573,7 @@ function handleUndo() {
 			available.push(FareType.STOCK_DISCOUNT);
 		}
 		const hasTokaiStockDiscount = stockDiscounts.some((stock) =>
-			isTokaiStockDiscountTitle(stock?.stockDiscountTitle)
+			isTokaiDoubleStockDiscountTitle(stock?.stockDiscountTitle)
 		);
 		if (hasTokaiStockDiscount) {
 			available.push(FareType.STOCK_DISCOUNT_X2);

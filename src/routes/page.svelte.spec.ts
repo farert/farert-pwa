@@ -690,6 +690,10 @@ it('hides fare summary card before route selection', async () => {
 				{
 					stockDiscountTitle: 'JR東海株主優待',
 					stockDiscountFare: 3400
+				},
+				{
+					stockDiscountTitle: 'JR東海株主優待2割',
+					stockDiscountFare: 3040
 				}
 			]
 		});
@@ -706,5 +710,36 @@ it('hides fare summary card before route selection', async () => {
 		await expect.element(page.getByText('¥3,040')).toBeInTheDocument();
 		const picker = document.querySelector('select[aria-label="運賃タイプ選択"]');
 		expect((picker as HTMLSelectElement).value).toBe(FareType.STOCK_DISCOUNT_X2);
+	});
+
+	it('uses the non-double stock discount fare for the regular stock discount option on Tokai routes', async () => {
+		MockFarert.defaultFareInfoJson = JSON.stringify({
+			fare: 1980,
+			totalSalesKm: 1200,
+			ticketAvailDays: 3,
+			stockDiscounts: [
+				{
+					stockDiscountTitle: 'JR東海   株主優待1割',
+					stockDiscountFare: 1780
+				},
+				{
+					stockDiscountTitle: 'JR東海   株主優待2割',
+					stockDiscountFare: 1580
+				}
+			]
+		});
+		const seededRoute = new MockFarert();
+		mainRouteStore.set(seededRoute);
+		ticketHolderStore.set([
+			{ order: 1, routeScript: '東京,東海道新幹線,熱海', fareType: FareType.STOCK_DISCOUNT }
+		]);
+
+		render(Page);
+
+		await page.getByRole('button', { name: 'きっぷホルダ', exact: true }).click();
+
+		await expect.element(page.getByText('¥1,780')).toBeInTheDocument();
+		const picker = document.querySelector('select[aria-label="運賃タイプ選択"]');
+		expect((picker as HTMLSelectElement).value).toBe(FareType.STOCK_DISCOUNT);
 	});
 });
