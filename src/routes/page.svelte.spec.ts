@@ -644,7 +644,7 @@ it('hides fare summary card before route selection', async () => {
 
 		await page.getByRole('button', { name: 'きっぷホルダ', exact: true }).click();
 
-		await expect.element(page.getByText('¥1,520')).toBeInTheDocument();
+		await expect.element(page.getByText(/総運賃 ¥1,520/)).toBeInTheDocument();
 		const picker = document.querySelector('select[aria-label="運賃タイプ選択"]');
 		expect((picker as HTMLSelectElement).value).toBe(FareType.NORMAL);
 	});
@@ -707,7 +707,7 @@ it('hides fare summary card before route selection', async () => {
 
 		await page.getByRole('button', { name: 'きっぷホルダ', exact: true }).click();
 
-		await expect.element(page.getByText('¥3,040')).toBeInTheDocument();
+		await expect.element(page.getByText(/総運賃 ¥3,040/)).toBeInTheDocument();
 		const picker = document.querySelector('select[aria-label="運賃タイプ選択"]');
 		expect((picker as HTMLSelectElement).value).toBe(FareType.STOCK_DISCOUNT_X2);
 	});
@@ -738,7 +738,7 @@ it('hides fare summary card before route selection', async () => {
 
 		await page.getByRole('button', { name: 'きっぷホルダ', exact: true }).click();
 
-		await expect.element(page.getByText('¥1,780')).toBeInTheDocument();
+		await expect.element(page.getByText(/総運賃 ¥1,780/)).toBeInTheDocument();
 		const picker = document.querySelector('select[aria-label="運賃タイプ選択"]');
 		expect((picker as HTMLSelectElement).value).toBe(FareType.STOCK_DISCOUNT);
 	});
@@ -775,7 +775,7 @@ it('hides fare summary card before route selection', async () => {
 
 		await page.getByRole('button', { name: 'きっぷホルダ', exact: true }).click();
 
-		await expect.element(page.getByText('¥1,580')).toBeInTheDocument();
+		await expect.element(page.getByText(/総運賃 ¥1,580/)).toBeInTheDocument();
 		const picker = document.querySelector('select[aria-label="運賃タイプ選択"]');
 		const optionValues = Array.from((picker as HTMLSelectElement).options).map(
 			(option) => option.value
@@ -822,7 +822,7 @@ it('hides fare summary card before route selection', async () => {
 
 		await page.getByRole('button', { name: 'きっぷホルダ', exact: true }).click();
 
-		await expect.element(page.getByText('¥1,580')).toBeInTheDocument();
+		await expect.element(page.getByText(/総運賃 ¥1,580/)).toBeInTheDocument();
 		const picker = document.querySelector('select[aria-label="運賃タイプ選択"]');
 		const optionValues = Array.from((picker as HTMLSelectElement).options).map(
 			(option) => option.value
