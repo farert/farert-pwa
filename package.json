@@ -6,6 +6,7 @@
 	"packageManager": "pnpm@10.26.2",
 	"scripts": {
 		"copy:wasm": "bash scripts/copy-wasm.sh",
+		"update:wasm": "bash ../farert-wasm/scripts/copy-sources.sh && cd ../farert-wasm && npm run build:wasm && cd - >/dev/null && pnpm copy:wasm",
 		"dev": "pnpm copy:wasm && vite dev",
 		"build": "pnpm copy:wasm && vite build && bash scripts/ensure-start-shell.sh",
 		"preview": "vite preview",

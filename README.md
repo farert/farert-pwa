@@ -158,7 +158,7 @@ WASMファイルを更新する場合：
 
 ```bash
 # ローカルで最新のWASMファイルをコピー
-pnpm copy:wasm
+pnpm update:wasm
 
 # 変更をコミット
 git add static/farert.{wasm,js,data}
