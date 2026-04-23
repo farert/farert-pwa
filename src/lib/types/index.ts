@@ -143,6 +143,9 @@ export interface FareInfo {
 		rule114StockFare?: number;
 		stockDiscountFare: number;
 		stockDiscountTitle: string;
+		company?: string | boolean;
+		discountRate?: number;
+		discountKind?: 'single' | 'double' | boolean;
 	}[];
 	isRule114Applied: boolean;
 	rule114SalesKm: number;

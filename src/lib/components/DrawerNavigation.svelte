@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { base } from '$app/paths';
 	import TicketHolderCard from '$lib/components/TicketHolderCard.svelte';
+	import type { FarePickerOption } from '$lib/components/FarePicker.svelte';
 	import type { FareType, TicketHolderItem } from '$lib/types';
 
 	type DrawerItem = TicketHolderItem & {
@@ -11,6 +12,7 @@
 		fareValue?: number;
 		kmValue?: number;
 		availableFareTypes?: FareType[];
+		fareOptions?: FarePickerOption[];
 		selectedFareType?: FareType;
 	};
 
@@ -254,6 +256,7 @@ let {
 					fareText={item.fareText}
 					kmText={item.kmText}
 					availableFareTypes={item.availableFareTypes}
+					fareOptions={item.fareOptions}
 					selectedFareType={item.selectedFareType}
 					onSelect={() => onItemClick?.(item)}
 					onDelete={() => onItemDelete?.(parseOrder(item.key))}

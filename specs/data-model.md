@@ -125,6 +125,7 @@ interface TicketHolderItem {
 #### 正規化ルール
 - km 系フィールドは WASM が 10 倍整数で返す場合があり、画面側で `/10` 正規化する。
 - JSON の構造や数値形式に揺れがあるため、PWA 側で防御的に復元する。
+- `stockDiscounts` は `../farert-wasm/docs/API.md` の構造を正本とするが、PWA 側では後方互換のため `discountKind` が不正値でも `discountRate` から 1割/2割を補完して判定する。
 
 #### 発着表示の意味
 - `beginStation` / `endStation` は、運賃計算結果として採用された発着駅名である。

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { base } from '$app/paths';
 	import FarePicker from '$lib/components/FarePicker.svelte';
+	import type { FarePickerOption } from '$lib/components/FarePicker.svelte';
 	import type { FareType, TicketHolderItem } from '$lib/types';
 
 	let {
@@ -9,6 +10,7 @@
 		fareText,
 		kmText,
 		availableFareTypes = [],
+		fareOptions = [],
 		selectedFareType,
 		onSelect,
 		onDelete,
@@ -27,6 +29,7 @@
 		fareText: string;
 		kmText: string;
 		availableFareTypes?: FareType[];
+		fareOptions?: FarePickerOption[];
 		selectedFareType?: FareType;
 		onSelect?: () => void;
 		onDelete?: () => void;
@@ -130,6 +133,7 @@
 		<FarePicker
 			value={selectedFareType ?? item.fareType}
 			availableTypes={availableFareTypes}
+			options={fareOptions}
 			onChange={(type) => onFareTypeChange?.(type)}
 		/>
 		{#if showDelete}

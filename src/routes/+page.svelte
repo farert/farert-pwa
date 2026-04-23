@@ -2,11 +2,12 @@
 import { goto } from '$app/navigation';
 import { base } from '$app/paths';
 import { onMount } from 'svelte';
+import type { FarePickerOption } from '$lib/components/FarePicker.svelte';
 import FareSummaryCard from '$lib/components/FareSummaryCard.svelte';
 import DrawerNavigation from '$lib/components/DrawerNavigation.svelte';
 import { initFarert, Farert } from '$lib/wasm';
 import type { FaretClass } from '$lib/wasm/types';
-	import { FareType, type FareInfo, type TicketHolderItem } from '$lib/types';
+import { FareType, FareTypeLabels, type FareInfo, type TicketHolderItem } from '$lib/types';
 	import { initStores, mainRoute, mainScreenErrorMessage, ticketHolder } from '$lib/stores';
 	import { generateShareUrl, compressRouteForUrl } from '$lib/utils/urlRoute';
 
@@ -49,6 +50,7 @@ let holderView = $state<
 		fareValue: number;
 		kmValue: number;
 		availableFareTypes: FareType[];
+		fareOptions: FarePickerOption[];
 		selectedFareType: FareType;
 	}[]
 >([]);
@@ -531,11 +533,59 @@ function handleUndo() {
 		return (title ?? '').replace(/\s+/g, '');
 	}
 
+	function resolveStockDiscountKind(
+		item: FareInfo['stockDiscounts'][number] | undefined
+	): 'single' | 'double' | null {
+		if (!item) return null;
+		if (item.discountKind === 'single' || item.discountKind === 'double') {
+			return item.discountKind;
+		}
+		if (item.discountRate === 10) {
+			return 'single';
+		}
+		if (item.discountRate === 20) {
+			return 'double';
+		}
+		return null;
+	}
+
+	function isSingleStockDiscount(item: FareInfo['stockDiscounts'][number] | undefined): boolean {
+		if (!item || (item.stockDiscountFare ?? 0) <= 0) return false;
+		const discountKind = resolveStockDiscountKind(item);
+		if (discountKind) {
+			return discountKind === 'single';
+		}
+		const title = normalizeStockDiscountTitle(item.stockDiscountTitle);
+		return !title.includes('2割');
+	}
+
+	function isDoubleStockDiscount(item: FareInfo['stockDiscounts'][number] | undefined): boolean {
+		if (!item || (item.stockDiscountFare ?? 0) <= 0) return false;
+		const discountKind = resolveStockDiscountKind(item);
+		if (discountKind) {
+			return discountKind === 'double';
+		}
+		return isTokaiDoubleStockDiscountTitle(item.stockDiscountTitle);
+	}
+
+	function resolveFareOptionLabel(type: FareType, info: FareInfo | null): string {
+		if (!info) return FareTypeLabels[type];
+		switch (type) {
+			case FareType.STOCK_DISCOUNT: {
+				const stock = (info.stockDiscounts ?? []).find((item) => isSingleStockDiscount(item));
+				return stock?.stockDiscountTitle?.trim() || FareTypeLabels[type];
+			}
+			case FareType.STOCK_DISCOUNT_X2: {
+				const stock = (info.stockDiscounts ?? []).find((item) => isDoubleStockDiscount(item));
+				return stock?.stockDiscountTitle?.trim() || FareTypeLabels[type];
+			}
+			default:
+				return FareTypeLabels[type];
+		}
+	}
+
 	function resolveSingleStockDiscountFare(info: FareInfo): number {
-		const stock = (info.stockDiscounts ?? []).find((item) => {
-			const title = normalizeStockDiscountTitle(item?.stockDiscountTitle);
-			return (item?.stockDiscountFare ?? 0) > 0 && !title.includes('2割');
-		});
+		const stock = (info.stockDiscounts ?? []).find((item) => isSingleStockDiscount(item));
 		return stock?.stockDiscountFare ?? 0;
 	}
 
@@ -545,9 +595,7 @@ function handleUndo() {
 	}
 
 	function resolveTokaiDoubleStockDiscountFare(info: FareInfo): number {
-		const tokaiStock = (info.stockDiscounts ?? []).find((item) =>
-			isTokaiDoubleStockDiscountTitle(item?.stockDiscountTitle)
-		);
+		const tokaiStock = (info.stockDiscounts ?? []).find((item) => isDoubleStockDiscount(item));
 		return tokaiStock?.stockDiscountFare ?? 0;
 	}
 
@@ -566,15 +614,11 @@ function handleUndo() {
 		}
 
 		const stockDiscounts = info.stockDiscounts ?? [];
-		const hasStockDiscount = stockDiscounts.some(
-			(stock) => (stock?.stockDiscountFare ?? 0) > 0
-		);
+		const hasStockDiscount = stockDiscounts.some((stock) => isSingleStockDiscount(stock));
 		if (hasStockDiscount) {
 			available.push(FareType.STOCK_DISCOUNT);
 		}
-		const hasTokaiStockDiscount = stockDiscounts.some((stock) =>
-			isTokaiDoubleStockDiscountTitle(stock?.stockDiscountTitle)
-		);
+		const hasTokaiStockDiscount = stockDiscounts.some((stock) => isDoubleStockDiscount(stock));
 		if (hasTokaiStockDiscount) {
 			available.push(FareType.STOCK_DISCOUNT_X2);
 		}
@@ -627,12 +671,17 @@ function updateHolderView(): void {
 			fareValue: number;
 			kmValue: number;
 			availableFareTypes: FareType[];
+			fareOptions: FarePickerOption[];
 			selectedFareType: FareType;
 		}[] = [];
 		for (const [index, item] of holderItems.entries()) {
 			let fare = 0;
 			let km = 0;
 			let availableFareTypes: FareType[] = [FareType.NORMAL, FareType.DISABLED];
+			let fareOptions: FarePickerOption[] = [
+				{ value: FareType.NORMAL, label: FareTypeLabels[FareType.NORMAL] },
+				{ value: FareType.DISABLED, label: FareTypeLabels[FareType.DISABLED] }
+			];
 			let selectedFareType = FareType.NORMAL;
 			try {
 				const tmp = new Farert();
@@ -643,10 +692,14 @@ function updateHolderView(): void {
 					} catch (err) {
 						console.warn('きっぷホルダ項目の運賃計算に失敗しました', err);
 					}
-					const info = parseFareInfoJson(tmp.getFareInfoObjectJson());
-					availableFareTypes = resolveAvailableFareTypes(info);
-					selectedFareType = resolveHolderFareType(info, item.fareType);
-					fare = parseFareForHolder(info, selectedFareType);
+						const info = parseFareInfoJson(tmp.getFareInfoObjectJson());
+						availableFareTypes = resolveAvailableFareTypes(info);
+						fareOptions = availableFareTypes.map((type) => ({
+							value: type,
+							label: resolveFareOptionLabel(type, info)
+						}));
+						selectedFareType = resolveHolderFareType(info, item.fareType);
+						fare = parseFareForHolder(info, selectedFareType);
 					km = info?.totalSalesKm ?? 0;
 				}
 			} catch (err) {
@@ -661,10 +714,11 @@ function updateHolderView(): void {
 				fareText: formatFare(fare),
 				kmText: formatKm(km),
 				fareValue: fare,
-				kmValue: km,
-				availableFareTypes,
-				selectedFareType
-			});
+					kmValue: km,
+					availableFareTypes,
+					fareOptions,
+					selectedFareType
+				});
 		}
 		holderView = views;
 	}

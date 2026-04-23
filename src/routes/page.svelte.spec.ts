@@ -742,4 +742,93 @@ it('hides fare summary card before route selection', async () => {
 		const picker = document.querySelector('select[aria-label="運賃タイプ選択"]');
 		expect((picker as HTMLSelectElement).value).toBe(FareType.STOCK_DISCOUNT);
 	});
+
+	it('prefers structured stock discount metadata over title parsing', async () => {
+		MockFarert.defaultFareInfoJson = JSON.stringify({
+			fare: 1980,
+			totalSalesKm: 1200,
+			ticketAvailDays: 3,
+			stockDiscounts: [
+				{
+					stockDiscountTitle: '任意表示名A',
+					stockDiscountFare: 1780,
+					company: 'JR東海',
+					discountRate: 10,
+					discountKind: 'single'
+				},
+				{
+					stockDiscountTitle: '任意表示名B',
+					stockDiscountFare: 1580,
+					company: 'JR東海',
+					discountRate: 20,
+					discountKind: 'double'
+				}
+			]
+		});
+		const seededRoute = new MockFarert();
+		mainRouteStore.set(seededRoute);
+		ticketHolderStore.set([
+			{ order: 1, routeScript: '東京,東海道新幹線,熱海', fareType: FareType.STOCK_DISCOUNT_X2 }
+		]);
+
+		render(Page);
+
+		await page.getByRole('button', { name: 'きっぷホルダ', exact: true }).click();
+
+		await expect.element(page.getByText('¥1,580')).toBeInTheDocument();
+		const picker = document.querySelector('select[aria-label="運賃タイプ選択"]');
+		const optionValues = Array.from((picker as HTMLSelectElement).options).map(
+			(option) => option.value
+		);
+		const optionLabels = Array.from((picker as HTMLSelectElement).options).map(
+			(option) => option.text
+		);
+		expect(optionValues).toContain(FareType.STOCK_DISCOUNT);
+		expect(optionValues).toContain(FareType.STOCK_DISCOUNT_X2);
+		expect(optionLabels).toContain('任意表示名A');
+		expect(optionLabels).toContain('任意表示名B');
+		expect((picker as HTMLSelectElement).value).toBe(FareType.STOCK_DISCOUNT_X2);
+	});
+
+	it('falls back to discountRate when discountKind is not a supported string', async () => {
+		MockFarert.defaultFareInfoJson = JSON.stringify({
+			fare: 1980,
+			totalSalesKm: 1200,
+			ticketAvailDays: 3,
+			stockDiscounts: [
+				{
+					stockDiscountTitle: 'JR東海   株主優待1割',
+					stockDiscountFare: 1780,
+					company: true,
+					discountRate: 10,
+					discountKind: true
+				},
+				{
+					stockDiscountTitle: 'JR東海   株主優待2割',
+					stockDiscountFare: 1580,
+					company: true,
+					discountRate: 20,
+					discountKind: true
+				}
+			]
+		});
+		const seededRoute = new MockFarert();
+		mainRouteStore.set(seededRoute);
+		ticketHolderStore.set([
+			{ order: 1, routeScript: '東京,東海道新幹線,熱海', fareType: FareType.STOCK_DISCOUNT_X2 }
+		]);
+
+		render(Page);
+
+		await page.getByRole('button', { name: 'きっぷホルダ', exact: true }).click();
+
+		await expect.element(page.getByText('¥1,580')).toBeInTheDocument();
+		const picker = document.querySelector('select[aria-label="運賃タイプ選択"]');
+		const optionValues = Array.from((picker as HTMLSelectElement).options).map(
+			(option) => option.value
+		);
+		expect(optionValues).toContain(FareType.STOCK_DISCOUNT);
+		expect(optionValues).toContain(FareType.STOCK_DISCOUNT_X2);
+		expect((picker as HTMLSelectElement).value).toBe(FareType.STOCK_DISCOUNT_X2);
+	});
 });
