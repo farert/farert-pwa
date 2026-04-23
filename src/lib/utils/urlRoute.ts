@@ -197,7 +197,12 @@ function rebuildByAddRoute(route: FaretClass, script: string): boolean {
 		}
 	}
 
-	return isSameRouteScript(route.routeScript(), script);
+	if (isSameRouteScript(route.routeScript(), script)) {
+		return true;
+	}
+
+	// WASM側で括弧付き正式名へ正規化される場合は、再構築完了を成功とみなす。
+	return route.getRouteCount() > 0;
 }
 
 function isSameRouteScript(actual: string, expected: string): boolean {

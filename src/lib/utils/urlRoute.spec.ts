@@ -192,6 +192,38 @@ class StickyStateFarert extends FakeFarert {
 	}
 }
 
+class CanonicalizingFarert extends FakeFarert {
+	override addStartRoute(station: string): number {
+		this.script = station;
+		return 0;
+	}
+
+	override buildRoute(routeStr: string): number {
+		if (routeStr === '長崎,西九州新幹線,諫早,長崎線,長与') {
+			this.script = '長崎,西九州新幹線,諫早,長崎線(長与経由),長与';
+			return 0;
+		}
+		return super.buildRoute(routeStr);
+	}
+
+	override addRoute(line: string, station: string): number {
+		if (!this.script) {
+			return -1;
+		}
+
+		const fields = this.script ? this.script.split(',') : [];
+		if (line === '西九州新幹線' && station === '諫早') {
+			this.script = [...fields, line, station].join(',');
+			return 0;
+		}
+		if (line === '長崎線' && station === '長与') {
+			this.script = [...fields, '長崎線(長与経由)', station].join(',');
+			return 0;
+		}
+		return -1;
+	}
+}
+
 class AssignThrowFarert extends FakeFarert {
 	override assign(): void {
 		throw new Error('assign should not be called');
@@ -303,6 +335,15 @@ describe('urlRoute utilities', () => {
 
 		const result = decompressRouteFromUrl(compressed, JsonNullFarert);
 		expect(result).not.toBeNull();
+	});
+
+	it('restores successfully when wasm canonicalizes omitted qualifiers', () => {
+		const script = '長崎,西九州新幹線,諫早,長崎線,長与';
+		const compressed = LZString.compressToEncodedURIComponent(script);
+
+		const result = decompressRouteFromUrl(compressed, CanonicalizingFarert);
+		expect(result).not.toBeNull();
+		expect(result?.routeScript()).toBe('長崎,西九州新幹線,諫早,長崎線(長与経由),長与');
 	});
 
 	it('generates a share URL with the provided base URL', () => {
