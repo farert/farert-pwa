@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import LZString from 'lz-string';
-import { compressRouteForUrl, decompressRouteFromUrl, generateShareUrl } from './urlRoute';
+import {
+	compressRouteForUrl,
+	decompressRouteFromUrl,
+	generateShareUrl,
+	restoreRouteFromScript
+} from './urlRoute';
 import type { FaretClass } from '$lib/wasm/types';
 
 class FakeFarert implements FaretClass {
@@ -224,6 +229,36 @@ class CanonicalizingFarert extends FakeFarert {
 	}
 }
 
+class SameNameCanonicalizingFarert extends FakeFarert {
+	override buildRoute(routeStr: string): number {
+		if (routeStr === '千歳 千歳線 白石 函館線 岩見沢 室蘭線 追分') {
+			this.script = '千歳(千),千歳線,白石(函),函館線,岩見沢,室蘭線,追分(室)';
+			return 0;
+		}
+		return super.buildRoute(routeStr);
+	}
+
+	override addStartRoute(station: string): number {
+		if (station !== '千歳') {
+			return -200;
+		}
+		this.script = station;
+		return 0;
+	}
+
+	override addRoute(line: string, station: string): number {
+		if (line === '千歳線' && station === '白石') {
+			return -200;
+		}
+		if (line === '室蘭線' && station === '追分') {
+			return -200;
+		}
+		const fields = this.script ? this.script.split(',') : [];
+		this.script = [...fields, line, station].join(',');
+		return 0;
+	}
+}
+
 class AssignThrowFarert extends FakeFarert {
 	override assign(): void {
 		throw new Error('assign should not be called');
@@ -344,6 +379,20 @@ describe('urlRoute utilities', () => {
 		const result = decompressRouteFromUrl(compressed, CanonicalizingFarert);
 		expect(result).not.toBeNull();
 		expect(result?.routeScript()).toBe('長崎,西九州新幹線,諫早,長崎線(長与経由),長与');
+	});
+
+	it('buildRoute成功後に同名駅を正式名へ正規化した場合も復元成功とみなす', () => {
+		const route = new SameNameCanonicalizingFarert();
+
+		const restored = restoreRouteFromScript(
+			route,
+			'千歳 千歳線 白石 函館線 岩見沢 室蘭線 追分'
+		);
+
+		expect(restored).toBe(true);
+		expect(route.routeScript()).toBe(
+			'千歳(千),千歳線,白石(函),函館線,岩見沢,室蘭線,追分(室)'
+		);
 	});
 
 	it('generates a share URL with the provided base URL', () => {

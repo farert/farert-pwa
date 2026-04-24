@@ -334,22 +334,91 @@ describe('/save/+page.svelte', () => {
 	});
 
 	it('インポート時に azusa が受理した省略経路を取り込める', async () => {
-		MockFarert.buildRouteMock.mockImplementation((routeStr: string) => {
+		const originalBuildRoute = MockFarert.prototype.buildRoute;
+		MockFarert.prototype.buildRoute = function (routeStr: string): number | string {
 			if (routeStr === '長崎 西九州新幹線 諫早 長崎線 長与') {
+				this.script = '長崎,西九州新幹線,諫早,長崎線(長与経由),長与';
 				return 0;
 			}
-			return 0;
+			return originalBuildRoute.call(this, routeStr);
+		};
+		render(SavePage);
+		try {
+			await page.getByRole('button', { name: 'インポート' }).click();
+			const textArea = page.getByRole('textbox', { name: '経路テキスト' });
+			await textArea.fill('長崎 西九州新幹線 諫早 長崎線 長与');
+			await page.getByRole('button', { name: 'インポート実行', exact: true }).click();
+			await page.getByRole('button', { name: 'はい' }).click();
+
+			expect(get(savedRoutesStore)).toEqual(['長崎,西九州新幹線,諫早,長崎線(長与経由),長与']);
+			await expect.element(page.getByText('インポートしました。')).toBeInTheDocument();
+		} finally {
+			MockFarert.prototype.buildRoute = originalBuildRoute;
+		}
+	});
+
+	it('インポート時に全角スペース区切りの経路を正規化して取り込める', async () => {
+		const originalBuildRoute = MockFarert.prototype.buildRoute;
+		MockFarert.prototype.buildRoute = function (routeStr: string): number | string {
+			if (routeStr === '千歳 千歳線 白石 函館線 岩見沢 室蘭線 追分') {
+				this.script = '千歳(千),千歳線,白石(函),函館線,岩見沢,室蘭線,追分(室)';
+				return 0;
+			}
+			return -200;
+		};
+		render(SavePage);
+		try {
+			await page.getByRole('button', { name: 'インポート' }).click();
+			const textArea = page.getByRole('textbox', { name: '経路テキスト' });
+			await textArea.fill('千歳　千歳線　白石　函館線　岩見沢　室蘭線　追分');
+			await page.getByRole('button', { name: 'インポート実行', exact: true }).click();
+			await page.getByRole('button', { name: 'はい' }).click();
+
+			expect(get(savedRoutesStore)).toEqual([
+				'千歳(千),千歳線,白石(函),函館線,岩見沢,室蘭線,追分(室)'
+			]);
+			await expect.element(page.getByText('インポートしました。')).toBeInTheDocument();
+		} finally {
+			MockFarert.prototype.buildRoute = originalBuildRoute;
+		}
+	});
+
+	it('インポート時にbuildRoute成功後の同名駅正規化を受け入れる', async () => {
+		MockFarert.buildRouteMock.mockImplementation((routeStr: string) => {
+			if (routeStr === '千歳 千歳線 白石 函館線 岩見沢 室蘭線 追分') {
+				return 0;
+			}
+			return -200;
 		});
 		render(SavePage);
 
 		await page.getByRole('button', { name: 'インポート' }).click();
 		const textArea = page.getByRole('textbox', { name: '経路テキスト' });
-		await textArea.fill('長崎 西九州新幹線 諫早 長崎線 長与');
+		await textArea.fill('千歳 千歳線 白石 函館線 岩見沢 室蘭線 追分');
+
+		const originalBuildRoute = MockFarert.prototype.buildRoute;
+		const originalRouteScript = MockFarert.prototype.routeScript;
+		MockFarert.prototype.buildRoute = function (routeStr: string): number | string {
+			if (routeStr === '千歳 千歳線 白石 函館線 岩見沢 室蘭線 追分') {
+				this.script = '千歳(千),千歳線,白石(函),函館線,岩見沢,室蘭線,追分(室)';
+				return 0;
+			}
+			return originalBuildRoute.call(this, routeStr);
+		};
+		MockFarert.prototype.routeScript = function (): string {
+			return this.script;
+		};
+
 		await page.getByRole('button', { name: 'インポート実行', exact: true }).click();
 		await page.getByRole('button', { name: 'はい' }).click();
 
-		expect(get(savedRoutesStore)).toEqual(['長崎 西九州新幹線 諫早 長崎線 長与']);
+		expect(get(savedRoutesStore)).toEqual([
+			'千歳(千),千歳線,白石(函),函館線,岩見沢,室蘭線,追分(室)'
+		]);
 		await expect.element(page.getByText('インポートしました。')).toBeInTheDocument();
+
+		MockFarert.prototype.buildRoute = originalBuildRoute;
+		MockFarert.prototype.routeScript = originalRouteScript;
 	});
 
 	it('インポート時に確認ダイアログでいいえを選ぶと取り込まない', async () => {

@@ -167,11 +167,9 @@ function restoreRouteStrict(route: FaretClass, script: string): boolean {
 		return false;
 	}
 
-	if (isSameRouteScript(route.routeScript(), script)) {
-		return true;
-	}
-
-	return rebuildByAddRoute(route, script);
+	// buildRoute が成功した時点で、WASM 側の正規化結果を正本として採用する。
+	// 省略表記や同名駅の解決で routeScript() が入力と一致しないことがある。
+	return route.getRouteCount() > 0;
 }
 
 function rebuildByAddRoute(route: FaretClass, script: string): boolean {

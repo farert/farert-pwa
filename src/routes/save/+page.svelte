@@ -89,7 +89,9 @@ type BuildRouteResult = {
 	}
 
 	function normalizeRouteScript(routeScript: string): string {
-		return (routeScript ?? '').trim();
+		return (routeScript ?? '')
+			.replace(/\u3000+/gu, ' ')
+			.trim();
 	}
 
 	function uniqueRouteScripts(routes: string[]): string[] {
