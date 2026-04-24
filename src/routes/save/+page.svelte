@@ -8,7 +8,7 @@ import { initStores, mainRoute, savedRoutes, ticketHolder } from '$lib/stores';
 import type { FaretClass } from '$lib/wasm/types';
 import type { TicketHolderItem } from '$lib/types';
 import { getSerializedRouteScript } from '$lib/utils/routeScriptPersistence';
-import { restoreRouteFromScript } from '$lib/utils/urlRoute';
+import { normalizeRouteScriptInput, restoreRouteFromScript } from '$lib/utils/urlRoute';
 
 type BuildRouteResult = {
 	rc: number;
@@ -89,10 +89,7 @@ type BuildRouteResult = {
 	}
 
 	function normalizeRouteScript(routeScript: string): string {
-		return (routeScript ?? '')
-			.replace(/\uFF0C+/gu, ',')
-			.replace(/\u3000+/gu, ' ')
-			.trim();
+		return normalizeRouteScriptInput(routeScript);
 	}
 
 	function uniqueRouteScripts(routes: string[]): string[] {

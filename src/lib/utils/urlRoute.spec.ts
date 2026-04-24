@@ -395,6 +395,18 @@ describe('urlRoute utilities', () => {
 		);
 	});
 
+	it('全角区切りを正規化してからbuildRouteへ渡す', () => {
+		const route = new FakeFarert();
+
+		const restored = restoreRouteFromScript(
+			route,
+			'上越妙高，えちごトキめき鉄道（妙高はねうま），直江津'
+		);
+
+		expect(restored).toBe(true);
+		expect(route.routeScript()).toBe('上越妙高,えちごトキめき鉄道（妙高はねうま）,直江津');
+	});
+
 	it('generates a share URL with the provided base URL', () => {
 		const route = new FakeFarert('東京,東海道線,新大阪');
 
