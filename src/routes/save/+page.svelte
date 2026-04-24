@@ -16,6 +16,10 @@ type BuildRouteResult = {
 	offset?: number;
 };
 
+type ImportRouteResult =
+	| { ok: true; script: string }
+	| { ok: false; message: string };
+
 	let loading = $state(true);
 	let errorMessage = $state('');
 	let infoMessage = $state('');
@@ -221,10 +225,7 @@ type BuildRouteResult = {
 
 	async function importRoutesFromText(rawText: string): Promise<void> {
 		try {
-			const candidates = rawText
-				.split(/\r?\n/u)
-				.map((line) => normalizeRouteScript(line))
-				.filter((line) => line.length > 0);
+			const candidates = parseImportCandidates(rawText);
 			if (!candidates.length) {
 				showError('インポート対象の経路がありません。');
 				return;
@@ -234,33 +235,14 @@ type BuildRouteResult = {
 			let failed = 0;
 			let lastErrorMessage = '';
 			candidates.forEach((candidate, lineIndex) => {
-				const route = new Farert();
-				const lineNumber = lineIndex + 1;
-				try {
-					const restored = restoreRouteFromScript(route, candidate);
-					if (!restored) {
-						const parsed = parseBuildRouteResult(route.buildRoute(candidate));
-						failed += 1;
-						if (!lastErrorMessage) {
-							lastErrorMessage = formatImportError(parsed, lineNumber);
-						}
-						return;
-					}
-					const script = normalizeRouteScript(route.routeScript());
-					if (!script) {
-						failed += 1;
-						if (!lastErrorMessage) {
-							lastErrorMessage = `経路の書式不正により、インポートに失敗しました: ${lineNumber} 行目`;
-						}
-						return;
-					}
-					imported.push(script);
-				} catch (err) {
-					failed += 1;
-					if (!lastErrorMessage) {
-						lastErrorMessage = '経路のインポートに失敗しました。';
-						console.error('経路インポートエラー', err);
-					}
+				const result = tryImportRoute(candidate, lineIndex + 1);
+				if (result.ok) {
+					imported.push(result.script);
+					return;
+				}
+				failed += 1;
+				if (!lastErrorMessage) {
+					lastErrorMessage = result.message;
 				}
 			});
 
@@ -281,6 +263,39 @@ type BuildRouteResult = {
 		} catch (err) {
 			console.error('インポートエラー', err);
 			showError('経路のインポートに失敗しました。');
+		}
+	}
+
+	function parseImportCandidates(rawText: string): string[] {
+		return rawText
+			.split(/\r?\n/u)
+			.map((line) => normalizeRouteScript(line))
+			.filter((line) => line.length > 0);
+	}
+
+	function tryImportRoute(candidate: string, lineNumber: number): ImportRouteResult {
+		const route = new Farert();
+		try {
+			const restored = restoreRouteFromScript(route, candidate);
+			if (!restored) {
+				return {
+					ok: false,
+					message: formatImportError(parseBuildRouteResult(route.buildRoute(candidate)), lineNumber)
+				};
+			}
+
+			const script = normalizeRouteScript(route.routeScript());
+			if (!script) {
+				return {
+					ok: false,
+					message: `経路の書式不正により、インポートに失敗しました: ${lineNumber} 行目`
+				};
+			}
+
+			return { ok: true, script };
+		} catch (err) {
+			console.error('経路インポートエラー', err);
+			return { ok: false, message: '経路のインポートに失敗しました。' };
 		}
 	}
 
@@ -313,17 +328,6 @@ type BuildRouteResult = {
 		return null;
 	}
 
-	function isBuildSuccess(result: unknown): boolean {
-		const parsed = parseBuildRouteResult(result);
-		if (!parsed) return false;
-		return parsed.rc >= 0;
-	}
-
-	function isBuildSuccessResult(result: BuildRouteResult | null): boolean {
-		if (!result) return false;
-		return result.rc >= 0;
-	}
-
 	function formatImportError(result: BuildRouteResult | null, lineNumber: number): string {
 		let message = `経路の書式不正により、インポートに失敗しました: ${lineNumber} 行目`;
 		if (!result?.failItem) {
@@ -337,34 +341,34 @@ type BuildRouteResult = {
 		return message;
 	}
 
-    async function applyRoute(routeScript: string): Promise<void> {
-        clearMessages();
+	async function applyRoute(routeScript: string): Promise<void> {
+		clearMessages();
 		const normalizedScript = normalizeRouteScript(routeScript);
 		if (!normalizedScript) {
 			showError('経路データが不正です。');
 			return;
 		}
-			if (
-				shouldConfirmRouteOverwrite(normalizedScript) &&
-				!(await requestConfirm('⚠️経路は保存されていません。上書きしてよろしいですか？'))
-			) {
+		if (
+			shouldConfirmRouteOverwrite(normalizedScript) &&
+			!(await requestConfirm('⚠️経路は保存されていません。上書きしてよろしいですか？'))
+		) {
+			return;
+		}
+		try {
+			const route = new Farert();
+			const restored = restoreRouteFromScript(route, normalizedScript);
+			if (!restored) {
+				const result = route.buildRoute(normalizedScript);
+				showError(`経路の復元に失敗しました (コード: ${result})`);
 				return;
 			}
-	        try {
-	            const route = new Farert();
-	            const restored = restoreRouteFromScript(route, normalizedScript);
-            if (!restored) {
-				const result = route.buildRoute(normalizedScript);
-                showError(`経路の復元に失敗しました (コード: ${result})`);
-                return;
-            }
-            mainRoute.set(route);
-            goto(`${base}/`);
-        } catch (err) {
-            console.error('経路適用に失敗しました', err);
-            showError('経路の適用に失敗しました。');
-        }
-    }
+			mainRoute.set(route);
+			goto(`${base}/`);
+		} catch (err) {
+			console.error('経路適用に失敗しました', err);
+			showError('経路の適用に失敗しました。');
+		}
+	}
 
 	async function handleImport(): Promise<void> {
 		clearMessages();
