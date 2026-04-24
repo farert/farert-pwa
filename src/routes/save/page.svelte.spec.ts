@@ -383,6 +383,30 @@ describe('/save/+page.svelte', () => {
 		}
 	});
 
+	it('インポート時に全角カンマ区切りの経路を正規化して取り込める', async () => {
+		const originalBuildRoute = MockFarert.prototype.buildRoute;
+		MockFarert.prototype.buildRoute = function (routeStr: string): number | string {
+			if (routeStr === '上越妙高,えちごトキめき鉄道（妙高はねうま）,直江津') {
+				this.script = '上越妙高,えちごトキめき鉄道（妙高はねうま）,直江津';
+				return 0;
+			}
+			return -200;
+		};
+		render(SavePage);
+		try {
+			await page.getByRole('button', { name: 'インポート' }).click();
+			const textArea = page.getByRole('textbox', { name: '経路テキスト' });
+			await textArea.fill('上越妙高，えちごトキめき鉄道（妙高はねうま），直江津');
+			await page.getByRole('button', { name: 'インポート実行', exact: true }).click();
+			await page.getByRole('button', { name: 'はい' }).click();
+
+			expect(get(savedRoutesStore)).toEqual(['上越妙高,えちごトキめき鉄道（妙高はねうま）,直江津']);
+			await expect.element(page.getByText('インポートしました。')).toBeInTheDocument();
+		} finally {
+			MockFarert.prototype.buildRoute = originalBuildRoute;
+		}
+	});
+
 	it('インポート時にbuildRoute成功後の同名駅正規化を受け入れる', async () => {
 		MockFarert.buildRouteMock.mockImplementation((routeStr: string) => {
 			if (routeStr === '千歳 千歳線 白石 函館線 岩見沢 室蘭線 追分') {

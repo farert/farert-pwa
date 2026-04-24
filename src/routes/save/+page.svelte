@@ -90,6 +90,7 @@ type BuildRouteResult = {
 
 	function normalizeRouteScript(routeScript: string): string {
 		return (routeScript ?? '')
+			.replace(/\uFF0C+/gu, ',')
 			.replace(/\u3000+/gu, ' ')
 			.trim();
 	}
