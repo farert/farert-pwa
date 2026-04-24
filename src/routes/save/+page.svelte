@@ -8,7 +8,7 @@ import { initStores, mainRoute, savedRoutes, ticketHolder } from '$lib/stores';
 import type { FaretClass } from '$lib/wasm/types';
 import type { TicketHolderItem } from '$lib/types';
 import { getSerializedRouteScript } from '$lib/utils/routeScriptPersistence';
-import { normalizeRouteScriptInput, restoreRouteFromScript } from '$lib/utils/urlRoute';
+import { normalizeRouteScript, restoreRouteFromScript } from '$lib/utils/urlRoute';
 
 type BuildRouteResult = {
 	rc: number;
@@ -86,10 +86,6 @@ type BuildRouteResult = {
 			console.warn('経路スクリプト取得に失敗しました', err);
 			return '';
 		}
-	}
-
-	function normalizeRouteScript(routeScript: string): string {
-		return normalizeRouteScriptInput(routeScript);
 	}
 
 	function uniqueRouteScripts(routes: string[]): string[] {

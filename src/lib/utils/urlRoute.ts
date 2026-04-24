@@ -5,7 +5,7 @@ import { getSerializedRouteScript } from './routeScriptPersistence';
 
 export type FarertConstructor = new () => FaretClass;
 
-export function normalizeRouteScriptInput(script: string): string {
+export function normalizeRouteScript(script: string): string {
 	return (script ?? '')
 		.replace(/\uFF0C+/gu, ',')
 		.replace(/\u3000+/gu, ' ')
@@ -148,7 +148,7 @@ function normalizeBasePath(path: string | undefined): string {
 }
 
 export function restoreRouteFromScript(route: FaretClass, script: string): boolean {
-	return restoreRouteStrict(route, normalizeRouteScriptInput(script));
+	return restoreRouteStrict(route, normalizeRouteScript(script));
 }
 
 function selectRouteScript(routeScript: string, segmentCount: number): string {
@@ -224,7 +224,7 @@ function isSameRouteScript(actual: string, expected: string): boolean {
 }
 
 function tokenizeRouteScript(script: string): string[] {
-	return normalizeRouteScriptInput(script)
+	return normalizeRouteScript(script)
 		.split(/[,\s]+/)
 		.map((token) => token.trim())
 		.filter((token) => token.length > 0);
