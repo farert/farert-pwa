@@ -17,4 +17,11 @@ describe('/+layout.svelte', () => {
 
 		expect(source).toContain('<link rel="icon" href={`${base}/favicon.png`} />');
 	});
+
+	it('does not require an active controller before showing the update notification', () => {
+		const layoutPath = fileURLToPath(new URL('./+layout.svelte', import.meta.url));
+		const source = readFileSync(layoutPath, 'utf-8');
+
+		expect(source).not.toContain("if (!navigator.serviceWorker.controller)");
+	});
 });

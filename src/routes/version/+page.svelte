@@ -5,8 +5,8 @@
 	import { initFarert, databaseInfo } from '$lib/wasm';
 	import { APP_VERSION, BUILD_AT, GIT_COMMIT_AT, GIT_SHA } from '$lib/version';
 	import {
+		detectPendingServiceWorkerUpdate,
 		getReadyServiceWorkerRegistration,
-		waitForPendingWorker
 	} from '$lib/utils/serviceWorkerUpdate';
 
 	interface DbMeta {
@@ -161,9 +161,7 @@
 				return;
 			}
 
-			const pendingWorkerPromise = waitForPendingWorker(registration, 4000);
-			await registration.update();
-			const pendingWorker = await pendingWorkerPromise;
+			const pendingWorker = await detectPendingServiceWorkerUpdate(registration, 4000);
 
 			if (registerPendingWorker(pendingWorker ?? registration.waiting)) {
 				await applyUpdate();

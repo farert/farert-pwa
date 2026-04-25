@@ -7,8 +7,7 @@
 	import { fly } from 'svelte/transition';
 	import { resolvePageTransition, type PageTransitionKind } from '$lib/utils/pageTransition';
 	import {
-		getReadyServiceWorkerRegistration,
-		waitForPendingWorker
+		startStartupServiceWorkerUpdateCheck
 	} from '$lib/utils/serviceWorkerUpdate';
 	import '../app.css';
 
@@ -38,9 +37,6 @@
 
 		const registerWaitingWorker = (worker: ServiceWorker | null): void => {
 			if (!worker) return;
-			if (!navigator.serviceWorker.controller) {
-				return;
-			}
 			updateWorker = worker;
 			updateAvailable = true;
 			dismissUpdate = false;
@@ -59,31 +55,27 @@
 			document.documentElement.setAttribute('data-theme', theme);
 		}
 
-		if ('serviceWorker' in navigator) {
-			getReadyServiceWorkerRegistration(base)
-				.then(async (registration) => {
-					if (!registration) return;
-					registerWaitingWorker(registration.waiting);
-					const pendingWorkerPromise = waitForPendingWorker(registration, 4000).then((worker) => {
-						registerWaitingWorker(worker);
-					});
-					await registration.update().catch(() => {
-						// 更新確認失敗時は自動更新しない
-					});
-					await pendingWorkerPromise;
-				})
-				.catch(() => {
-					// SW登録取得失敗時は更新チェックを行わない
-				})
-				.finally(() => {
-					if (isUpdatePreview() && !updateAvailable) {
-						updateAvailable = true;
-						updateWorker = null;
-					}
-				});
+		const disposeUpdateCheck =
+			'serviceWorker' in navigator
+				? startStartupServiceWorkerUpdateCheck({
+						basePath: base,
+						timeoutMs: 4000,
+						onPendingWorker: registerWaitingWorker
+					})
+				: () => {};
+
+		if (isUpdatePreview()) {
+			window.setTimeout(() => {
+				if (!updateAvailable) {
+					updateAvailable = true;
+					updateWorker = null;
+				}
+			}, 0);
 		}
 
-		return () => {};
+		return () => {
+			disposeUpdateCheck();
+		};
 	});
 
 	function applyUpdate(): void {

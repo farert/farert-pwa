@@ -3,6 +3,12 @@ export interface PendingWorkerResult {
 	worker: ServiceWorker | null;
 }
 
+export interface StartupServiceWorkerUpdateCheckOptions {
+	basePath?: string;
+	timeoutMs?: number;
+	onPendingWorker(worker: ServiceWorker): void;
+}
+
 const READY_REGISTRATION_TIMEOUT_MS = 1500;
 
 function normalizeBasePath(basePath = ''): string {
@@ -94,6 +100,73 @@ export async function waitForPendingWorker(
 			finish(registration.waiting ?? null);
 		}, timeoutMs);
 	});
+}
+
+export async function detectPendingServiceWorkerUpdate(
+	registration: ServiceWorkerRegistration,
+	timeoutMs = 4000
+): Promise<ServiceWorker | null> {
+	if (registration.waiting) {
+		return registration.waiting;
+	}
+
+	const pendingWorkerPromise = waitForPendingWorker(registration, timeoutMs);
+
+	try {
+		await registration.update();
+	} catch {
+		// 更新確認失敗時も、既に待機中 worker があれば拾う
+	}
+
+	return (await pendingWorkerPromise) ?? registration.waiting ?? null;
+}
+
+export function startStartupServiceWorkerUpdateCheck({
+	basePath = '',
+	timeoutMs = 4000,
+	onPendingWorker
+}: StartupServiceWorkerUpdateCheckOptions): () => void {
+	if (
+		typeof navigator === 'undefined' ||
+		typeof window === 'undefined' ||
+		!('serviceWorker' in navigator)
+	) {
+		return () => {};
+	}
+
+	let disposed = false;
+	let checking = false;
+
+	const runCheck = async () => {
+		if (checking || disposed) return;
+		checking = true;
+
+		try {
+			const registration = await getReadyServiceWorkerRegistration(basePath);
+			if (!registration || disposed) return;
+
+			const worker = await detectPendingServiceWorkerUpdate(registration, timeoutMs);
+			if (worker && !disposed) {
+				onPendingWorker(worker);
+			}
+		} catch {
+			// 起動時更新確認失敗時は通常利用を継続する
+		} finally {
+			checking = false;
+		}
+	};
+
+	const onOnline = () => {
+		void runCheck();
+	};
+
+	void runCheck();
+	window.addEventListener('online', onOnline);
+
+	return () => {
+		disposed = true;
+		window.removeEventListener('online', onOnline);
+	};
 }
 
 async function waitForInstalledWorker(
