@@ -259,6 +259,24 @@ describe('/save/+page.svelte', () => {
 		expect(get(savedRoutesStore)).toEqual(['R2']);
 	});
 
+	it('編集モード中は保存経路カードを押してもメイン画面へ戻らない', async () => {
+		const current = new MockFarert();
+		current.buildRoute('東京,東海道線,熱海,伊東線,伊東');
+		mainRouteStore.set(current);
+		savedRoutesStore.set(['仙台,東北線,盛岡']);
+
+		render(SavePage);
+
+		await page.getByRole('button', { name: '編集' }).click();
+		await page.getByText('仙台,東北線,盛岡').click();
+
+		expect(gotoMock).not.toHaveBeenCalled();
+		expect(get(mainRouteStore)?.routeScript()).toBe('東京,東海道線,熱海,伊東線,伊東');
+		await expect
+			.element(page.getByRole('button', { name: '削除' }).first())
+			.toBeInTheDocument();
+	});
+
 	it('経路が2区間以上あるとき保存経路選択で確認し、Noなら何もしない', async () => {
 		const current = new MockFarert();
 		current.buildRoute('東京,東海道線,熱海,伊東線,伊東');
@@ -470,5 +488,33 @@ describe('/save/+page.svelte', () => {
 
 	await expect.element(page.getByText('経路の書式不正により、インポートに失敗しました: 1 行目、？？（3番目のワード）')).toBeInTheDocument();
 	expect(get(savedRoutesStore)).toEqual([]);
+	});
+
+	it('Clipboard API が失敗してもフォールバックでエクスポートできる', async () => {
+		savedRoutesStore.set(['東京,東海道線,熱海', '仙台,東北線,盛岡']);
+		const writeTextMock = vi.fn().mockRejectedValue(new Error('denied'));
+		const execCommandMock = vi.fn().mockReturnValue(true);
+		const appendChildSpy = vi.spyOn(document.body, 'appendChild');
+		const removeChildSpy = vi.spyOn(document.body, 'removeChild');
+		const createElementSpy = vi.spyOn(document, 'createElement');
+		const execCommandSpy = vi
+			.spyOn(document, 'execCommand')
+			.mockImplementation(execCommandMock as (commandId: string) => boolean);
+
+		vi.stubGlobal('navigator', {
+			clipboard: { writeText: writeTextMock }
+		});
+
+		render(SavePage);
+
+		await page.getByRole('button', { name: 'エクスポート' }).click();
+
+		expect(writeTextMock).toHaveBeenCalledWith('東京,東海道線,熱海\n仙台,東北線,盛岡');
+		expect(execCommandMock).toHaveBeenCalledWith('copy');
+		expect(createElementSpy).toHaveBeenCalledWith('textarea');
+		expect(appendChildSpy).toHaveBeenCalled();
+		expect(removeChildSpy).toHaveBeenCalled();
+		execCommandSpy.mockRestore();
+		await expect.element(page.getByText('クリップボードへコピーしました。')).toBeInTheDocument();
 	});
 });

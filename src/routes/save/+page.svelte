@@ -342,6 +342,9 @@ type ImportRouteResult =
 	}
 
 	async function applyRoute(routeScript: string): Promise<void> {
+		if (isEditing) {
+			return;
+		}
 		clearMessages();
 		const normalizedScript = normalizeRouteScript(routeScript);
 		if (!normalizedScript) {
@@ -407,11 +410,49 @@ type ImportRouteResult =
 			console.warn('共有に失敗しました', err);
 		}
 		try {
-			await navigator.clipboard.writeText(text);
+			await copyExportText(text);
 			showInfo('クリップボードへコピーしました。');
 		} catch (err) {
 			console.error('エクスポートに失敗しました', err);
 			showError('エクスポートに失敗しました。');
+		}
+	}
+
+	async function copyExportText(text: string): Promise<void> {
+		if (navigator.clipboard?.writeText) {
+			try {
+				await navigator.clipboard.writeText(text);
+				return;
+			} catch (err) {
+				console.warn('Clipboard API でのコピーに失敗したためフォールバックします', err);
+			}
+		}
+
+		copyTextWithExecCommand(text);
+	}
+
+	function copyTextWithExecCommand(text: string): void {
+		if (typeof document === 'undefined') {
+			throw new Error('document is not available');
+		}
+
+		const textArea = document.createElement('textarea');
+		textArea.value = text;
+		textArea.setAttribute('readonly', '');
+		textArea.style.position = 'fixed';
+		textArea.style.top = '0';
+		textArea.style.left = '-9999px';
+		textArea.style.opacity = '0';
+		document.body.appendChild(textArea);
+		textArea.select();
+		textArea.setSelectionRange(0, text.length);
+
+		try {
+			if (!document.execCommand('copy')) {
+				throw new Error('execCommand copy failed');
+			}
+		} finally {
+			document.body.removeChild(textArea);
 		}
 	}
 </script>
