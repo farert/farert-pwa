@@ -666,6 +666,45 @@ describe('/terminal-selection/+page.svelte', () => {
 		expect(get(mainRouteStore)?.routeScript()).toBe('柏原(東)');
 	});
 
+	it('deduplicates fully identical fuzzy search results while keeping distinct same-name stations', async () => {
+		wasmApi.searchStationFuzzy.mockImplementation((keyword: string) => {
+			if (keyword === 'しもまつ') {
+				return JSON.stringify({
+					results: [
+						{ name: '下松', kana: 'くだまつ', samename: ['(山)'], score: 0 },
+						{ name: '下松', kana: 'くだまつ', samename: ['(山)'], score: 1 },
+						{ name: '下松', kana: 'しもまつ', samename: ['(阪)'], score: 2 },
+						{ name: '下松', kana: 'しもまつ', samename: ['(阪)'], score: 3 }
+					]
+				});
+			}
+			return JSON.stringify({ results: [] });
+		});
+		wasmApi.getPrefectureByStation.mockImplementation((station: string) => {
+			if (station === '下松(山)') return '山口県';
+			if (station === '下松(阪)') return '大阪府';
+			return '宮城県';
+		});
+		wasmApi.getKanaByStation.mockImplementation((station: string) => {
+			if (station === '下松(山)') return 'くだまつ';
+			if (station === '下松(阪)') return 'しもまつ';
+			return `${station}かな`;
+		});
+
+		render(TerminalSelectionPage);
+
+		const searchField = page.getByPlaceholder('駅名を検索');
+		await searchField.click();
+		await searchField.fill('しもまつ');
+
+		await expect.element(page.getByRole('button', { name: '下松(山)' })).toBeInTheDocument();
+		await expect.element(page.getByRole('button', { name: '下松(阪)' })).toBeInTheDocument();
+		expect(document.querySelectorAll('button[aria-label="下松(山)"]')).toHaveLength(1);
+		expect(document.querySelectorAll('button[aria-label="下松(阪)"]')).toHaveLength(1);
+		await expect.element(page.getByText('（くだまつ）')).toBeInTheDocument();
+		await expect.element(page.getByText('（しもまつ）')).toBeInTheDocument();
+	});
+
 	it('shows prefecture based line labels on station list title', async () => {
 		render(TerminalSelectionPage);
 

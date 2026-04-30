@@ -839,6 +839,23 @@ function buildSearchDisplayName(name: string, samename?: string[]): string {
 	return buildStationDisplayNameFromCandidates(name, samename);
 }
 
+function dedupeSearchResults(items: SearchResultItem[]): SearchResultItem[] {
+	const seen = new Set<string>();
+	const result: SearchResultItem[] = [];
+	for (const item of items) {
+		const key = [
+			item.name.trim(),
+			item.displayName.trim(),
+			item.kana.trim(),
+			item.prefecture.trim()
+		].join('\u0000');
+		if (seen.has(key)) continue;
+		seen.add(key);
+		result.push(item);
+	}
+	return result;
+}
+
 function parseFuzzySearchItems(payload: string): FuzzySearchItem[] {
 	try {
 		if (!payload) return [];
@@ -872,7 +889,8 @@ async function performSearch(keyword: string): Promise<void> {
 	searchLoading = true;
 	try {
 		const fuzzyItems = parseFuzzySearchItems(searchStationFuzzy(keyword, 50));
-		const enriched = fuzzyItems
+		const enriched = dedupeSearchResults(
+			fuzzyItems
 			.map((item) => {
 				const displayName = buildSearchDisplayName(item.name, item.samename);
 				const { kana, prefecture } = readStationMeta(displayName);
@@ -889,7 +907,8 @@ async function performSearch(keyword: string): Promise<void> {
 				return a.displayName.localeCompare(b.displayName, 'ja');
 			})
 			.slice(0, 50)
-			.map(({ name, displayName, kana, prefecture }) => ({ name, displayName, kana, prefecture }));
+			.map(({ name, displayName, kana, prefecture }) => ({ name, displayName, kana, prefecture }))
+		);
 		if (token === searchToken) {
 			searchResults = enriched;
 		}
