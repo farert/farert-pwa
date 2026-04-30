@@ -8,4 +8,14 @@ describe('PWA config', () => {
 		expect(source).toContain('globPatterns');
 		expect(source).toContain('wasm,data');
 	});
+
+	it('defines properly sized app icons for the manifest', () => {
+		const source = readFileSync(new URL('../vite.config.ts', import.meta.url), 'utf-8');
+
+		expect(source).toContain("src: 'icon-192.png'");
+		expect(source).toContain("sizes: '192x192'");
+		expect(source).toContain("src: 'icon-512.png'");
+		expect(source).toContain("sizes: '512x512'");
+		expect(source).toContain("purpose: 'any maskable'");
+	});
 });
