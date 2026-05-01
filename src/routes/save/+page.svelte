@@ -18,16 +18,21 @@ type BuildRouteResult = {
 
 type ImportRouteResult =
 	| { ok: true; script: string }
-	| { ok: false; message: string; routeText: string };
+	| { ok: false; detail: string; routeText: string };
 
 type ImportCandidate = {
 	source: string;
 	normalized: string;
 };
 
+type ImportErrorDetail = {
+	routeText: string;
+	detail: string;
+};
+
 	let loading = $state(true);
 	let errorMessage = $state('');
-	let errorRouteText = $state('');
+	let importErrorDetails = $state<ImportErrorDetail[]>([]);
 	let infoMessage = $state('');
 	let isEditing = $state(false);
 	let currentRoute: FaretClass | null = null;
@@ -122,14 +127,14 @@ type ImportCandidate = {
 		infoMessage = message;
 	}
 
-	function showError(message: string, routeText = ''): void {
+	function showError(message: string, details: ImportErrorDetail[] = []): void {
 		errorMessage = message;
-		errorRouteText = routeText;
+		importErrorDetails = details;
 	}
 
 	function clearMessages(): void {
 		errorMessage = '';
-		errorRouteText = '';
+		importErrorDetails = [];
 		infoMessage = '';
 		warnDialog = '';
 	}
@@ -240,27 +245,18 @@ type ImportCandidate = {
 			}
 
 			const imported: string[] = [];
-			let failed = 0;
-			let lastErrorMessage = '';
-			let lastErrorRouteText = '';
+			const errors: ImportErrorDetail[] = [];
 			candidates.forEach((candidate, lineIndex) => {
 				const result = tryImportRoute(candidate, lineIndex + 1);
 				if (result.ok) {
 					imported.push(result.script);
 					return;
 				}
-				failed += 1;
-				if (!lastErrorMessage) {
-					lastErrorMessage = result.message;
-					lastErrorRouteText = result.routeText;
-				}
+				errors.push({ routeText: result.routeText, detail: result.detail });
 			});
 
 			if (!imported.length) {
-				showError(
-					lastErrorMessage || '経路の書式不正により、インポートに失敗しました。',
-					lastErrorRouteText
-				);
+				showError('以下の経路はインポートに失敗しました。', errors);
 				return;
 			}
 
@@ -270,11 +266,8 @@ type ImportCandidate = {
 			} else {
 				showInfo(`${imported.length}件インポートしました。`);
 			}
-			if (failed > 0) {
-				showError(
-					lastErrorMessage || `${failed}件は書式不正のためインポートできませんでした。`,
-					lastErrorRouteText
-				);
+			if (errors.length > 0) {
+				showError('以下の経路はインポートに失敗しました。', errors);
 			}
 		} catch (err) {
 			console.error('インポートエラー', err);
@@ -299,7 +292,7 @@ type ImportCandidate = {
 			if (!restored) {
 				return {
 					ok: false,
-					message: formatImportError(
+					detail: formatImportError(
 						parseBuildRouteResult(route.buildRoute(candidate.normalized)),
 						lineNumber
 					),
@@ -311,7 +304,7 @@ type ImportCandidate = {
 			if (!script) {
 				return {
 					ok: false,
-					message: `経路の書式不正により、インポートに失敗しました: ${lineNumber} 行目`,
+					detail: formatImportError(null, lineNumber),
 					routeText: candidate.source || candidate.normalized
 				};
 			}
@@ -321,7 +314,7 @@ type ImportCandidate = {
 			console.error('経路インポートエラー', err);
 			return {
 				ok: false,
-				message: '経路のインポートに失敗しました。',
+				detail: `${lineNumber} 行目、インポート処理でエラーが発生しました。`,
 				routeText: candidate.source || candidate.normalized
 			};
 		}
@@ -357,7 +350,7 @@ type ImportCandidate = {
 	}
 
 	function formatImportError(result: BuildRouteResult | null, lineNumber: number): string {
-		let message = `経路の書式不正により、インポートに失敗しました: ${lineNumber} 行目`;
+		let message = `${lineNumber} 行目`;
 		if (!result?.failItem) {
 			return message;
 		}
@@ -506,9 +499,12 @@ type ImportCandidate = {
 		{#if errorMessage}
 			<div class="banner error" role="alert">
 				<p>{errorMessage}</p>
-				{#if errorRouteText}
-					<p class="error-route-text">{errorRouteText}</p>
-				{/if}
+				{#each importErrorDetails as detail}
+					<div class="import-error-block">
+						<p class="error-route-text">{detail.routeText}</p>
+						<p class="import-error-detail">{detail.detail}</p>
+					</div>
+				{/each}
 			</div>
 		{/if}
 		{#if infoMessage}
@@ -686,6 +682,14 @@ type ImportCandidate = {
 			'Courier New', monospace;
 		overflow-wrap: anywhere;
 		user-select: all;
+	}
+
+	.import-error-block {
+		margin-top: 0.9rem;
+	}
+
+	.import-error-detail {
+		margin-top: 0.25rem;
 	}
 
 	.banner.error {

@@ -471,7 +471,7 @@ describe('/save/+page.svelte', () => {
 		await expect.element(page.getByText('インポートしました。')).toBeInTheDocument();
 	});
 
-	it('不正な経路は詳細と入力経路全文を表示する', async () => {
+	it('不正な経路は失敗一覧として入力経路全文と詳細を表示する', async () => {
 		MockFarert.buildRouteMock.mockReturnValue('{"rc":-200,"failItem":"？？","offset":2}');
 		render(SavePage);
 
@@ -480,11 +480,54 @@ describe('/save/+page.svelte', () => {
 		await textArea.fill('東京,東海道線,？？');
 		await page.getByRole('button', { name: 'インポート実行', exact: true }).click();
 
-		await expect
-			.element(page.getByText('経路の書式不正により、インポートに失敗しました: 1 行目、？？（3番目のワード）'))
-			.toBeInTheDocument();
+		await expect.element(page.getByText('以下の経路はインポートに失敗しました。')).toBeInTheDocument();
 		await expect.element(page.getByText('東京,東海道線,？？')).toBeInTheDocument();
+		await expect.element(page.getByText('1 行目、？？（3番目のワード）')).toBeInTheDocument();
 		expect(get(savedRoutesStore)).toEqual([]);
+	});
+
+	it('複数の不正な経路は全件表示し成功分は取り込む', async () => {
+		MockFarert.buildRouteMock.mockImplementation((routeStr: string) => {
+			if (routeStr === '東京,東海道線,熱海') return 0;
+			if (routeStr === '戸畑,鹿児島線,小倉,山陽新幹線,x厚狭,美祢線,長門市,山陰線,三保三隅') {
+				return '{"rc":-200,"failItem":"x厚狭","offset":4}';
+			}
+			if (routeStr === '戸畑,鹿児島線,x小倉,山陽新幹線,厚狭,美祢線,長門市,山陰線,三保三隅') {
+				return '{"rc":-200,"failItem":"x小倉","offset":2}';
+			}
+			if (routeStr === 'x戸畑,鹿児島線,小倉,山陽新幹線,厚狭,美祢線,長門市,山陰線,三保三隅') {
+				return '{"rc":-200,"failItem":"x戸畑","offset":0}';
+			}
+			return 0;
+		});
+		render(SavePage);
+
+		await page.getByRole('button', { name: 'インポート' }).click();
+		const textArea = page.getByRole('textbox', { name: '経路テキスト' });
+		await textArea.fill(`東京,東海道線,熱海
+戸畑,鹿児島線,小倉,山陽新幹線,x厚狭,美祢線,長門市,山陰線,三保三隅
+東京,東海道線,熱海
+東京,東海道線,熱海
+戸畑,鹿児島線,x小倉,山陽新幹線,厚狭,美祢線,長門市,山陰線,三保三隅
+東京,東海道線,熱海
+x戸畑,鹿児島線,小倉,山陽新幹線,厚狭,美祢線,長門市,山陰線,三保三隅`);
+		await page.getByRole('button', { name: 'インポート実行', exact: true }).click();
+
+		expect(get(savedRoutesStore)).toEqual(['東京,東海道線,熱海']);
+		await expect.element(page.getByText('4件インポートしました。')).toBeInTheDocument();
+		await expect.element(page.getByText('以下の経路はインポートに失敗しました。')).toBeInTheDocument();
+		await expect
+			.element(page.getByText('戸畑,鹿児島線,小倉,山陽新幹線,x厚狭,美祢線,長門市,山陰線,三保三隅'))
+			.toBeInTheDocument();
+		await expect.element(page.getByText('2 行目、x厚狭（5番目のワード）')).toBeInTheDocument();
+		await expect
+			.element(page.getByText('戸畑,鹿児島線,x小倉,山陽新幹線,厚狭,美祢線,長門市,山陰線,三保三隅'))
+			.toBeInTheDocument();
+		await expect.element(page.getByText('5 行目、x小倉（3番目のワード）')).toBeInTheDocument();
+		await expect
+			.element(page.getByText('x戸畑,鹿児島線,小倉,山陽新幹線,厚狭,美祢線,長門市,山陰線,三保三隅'))
+			.toBeInTheDocument();
+		await expect.element(page.getByText('7 行目、x戸畑（1番目のワード）')).toBeInTheDocument();
 	});
 
 	it('Clipboard API が失敗してもフォールバックでエクスポートできる', async () => {
