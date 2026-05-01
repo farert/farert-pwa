@@ -18,17 +18,23 @@ type BuildRouteResult = {
 
 type ImportRouteResult =
 	| { ok: true; script: string }
-	| { ok: false; message: string };
+	| { ok: false; message: string; routeText: string };
+
+type ImportCandidate = {
+	source: string;
+	normalized: string;
+};
 
 	let loading = $state(true);
 	let errorMessage = $state('');
+	let errorRouteText = $state('');
 	let infoMessage = $state('');
 	let isEditing = $state(false);
 	let currentRoute: FaretClass | null = null;
 	let currentRouteScript = $state('');
 	let savedList = $state<string[]>([]);
-    let holderItems = $state<TicketHolderItem[]>([]);
-    let warnDialog = $state('');
+	let holderItems = $state<TicketHolderItem[]>([]);
+	let warnDialog = $state('');
 	let confirmDialogOpen = $state(false);
 	let confirmDialogMessage = $state('');
 	let confirmResolver: ((result: boolean) => void) | null = null;
@@ -116,15 +122,17 @@ type ImportRouteResult =
 		infoMessage = message;
 	}
 
-	function showError(message: string): void {
+	function showError(message: string, routeText = ''): void {
 		errorMessage = message;
+		errorRouteText = routeText;
 	}
 
-    function clearMessages(): void {
-        errorMessage = '';
-        infoMessage = '';
-        warnDialog = '';
-    }
+	function clearMessages(): void {
+		errorMessage = '';
+		errorRouteText = '';
+		infoMessage = '';
+		warnDialog = '';
+	}
 
 	function handleBack(): void {
 		goto(`${base}/`);
@@ -149,27 +157,27 @@ type ImportRouteResult =
 		if (savedList.includes(normalizedCurrent)) {
 			showInfo('すでに保存済みです。');
 			return;
-	    }
+		}
 		savedRoutes.update((list) => uniqueRouteScripts([normalizedCurrent, ...list]));
-	        showInfo('保存しました。');
-	    }
+		showInfo('保存しました。');
+	}
 
-    function getCurrentRouteCount(): number {
-        try {
-            if (currentRoute?.getRouteCount) return currentRoute.getRouteCount();
-            const tokens = currentRouteScript ? currentRouteScript.split(',') : [];
-            return Math.max(0, (tokens.length - 1) / 2);
-        } catch (err) {
-            console.warn('経路本数取得に失敗しました', err);
-            return 0;
-        }
-    }
+	function getCurrentRouteCount(): number {
+		try {
+			if (currentRoute?.getRouteCount) return currentRoute.getRouteCount();
+			const tokens = currentRouteScript ? currentRouteScript.split(',') : [];
+			return Math.max(0, (tokens.length - 1) / 2);
+		} catch (err) {
+			console.warn('経路本数取得に失敗しました', err);
+			return 0;
+		}
+	}
 
-	    function handleDeleteRoute(routeScript: string): void {
+	function handleDeleteRoute(routeScript: string): void {
 		const normalized = normalizeRouteScript(routeScript);
 		if (!normalized) return;
-	        savedRoutes.update((list) => list.filter((item) => normalizeRouteScript(item) !== normalized));
-	    }
+		savedRoutes.update((list) => list.filter((item) => normalizeRouteScript(item) !== normalized));
+	}
 
 	function handleDeleteCurrent(): void {
 		if (!currentRouteScript) return;
@@ -234,6 +242,7 @@ type ImportRouteResult =
 			const imported: string[] = [];
 			let failed = 0;
 			let lastErrorMessage = '';
+			let lastErrorRouteText = '';
 			candidates.forEach((candidate, lineIndex) => {
 				const result = tryImportRoute(candidate, lineIndex + 1);
 				if (result.ok) {
@@ -243,11 +252,15 @@ type ImportRouteResult =
 				failed += 1;
 				if (!lastErrorMessage) {
 					lastErrorMessage = result.message;
+					lastErrorRouteText = result.routeText;
 				}
 			});
 
 			if (!imported.length) {
-				showError(lastErrorMessage || '経路の書式不正により、インポートに失敗しました。');
+				showError(
+					lastErrorMessage || '経路の書式不正により、インポートに失敗しました。',
+					lastErrorRouteText
+				);
 				return;
 			}
 
@@ -258,7 +271,10 @@ type ImportRouteResult =
 				showInfo(`${imported.length}件インポートしました。`);
 			}
 			if (failed > 0) {
-				showError(lastErrorMessage || `${failed}件は書式不正のためインポートできませんでした。`);
+				showError(
+					lastErrorMessage || `${failed}件は書式不正のためインポートできませんでした。`,
+					lastErrorRouteText
+				);
 			}
 		} catch (err) {
 			console.error('インポートエラー', err);
@@ -266,21 +282,28 @@ type ImportRouteResult =
 		}
 	}
 
-	function parseImportCandidates(rawText: string): string[] {
+	function parseImportCandidates(rawText: string): ImportCandidate[] {
 		return rawText
 			.split(/\r?\n/u)
-			.map((line) => normalizeRouteScript(line))
-			.filter((line) => line.length > 0);
+			.map((line) => ({
+				source: line.trim(),
+				normalized: normalizeRouteScript(line)
+			}))
+			.filter((line) => line.normalized.length > 0);
 	}
 
-	function tryImportRoute(candidate: string, lineNumber: number): ImportRouteResult {
+	function tryImportRoute(candidate: ImportCandidate, lineNumber: number): ImportRouteResult {
 		const route = new Farert();
 		try {
-			const restored = restoreRouteFromScript(route, candidate);
+			const restored = restoreRouteFromScript(route, candidate.normalized);
 			if (!restored) {
 				return {
 					ok: false,
-					message: formatImportError(parseBuildRouteResult(route.buildRoute(candidate)), lineNumber)
+					message: formatImportError(
+						parseBuildRouteResult(route.buildRoute(candidate.normalized)),
+						lineNumber
+					),
+					routeText: candidate.source || candidate.normalized
 				};
 			}
 
@@ -288,14 +311,19 @@ type ImportRouteResult =
 			if (!script) {
 				return {
 					ok: false,
-					message: `経路の書式不正により、インポートに失敗しました: ${lineNumber} 行目`
+					message: `経路の書式不正により、インポートに失敗しました: ${lineNumber} 行目`,
+					routeText: candidate.source || candidate.normalized
 				};
 			}
 
 			return { ok: true, script };
 		} catch (err) {
 			console.error('経路インポートエラー', err);
-			return { ok: false, message: '経路のインポートに失敗しました。' };
+			return {
+				ok: false,
+				message: '経路のインポートに失敗しました。',
+				routeText: candidate.source || candidate.normalized
+			};
 		}
 	}
 
@@ -382,11 +410,6 @@ type ImportRouteResult =
 
 		if (!input) {
 			showError('インポート対象の経路がありません。');
-			return;
-		}
-
-		const confirmed = await requestConfirm('経路をインポートしてよろしいですか？');
-		if (!confirmed) {
 			return;
 		}
 
@@ -481,7 +504,12 @@ type ImportRouteResult =
 		<p class="banner">読み込み中...</p>
 	{:else}
 		{#if errorMessage}
-			<p class="banner error" role="alert">{errorMessage}</p>
+			<div class="banner error" role="alert">
+				<p>{errorMessage}</p>
+				{#if errorRouteText}
+					<p class="error-route-text">{errorRouteText}</p>
+				{/if}
+			</div>
 		{/if}
 		{#if infoMessage}
 			<p class="banner info" role="status">{infoMessage}</p>
@@ -642,11 +670,22 @@ type ImportRouteResult =
 	}
 
 	.banner {
-		margin: 0;
 		padding: 0.75rem 1rem;
 		border-radius: 0.75rem;
 		background: var(--info-bg);
 		color: var(--info-text);
+	}
+
+	.banner p {
+		margin: 0;
+	}
+
+	.error-route-text {
+		margin-top: 0.45rem;
+		font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+			'Courier New', monospace;
+		overflow-wrap: anywhere;
+		user-select: all;
 	}
 
 	.banner.error {

@@ -311,44 +311,41 @@ describe('/save/+page.svelte', () => {
 		MockFarert.buildRouteMock.mockReturnValueOnce(1);
 		render(SavePage);
 
-	await page.getByRole('button', { name: 'インポート' }).click();
+		await page.getByRole('button', { name: 'インポート' }).click();
 		const textArea = page.getByRole('textbox', { name: '経路テキスト' });
 		await textArea.fill('東京,東海道線,熱海');
 		await page.getByRole('button', { name: 'インポート実行', exact: true }).click();
-		await page.getByRole('button', { name: 'はい' }).click();
 
-	expect(get(savedRoutesStore)).toContain('東京,東海道線,熱海');
-	await expect.element(page.getByText('インポートしました。')).toBeInTheDocument();
+		expect(get(savedRoutesStore)).toContain('東京,東海道線,熱海');
+		await expect.element(page.getByText('インポートしました。')).toBeInTheDocument();
 	});
 
 	it('インポート時に改行区切りの複数経路を取り込む', async () => {
 		render(SavePage);
 
-	await page.getByRole('button', { name: 'インポート' }).click();
+		await page.getByRole('button', { name: 'インポート' }).click();
 		const textArea = page.getByRole('textbox', { name: '経路テキスト' });
 		await textArea.fill('東京,東海道線,熱海\n仙台,東北線,盛岡\n');
 		await page.getByRole('button', { name: 'インポート実行', exact: true }).click();
-		await page.getByRole('button', { name: 'はい' }).click();
 
-	expect(get(savedRoutesStore)).toEqual(['東京,東海道線,熱海', '仙台,東北線,盛岡']);
-	await expect.element(page.getByText('2件インポートしました。')).toBeInTheDocument();
+		expect(get(savedRoutesStore)).toEqual(['東京,東海道線,熱海', '仙台,東北線,盛岡']);
+		await expect.element(page.getByText('2件インポートしました。')).toBeInTheDocument();
 	});
 
 	it('インポートダイアログで入力してインポートできる', async () => {
 		render(SavePage);
 
-	await page.getByRole('button', { name: 'インポート' }).click();
-	const dialog = page.getByRole('dialog', { name: '経路インポート' });
-	await expect.element(dialog).toBeInTheDocument();
+		await page.getByRole('button', { name: 'インポート' }).click();
+		const dialog = page.getByRole('dialog', { name: '経路インポート' });
+		await expect.element(dialog).toBeInTheDocument();
 
-	const textArea = page.getByRole('textbox', { name: '経路テキスト' });
-	await textArea.fill('横浜,相鉄本線,町田');
-	const importButton = page.getByRole('button', { name: 'インポート実行', exact: true });
-	await importButton.click();
-	await page.getByRole('button', { name: 'はい' }).click();
+		const textArea = page.getByRole('textbox', { name: '経路テキスト' });
+		await textArea.fill('横浜,相鉄本線,町田');
+		const importButton = page.getByRole('button', { name: 'インポート実行', exact: true });
+		await importButton.click();
 
-	expect(get(savedRoutesStore)).toEqual(['横浜,相鉄本線,町田']);
-	await expect.element(page.getByText('インポートしました。')).toBeInTheDocument();
+		expect(get(savedRoutesStore)).toEqual(['横浜,相鉄本線,町田']);
+		await expect.element(page.getByText('インポートしました。')).toBeInTheDocument();
 	});
 
 	it('インポート時に azusa が受理した省略経路を取り込める', async () => {
@@ -366,7 +363,6 @@ describe('/save/+page.svelte', () => {
 			const textArea = page.getByRole('textbox', { name: '経路テキスト' });
 			await textArea.fill('長崎 西九州新幹線 諫早 長崎線 長与');
 			await page.getByRole('button', { name: 'インポート実行', exact: true }).click();
-			await page.getByRole('button', { name: 'はい' }).click();
 
 			expect(get(savedRoutesStore)).toEqual(['長崎,西九州新幹線,諫早,長崎線(長与経由),長与']);
 			await expect.element(page.getByText('インポートしました。')).toBeInTheDocument();
@@ -390,7 +386,6 @@ describe('/save/+page.svelte', () => {
 			const textArea = page.getByRole('textbox', { name: '経路テキスト' });
 			await textArea.fill('千歳　千歳線　白石　函館線　岩見沢　室蘭線　追分');
 			await page.getByRole('button', { name: 'インポート実行', exact: true }).click();
-			await page.getByRole('button', { name: 'はい' }).click();
 
 			expect(get(savedRoutesStore)).toEqual([
 				'千歳(千),千歳線,白石(函),函館線,岩見沢,室蘭線,追分(室)'
@@ -416,7 +411,6 @@ describe('/save/+page.svelte', () => {
 			const textArea = page.getByRole('textbox', { name: '経路テキスト' });
 			await textArea.fill('上越妙高，えちごトキめき鉄道（妙高はねうま），直江津');
 			await page.getByRole('button', { name: 'インポート実行', exact: true }).click();
-			await page.getByRole('button', { name: 'はい' }).click();
 
 			expect(get(savedRoutesStore)).toEqual(['上越妙高,えちごトキめき鉄道（妙高はねうま）,直江津']);
 			await expect.element(page.getByText('インポートしました。')).toBeInTheDocument();
@@ -452,7 +446,6 @@ describe('/save/+page.svelte', () => {
 		};
 
 		await page.getByRole('button', { name: 'インポート実行', exact: true }).click();
-		await page.getByRole('button', { name: 'はい' }).click();
 
 		expect(get(savedRoutesStore)).toEqual([
 			'千歳(千),千歳線,白石(函),函館線,岩見沢,室蘭線,追分(室)'
@@ -463,31 +456,35 @@ describe('/save/+page.svelte', () => {
 		MockFarert.prototype.routeScript = originalRouteScript;
 	});
 
-	it('インポート時に確認ダイアログでいいえを選ぶと取り込まない', async () => {
+	it('インポート時に確認ダイアログを出さずに取り込む', async () => {
 		render(SavePage);
 
 		await page.getByRole('button', { name: 'インポート' }).click();
 		const textArea = page.getByRole('textbox', { name: '経路テキスト' });
 		await textArea.fill('東京,東海道線,熱海');
 		await page.getByRole('button', { name: 'インポート実行', exact: true }).click();
-		await page.getByRole('button', { name: 'いいえ' }).click();
 
-		expect(get(savedRoutesStore)).toEqual([]);
-		await expect.element(page.getByText('インポートしました。')).not.toBeInTheDocument();
+		expect(get(savedRoutesStore)).toEqual(['東京,東海道線,熱海']);
+		await expect
+			.element(page.getByRole('dialog', { name: '確認ダイアログ' }))
+			.not.toBeInTheDocument();
+		await expect.element(page.getByText('インポートしました。')).toBeInTheDocument();
 	});
 
-	it('不正な経路は詳細を含むエラーメッセージを表示する', async () => {
+	it('不正な経路は詳細と入力経路全文を表示する', async () => {
 		MockFarert.buildRouteMock.mockReturnValue('{"rc":-200,"failItem":"？？","offset":2}');
 		render(SavePage);
 
-	await page.getByRole('button', { name: 'インポート' }).click();
+		await page.getByRole('button', { name: 'インポート' }).click();
 		const textArea = page.getByRole('textbox', { name: '経路テキスト' });
 		await textArea.fill('東京,東海道線,？？');
 		await page.getByRole('button', { name: 'インポート実行', exact: true }).click();
-		await page.getByRole('button', { name: 'はい' }).click();
 
-	await expect.element(page.getByText('経路の書式不正により、インポートに失敗しました: 1 行目、？？（3番目のワード）')).toBeInTheDocument();
-	expect(get(savedRoutesStore)).toEqual([]);
+		await expect
+			.element(page.getByText('経路の書式不正により、インポートに失敗しました: 1 行目、？？（3番目のワード）'))
+			.toBeInTheDocument();
+		await expect.element(page.getByText('東京,東海道線,？？')).toBeInTheDocument();
+		expect(get(savedRoutesStore)).toEqual([]);
 	});
 
 	it('Clipboard API が失敗してもフォールバックでエクスポートできる', async () => {
