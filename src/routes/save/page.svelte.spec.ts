@@ -296,7 +296,7 @@ describe('/save/+page.svelte', () => {
 		const current = new MockFarert();
 		current.buildRoute('東京,東海道線,熱海,伊東線,伊東');
 		mainRouteStore.set(current);
-		savedRoutesStore.set(['仙台,東北線,盛岡']);
+		savedRoutesStore.set(['東京,東海道線,熱海', '仙台,東北線,盛岡', '長野,信越線,直江津']);
 
 		render(SavePage);
 
@@ -305,6 +305,30 @@ describe('/save/+page.svelte', () => {
 
 		expect(gotoMock).toHaveBeenCalledWith('/');
 		expect(get(mainRouteStore)?.routeScript()).toBe('仙台,東北線,盛岡');
+		expect(get(savedRoutesStore)).toEqual([
+			'仙台,東北線,盛岡',
+			'東京,東海道線,熱海',
+			'長野,信越線,直江津'
+		]);
+	});
+
+	it('確認なしで保存経路を選択した場合も選択経路を先頭へ移動する', async () => {
+		const current = new MockFarert();
+		current.buildRoute('東京,東海道線,熱海');
+		mainRouteStore.set(current);
+		savedRoutesStore.set(['東京,東海道線,熱海', '仙台,東北線,盛岡', '長野,信越線,直江津']);
+
+		render(SavePage);
+
+		await page.getByText('長野,信越線,直江津').click();
+
+		expect(gotoMock).toHaveBeenCalledWith('/');
+		expect(get(mainRouteStore)?.routeScript()).toBe('長野,信越線,直江津');
+		expect(get(savedRoutesStore)).toEqual([
+			'長野,信越線,直江津',
+			'東京,東海道線,熱海',
+			'仙台,東北線,盛岡'
+		]);
 	});
 
 	it('インポート時に buildRoute rc=1 を成功扱いにする', async () => {

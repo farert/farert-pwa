@@ -123,6 +123,13 @@ type ImportErrorDetail = {
 		return true;
 	}
 
+	function moveRouteToFront(routes: string[], routeScript: string): string[] {
+		const normalizedTarget = normalizeRouteScript(routeScript);
+		if (!normalizedTarget) return uniqueRouteScripts(routes);
+		const remaining = routes.filter((item) => normalizeRouteScript(item) !== normalizedTarget);
+		return uniqueRouteScripts([normalizedTarget, ...remaining]);
+	}
+
 	function showInfo(message: string): void {
 		infoMessage = message;
 	}
@@ -387,6 +394,7 @@ type ImportErrorDetail = {
 				return;
 			}
 			mainRoute.set(route);
+			savedRoutes.update((list) => moveRouteToFront(list, normalizedScript));
 			goto(`${base}/`);
 		} catch (err) {
 			console.error('経路適用に失敗しました', err);
