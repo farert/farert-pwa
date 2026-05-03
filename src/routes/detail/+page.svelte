@@ -418,6 +418,26 @@ function buildKilometerPairValue(primary?: number | null, secondary?: number | n
 	return `${formatKilometer(primary)} / ${formatKilometer(secondary)}`;
 }
 
+function buildRegionKilometerRow(
+	regionName: string,
+	salesKm?: number | null,
+	calcKm?: number | null
+): MetricRow | null {
+	if (!hasPositiveKilometer(salesKm) && !hasPositiveKilometer(calcKm)) {
+		return null;
+	}
+	if (kilometersMatch(salesKm, calcKm) || !hasPositiveKilometer(calcKm)) {
+		return { label: `${regionName} 営業キロ`, value: formatKilometer(salesKm) };
+	}
+	if (!hasPositiveKilometer(salesKm)) {
+		return { label: `${regionName} 計算キロ`, value: formatKilometer(calcKm) };
+	}
+	return {
+		label: `${regionName} 営業キロ/計算キロ`,
+		value: buildKilometerPairValue(salesKm, calcKm)
+	};
+}
+
 function formatRoundtripCompanyFare(info: FareInfo): string {
 	return formatCurrency((info.fareForCompanyline ?? 0) * 2);
 }
@@ -448,19 +468,22 @@ function formatValidDays(value?: number | null): string {
 function buildKilometerRows(info: FareInfo | null): MetricRow[] {
 	if (!info) return [];
 	const rows: MetricRow[] = [];
+	const hasCompanyOrBrt = hasPositiveKilometer(info.companySalesKm) || hasPositiveKilometer(info.brtSalesKm);
 	if (kilometersMatch(info.totalSalesKm, info.jrCalcKm)) {
 		rows.push({ label: '営業キロ', value: formatKilometer(info.totalSalesKm) });
 	} else {
 		rows.push({
-			label: '営業キロ / 計算キロ(JR)',
+			label: hasCompanyOrBrt ? '営業キロ / 計算キロ(JR)' : '営業キロ / 計算キロ',
 			value: buildKilometerPairValue(info.totalSalesKm, info.jrCalcKm)
 		});
 	}
-	if (hasPositiveKilometer(info.salesKmForHokkaido) || hasPositiveKilometer(info.calcKmForHokkaido)) {
-		rows.push({
-			label: 'JR北海道',
-			value: buildKilometerPairValue(info.salesKmForHokkaido, info.calcKmForHokkaido)
-		});
+	const hokkaidoRow = buildRegionKilometerRow(
+		'JR北海道',
+		info.salesKmForHokkaido,
+		info.calcKmForHokkaido
+	);
+	if (hokkaidoRow) {
+		rows.push(hokkaidoRow);
 	}
 	if (hasPositiveKilometer(info.companySalesKm)) {
 		rows.push({
@@ -473,17 +496,14 @@ function buildKilometerRows(info: FareInfo | null): MetricRow[] {
 	if ((info.brtSalesKm ?? 0) > 0) {
 		rows.push({ label: 'BRT営業キロ', value: formatKilometer(info.brtSalesKm) });
 	}
-	const regionMetrics: { label: string; value?: number | null }[] = [
-		{ label: 'JR東日本 営業キロ', value: info.salesKmForEast },
-		{ label: 'JR東日本 計算キロ', value: info.calcKmForEast },
-		{ label: 'JR四国 営業キロ', value: info.salesKmForShikoku },
-		{ label: 'JR四国 計算キロ', value: info.calcKmForShikoku },
-		{ label: 'JR九州 営業キロ', value: info.salesKmForKyusyu },
-		{ label: 'JR九州 計算キロ', value: info.calcKmForKyusyu }
+	const regionMetrics = [
+		buildRegionKilometerRow('JR東日本', info.salesKmForEast, info.calcKmForEast),
+		buildRegionKilometerRow('JR四国', info.salesKmForShikoku, info.calcKmForShikoku),
+		buildRegionKilometerRow('JR九州', info.salesKmForKyusyu, info.calcKmForKyusyu)
 	];
 	for (const metric of regionMetrics) {
-		if ((metric.value ?? 0) > 0) {
-			rows.push({ label: metric.label, value: formatKilometer(metric.value) });
+		if (metric) {
+			rows.push(metric);
 		}
 	}
 	if (info.isRule114Applied) {

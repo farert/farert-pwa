@@ -115,6 +115,7 @@ const { default: DetailPage } = await import('./+page.svelte');
 					salesKmForHokkaido: 4055,
 					calcKmForHokkaido: 200,
 					salesKmForEast: 955,
+					calcKmForEast: 1245,
 					isRule114Applied: true,
 					rule114SalesKm: 2005,
 					rule114CalcKm: 2088,
@@ -160,14 +161,16 @@ const { default: DetailPage } = await import('./+page.svelte');
 			.element(kilometerSection.getByText('営業キロ / 計算キロ(JR)'))
 			.toBeInTheDocument();
 		await expect.element(kilometerSection.getByText(/218\.3km\s*\/\s*226\.4km/)).toBeInTheDocument();
-		await expect.element(kilometerSection.getByText('JR北海道')).toBeInTheDocument();
+		await expect.element(kilometerSection.getByText('JR北海道 営業キロ/計算キロ')).toBeInTheDocument();
 		await expect
 			.element(kilometerSection.getByText(/405\.5km\s*\/\s*20\.0km/))
 			.toBeInTheDocument();
 		await expect.element(kilometerSection.getByText('JR線 / 会社線')).toBeInTheDocument();
 		await expect.element(kilometerSection.getByText(/218\.3km\s*\/\s*24\.4km/)).toBeInTheDocument();
-		await expect.element(kilometerSection.getByText('JR東日本 営業キロ')).toBeInTheDocument();
-		await expect.element(kilometerSection.getByText('95.5km')).toBeInTheDocument();
+		await expect
+			.element(kilometerSection.getByText('JR東日本 営業キロ/計算キロ'))
+			.toBeInTheDocument();
+		await expect.element(kilometerSection.getByText(/95\.5km\s*\/\s*124\.5km/)).toBeInTheDocument();
 		await expect
 			.element(kilometerSection.getByText('規程114条適用 営業キロ / 計算キロ'))
 			.toBeInTheDocument();
@@ -247,11 +250,12 @@ const { default: DetailPage } = await import('./+page.svelte');
 		render(DetailPage, { initialCompressedRoute: 'encoded-simple' });
 
 		const kilometerSection = page.getByRole('heading', { name: 'キロ程' }).locator('..');
-		await expect.element(kilometerSection.getByText('営業キロ')).toBeInTheDocument();
+		await expect.element(kilometerSection.getByText(/^営業キロ$/)).toBeInTheDocument();
 		await expect.element(kilometerSection.getByText('104.5km')).toBeInTheDocument();
-		await expect.element(kilometerSection.getByText('JR北海道')).toBeInTheDocument();
+		await expect.element(kilometerSection.getByText('JR北海道 営業キロ')).toBeInTheDocument();
 		await expect.element(kilometerSection.getByText('30.0km')).toBeInTheDocument();
 		await expect.element(kilometerSection.getByText('営業キロ / 計算キロ(JR)')).not.toBeInTheDocument();
+		await expect.element(kilometerSection.getByText('営業キロ / 計算キロ')).not.toBeInTheDocument();
 		await expect.element(kilometerSection.getByText('JR営業キロ')).not.toBeInTheDocument();
 		await expect.element(kilometerSection.getByText('JR線 / 会社線')).not.toBeInTheDocument();
 
@@ -263,6 +267,42 @@ const { default: DetailPage } = await import('./+page.svelte');
 		await expect.element(fareSection.getByText(/^往復$/).nth(1)).toBeInTheDocument();
 		await expect.element(fareSection.getByText('¥1,580')).toBeInTheDocument();
 		await expect.element(fareSection.getByText('¥3,160')).toBeInTheDocument();
+	});
+
+	it('collapses regional calc kilometers into one row and hides duplicate calc values', async () => {
+		const fakeRoute = {
+			routeScript: () => '東京,東海道線,熱海',
+			departureStationName: () => '東京',
+			arrivevalStationName: () => '熱海',
+			showFare: () => 'EXPORT_EAST',
+			getFareInfoObjectJson: () =>
+				JSON.stringify({
+					fareResultCode: 0,
+					totalSalesKm: 1045,
+					jrSalesKm: 1045,
+					jrCalcKm: 1100,
+					companySalesKm: 0,
+					brtSalesKm: 0,
+					salesKmForEast: 1234000,
+					calcKmForEast: 1234000,
+					fare: 1980,
+					ticketAvailDays: 2,
+					messages: []
+				}),
+			getRoutesJson: () => JSON.stringify([{ line: '東海道線', station: '熱海' }])
+		};
+		decompressMock.mockReturnValue(fakeRoute);
+
+		render(DetailPage, { initialCompressedRoute: 'encoded-east-only' });
+
+		const kilometerSection = page.getByRole('heading', { name: 'キロ程' }).locator('..');
+		await expect.element(kilometerSection.getByText('営業キロ / 計算キロ')).toBeInTheDocument();
+		await expect.element(kilometerSection.getByText(/104\.5km\s*\/\s*110\.0km/)).toBeInTheDocument();
+		await expect.element(kilometerSection.getByText('JR東日本 営業キロ')).toBeInTheDocument();
+		await expect.element(kilometerSection.getByText('123,400.0km')).toBeInTheDocument();
+		await expect
+			.element(kilometerSection.getByText('JR東日本 営業キロ/計算キロ'))
+			.not.toBeInTheDocument();
 	});
 
 	it('toggles city-station option and recalculates', async () => {
