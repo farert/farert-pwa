@@ -122,6 +122,7 @@ const { default: DetailPage } = await import('./+page.svelte');
 					rule114ApplyTerminal: '甲斐住吉',
 					fare: 3810,
 					fareForCompanyline: 520,
+					fareForIC: 3808,
 					farePriorRule114: 4170,
 					roundTripFareWithCompanyLine: 7620,
 					isRoundtripDiscount: true,
@@ -177,10 +178,10 @@ const { default: DetailPage } = await import('./+page.svelte');
 		await expect.element(kilometerSection.getByText('200.5km / 208.8km')).toBeInTheDocument();
 		const fareSection = page.getByRole('heading', { name: '運賃' }).locator('..');
 		await expect.element(fareSection).toBeInTheDocument();
-		await expect.element(fareSection.getByText('普通運賃')).toBeInTheDocument();
+		await expect.element(fareSection.getByText('普通運賃（IC運賃）')).toBeInTheDocument();
 		await expect.element(fareSection.getByText('うち会社線')).toBeInTheDocument();
 		await expect.element(fareSection.getByText(/^往復$/).first()).toBeInTheDocument();
-		await expect.element(fareSection.getByText(/¥3,810/)).toBeInTheDocument();
+		await expect.element(fareSection.getByText(/¥3,810\s*\(¥3,808\)/)).toBeInTheDocument();
 		await expect.element(fareSection.getByText(/¥520/)).toBeInTheDocument();
 		await expect.element(fareSection.getByText(/¥7,620/)).toBeInTheDocument();
 		await expect.element(page.getByText('¥4,170')).toBeInTheDocument();

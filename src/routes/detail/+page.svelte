@@ -442,6 +442,12 @@ function formatRoundtripCompanyFare(info: FareInfo): string {
 	return formatCurrency((info.fareForCompanyline ?? 0) * 2);
 }
 
+function formatFareWithICFare(fare?: number | null, icFare?: number | null): string {
+	const baseFare = formatCurrency(fare);
+	if ((icFare ?? 0) <= 0) return baseFare;
+	return `${baseFare} (${formatCurrency(icFare)})`;
+}
+
 function buildInlineFareRow(
 	label: string,
 	value: string,
@@ -519,20 +525,19 @@ function buildKilometerRows(info: FareInfo | null): MetricRow[] {
 function buildFareRows(info: FareInfo | null): MetricRow[] {
 	if (!info) return [];
 	const rows: MetricRow[] = [];
+	const normalFareLabel = (info.fareForIC ?? 0) > 0 ? '普通運賃（IC運賃）' : '普通運賃';
+	const normalFareValue = formatFareWithICFare(info.fare, info.fareForIC);
 	if ((info.fareForCompanyline ?? 0) > 0) {
 		rows.push(
 			buildInlineFareRow(
-				'普通運賃',
-				formatCurrency(info.fare),
+				normalFareLabel,
+				normalFareValue,
 				'うち会社線',
 				formatCurrency(info.fareForCompanyline)
 			)
 		);
 	} else {
-		rows.push({ label: '普通運賃', value: formatCurrency(info.fare) });
-	}
-	if ((info.fareForIC ?? 0) > 0) {
-		rows.push({ label: 'IC運賃', value: formatCurrency(info.fareForIC) });
+		rows.push({ label: normalFareLabel, value: normalFareValue });
 	}
 	if ((info.fareForBRT ?? 0) > 0) {
 		rows.push({ label: 'BRT運賃', value: formatCurrency(info.fareForBRT) });
@@ -861,7 +866,9 @@ function closeExportDialog(): void {
 								<li class={`metric-row ${row.layout ? `metric-row-${row.layout}` : ''}`}>
 									{#if row.layout}
 										<div class="metric-inline-block">
-											<div class="metric-inline-pair">
+											<div
+												class={`metric-inline-pair ${!row.secondaryValue ? 'metric-inline-pair-full' : ''}`}
+											>
 												<p class="metric-label">{row.label}</p>
 												<p class="metric-value">{row.value}</p>
 											</div>
@@ -1106,6 +1113,16 @@ function closeExportDialog(): void {
 		align-items: baseline;
 		gap: 0.5rem;
 		min-width: 0;
+	}
+
+	.metric-inline-pair-full {
+		grid-column: 1 / -1;
+		justify-content: space-between;
+		width: 100%;
+	}
+
+	.metric-inline-pair-full .metric-value {
+		margin-left: auto;
 	}
 
 	.metric-inline-pair.secondary {
