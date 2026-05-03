@@ -215,6 +215,56 @@ const { default: DetailPage } = await import('./+page.svelte');
 			);
 	});
 
+	it('hides duplicate calc kilometers and jr-only rows when company and brt are absent', async () => {
+		const fakeRoute = {
+			routeScript: () => '東京,東海道線,熱海',
+			departureStationName: () => '東京',
+			arrivevalStationName: () => '熱海',
+			showFare: () => 'EXPORT_SIMPLE',
+			getFareInfoObjectJson: () =>
+				JSON.stringify({
+					fareResultCode: 0,
+					totalSalesKm: 1045,
+					jrSalesKm: 1045,
+					jrCalcKm: 1045,
+					companySalesKm: 0,
+					brtSalesKm: 0,
+					salesKmForHokkaido: 300,
+					calcKmForHokkaido: 300,
+					fare: 1980,
+					childFare: 990,
+					roundtripChildFare: 1980,
+					isAcademicFare: true,
+					academicFare: 1580,
+					roundtripAcademicFare: 3160,
+					ticketAvailDays: 2,
+					messages: []
+				}),
+			getRoutesJson: () => JSON.stringify([{ line: '東海道線', station: '熱海' }])
+		};
+		decompressMock.mockReturnValue(fakeRoute);
+
+		render(DetailPage, { initialCompressedRoute: 'encoded-simple' });
+
+		const kilometerSection = page.getByRole('heading', { name: 'キロ程' }).locator('..');
+		await expect.element(kilometerSection.getByText('営業キロ')).toBeInTheDocument();
+		await expect.element(kilometerSection.getByText('104.5km')).toBeInTheDocument();
+		await expect.element(kilometerSection.getByText('JR北海道')).toBeInTheDocument();
+		await expect.element(kilometerSection.getByText('30.0km')).toBeInTheDocument();
+		await expect.element(kilometerSection.getByText('営業キロ / 計算キロ(JR)')).not.toBeInTheDocument();
+		await expect.element(kilometerSection.getByText('JR営業キロ')).not.toBeInTheDocument();
+		await expect.element(kilometerSection.getByText('JR線 / 会社線')).not.toBeInTheDocument();
+
+		const fareSection = page.getByRole('heading', { name: '運賃' }).locator('..');
+		await expect.element(fareSection.getByText('小児運賃')).toBeInTheDocument();
+		await expect.element(fareSection.getByText('学割運賃')).toBeInTheDocument();
+		await expect.element(fareSection.getByText('¥990')).toBeInTheDocument();
+		await expect.element(fareSection.getByText(/^往復$/).nth(0)).toBeInTheDocument();
+		await expect.element(fareSection.getByText(/^往復$/).nth(1)).toBeInTheDocument();
+		await expect.element(fareSection.getByText('¥1,580')).toBeInTheDocument();
+		await expect.element(fareSection.getByText('¥3,160')).toBeInTheDocument();
+	});
+
 	it('toggles city-station option and recalculates', async () => {
 		let startAsCity = false;
 		let arrivalAsCity = false;

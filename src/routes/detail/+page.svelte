@@ -407,6 +407,17 @@ function hasPositiveKilometer(value?: number | null): boolean {
 	return typeof value === 'number' && Number.isFinite(value) && value > 0;
 }
 
+function kilometersMatch(left?: number | null, right?: number | null): boolean {
+	return hasPositiveKilometer(left) && hasPositiveKilometer(right) && left === right;
+}
+
+function buildKilometerPairValue(primary?: number | null, secondary?: number | null): string {
+	if (kilometersMatch(primary, secondary)) {
+		return formatKilometer(primary);
+	}
+	return `${formatKilometer(primary)} / ${formatKilometer(secondary)}`;
+}
+
 function formatRoundtripCompanyFare(info: FareInfo): string {
 	return formatCurrency((info.fareForCompanyline ?? 0) * 2);
 }
@@ -437,14 +448,18 @@ function formatValidDays(value?: number | null): string {
 function buildKilometerRows(info: FareInfo | null): MetricRow[] {
 	if (!info) return [];
 	const rows: MetricRow[] = [];
-	rows.push({
-		label: '営業キロ / 計算キロ(JR)',
-		value: `${formatKilometer(info.totalSalesKm)} / ${formatKilometer(info.jrCalcKm)}`
-	});
+	if (kilometersMatch(info.totalSalesKm, info.jrCalcKm)) {
+		rows.push({ label: '営業キロ', value: formatKilometer(info.totalSalesKm) });
+	} else {
+		rows.push({
+			label: '営業キロ / 計算キロ(JR)',
+			value: buildKilometerPairValue(info.totalSalesKm, info.jrCalcKm)
+		});
+	}
 	if (hasPositiveKilometer(info.salesKmForHokkaido) || hasPositiveKilometer(info.calcKmForHokkaido)) {
 		rows.push({
 			label: 'JR北海道',
-			value: `${formatKilometer(info.salesKmForHokkaido)} / ${formatKilometer(info.calcKmForHokkaido)}`
+			value: buildKilometerPairValue(info.salesKmForHokkaido, info.calcKmForHokkaido)
 		});
 	}
 	if (hasPositiveKilometer(info.companySalesKm)) {
@@ -452,7 +467,7 @@ function buildKilometerRows(info: FareInfo | null): MetricRow[] {
 			label: 'JR線 / 会社線',
 			value: `${formatKilometer(info.jrSalesKm)} / ${formatKilometer(info.companySalesKm)}`
 		});
-	} else {
+	} else if (hasPositiveKilometer(info.brtSalesKm)) {
 		rows.push({ label: 'JR営業キロ', value: formatKilometer(info.jrSalesKm) });
 	}
 	if ((info.brtSalesKm ?? 0) > 0) {
@@ -524,7 +539,7 @@ function buildFareRows(info: FareInfo | null): MetricRow[] {
 				formatCurrency(info.childFare),
 				'往復',
 				(info.roundtripChildFare ?? 0) > 0 ? formatCurrency(info.roundtripChildFare) : undefined,
-				'grid'
+				'pair'
 			)
 		);
 	}
@@ -540,7 +555,7 @@ function buildFareRows(info: FareInfo | null): MetricRow[] {
 				(info.roundtripAcademicFare ?? 0) > 0
 					? formatCurrency(info.roundtripAcademicFare)
 					: undefined,
-				'grid'
+				'pair'
 			)
 		);
 	}
@@ -1267,15 +1282,15 @@ function closeExportDialog(): void {
 	}
 
 	@media (max-width: 640px) {
-		.metric-inline-block {
+		.metric-row-grid .metric-inline-block {
 			grid-template-columns: 1fr;
 		}
 
-		.metric-inline-pair.secondary {
+		.metric-row-grid .metric-inline-pair.secondary {
 			justify-content: flex-start;
 		}
 
-		.metric-label-spacer {
+		.metric-row-grid .metric-label-spacer {
 			display: none;
 		}
 	}
