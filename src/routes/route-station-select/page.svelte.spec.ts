@@ -140,6 +140,12 @@ class DuplicateRouteFarert extends MockFarert {
 	}
 }
 
+class InvalidCompanyPassFarert extends MockFarert {
+	override addRoute(): number {
+		return -4;
+	}
+}
+
 const gotoMock = vi.fn();
 
 vi.mock('$app/navigation', () => ({
@@ -428,6 +434,30 @@ describe('/route-station-select/+page.svelte', () => {
 		await page.getByTestId('station-option-水沢').click();
 
 		await expect.element(page.getByText('経路が重複しています')).toBeInTheDocument();
+		expect(gotoMock).not.toHaveBeenCalled();
+	});
+
+	it('shows company pass error message when addRoute returns -4', async () => {
+		const seededRoute = new InvalidCompanyPassFarert();
+		seededRoute.addStartRoute('博多');
+		mainRouteStore.set(seededRoute);
+
+		wasmApi.getBranchStationsByLine.mockReturnValue(JSON.stringify(['品川']));
+		wasmApi.getStationsByLine.mockReturnValue(JSON.stringify(['新大阪', '品川']));
+		wasmApi.getKanaByStation.mockImplementation((station: string) =>
+			station === '新大阪' ? 'しんおおさか' : 'しながわ'
+		);
+		wasmApi.getLinesByStation.mockReturnValue(JSON.stringify(['東海道線', '山陽新幹線']));
+
+		render(RouteStationSelectPage, {
+			presetParams: { from: 'main', station: '新大阪', line: '東海道線' }
+		});
+
+		await page.getByTestId('station-option-品川').click();
+
+		await expect
+			.element(page.getByText('無効な会社線通過連絡運輸です'))
+			.toBeInTheDocument();
 		expect(gotoMock).not.toHaveBeenCalled();
 	});
 

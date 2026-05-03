@@ -237,6 +237,10 @@ function handleSelectStation(name: string): void {
 			errorMessage = '経路が重複しています';
 			return;
 		}
+		if (result === -4) {
+			errorMessage = '無効な会社線通過連絡運輸です';
+			return;
+		}
 		if (result < 0) {
 			errorMessage = '経路の追加に失敗しました。';
 			return;
