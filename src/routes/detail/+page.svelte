@@ -16,6 +16,10 @@ interface MetricRow {
 	label: string;
 	value: string;
 	note?: string;
+	secondaryLabel?: string;
+	secondaryValue?: string;
+	layout?: 'pair' | 'grid';
+	hideSecondaryLabel?: boolean;
 }
 
 let loading = $state(true);
@@ -393,11 +397,36 @@ function formatCurrency(value?: number | null): string {
 
 function formatKilometer(value?: number | null): string {
 	if (typeof value !== 'number' || Number.isNaN(value)) return '— km';
-	const decimals = Number.isInteger(value) ? 0 : 1;
 	return `${value.toLocaleString('ja-JP', {
-		minimumFractionDigits: decimals,
-		maximumFractionDigits: decimals
+		minimumFractionDigits: 1,
+		maximumFractionDigits: 1
 	})}km`;
+}
+
+function hasPositiveKilometer(value?: number | null): boolean {
+	return typeof value === 'number' && Number.isFinite(value) && value > 0;
+}
+
+function formatRoundtripCompanyFare(info: FareInfo): string {
+	return formatCurrency((info.fareForCompanyline ?? 0) * 2);
+}
+
+function buildInlineFareRow(
+	label: string,
+	value: string,
+	secondaryLabel?: string,
+	secondaryValue?: string,
+	layout: 'pair' | 'grid' = 'pair',
+	hideSecondaryLabel: boolean = false
+): MetricRow {
+	return {
+		label,
+		value,
+		secondaryLabel,
+		secondaryValue,
+		layout,
+		hideSecondaryLabel
+	};
 }
 
 function formatValidDays(value?: number | null): string {
@@ -408,18 +437,28 @@ function formatValidDays(value?: number | null): string {
 function buildKilometerRows(info: FareInfo | null): MetricRow[] {
 	if (!info) return [];
 	const rows: MetricRow[] = [];
-	rows.push({ label: '営業キロ', value: formatKilometer(info.totalSalesKm) });
-	rows.push({ label: 'JR営業キロ', value: formatKilometer(info.jrSalesKm) });
-	rows.push({ label: 'JR計算キロ', value: formatKilometer(info.jrCalcKm) });
-	if ((info.companySalesKm ?? 0) > 0) {
-		rows.push({ label: '会社線営業キロ', value: formatKilometer(info.companySalesKm) });
+	rows.push({
+		label: '営業キロ / 計算キロ(JR)',
+		value: `${formatKilometer(info.totalSalesKm)} / ${formatKilometer(info.jrCalcKm)}`
+	});
+	if (hasPositiveKilometer(info.salesKmForHokkaido) || hasPositiveKilometer(info.calcKmForHokkaido)) {
+		rows.push({
+			label: 'JR北海道',
+			value: `${formatKilometer(info.salesKmForHokkaido)} / ${formatKilometer(info.calcKmForHokkaido)}`
+		});
+	}
+	if (hasPositiveKilometer(info.companySalesKm)) {
+		rows.push({
+			label: 'JR線 / 会社線',
+			value: `${formatKilometer(info.jrSalesKm)} / ${formatKilometer(info.companySalesKm)}`
+		});
+	} else {
+		rows.push({ label: 'JR営業キロ', value: formatKilometer(info.jrSalesKm) });
 	}
 	if ((info.brtSalesKm ?? 0) > 0) {
 		rows.push({ label: 'BRT営業キロ', value: formatKilometer(info.brtSalesKm) });
 	}
 	const regionMetrics: { label: string; value?: number | null }[] = [
-		{ label: 'JR北海道 営業キロ', value: info.salesKmForHokkaido },
-		{ label: 'JR北海道 計算キロ', value: info.calcKmForHokkaido },
 		{ label: 'JR東日本 営業キロ', value: info.salesKmForEast },
 		{ label: 'JR東日本 計算キロ', value: info.calcKmForEast },
 		{ label: 'JR四国 営業キロ', value: info.salesKmForShikoku },
@@ -445,9 +484,17 @@ function buildKilometerRows(info: FareInfo | null): MetricRow[] {
 function buildFareRows(info: FareInfo | null): MetricRow[] {
 	if (!info) return [];
 	const rows: MetricRow[] = [];
-	rows.push({ label: '普通運賃', value: formatCurrency(info.fare) });
 	if ((info.fareForCompanyline ?? 0) > 0) {
-		rows.push({ label: '会社線運賃', value: formatCurrency(info.fareForCompanyline) });
+		rows.push(
+			buildInlineFareRow(
+				'普通運賃',
+				formatCurrency(info.fare),
+				'うち会社線',
+				formatCurrency(info.fareForCompanyline)
+			)
+		);
+	} else {
+		rows.push({ label: '普通運賃', value: formatCurrency(info.fare) });
 	}
 	if ((info.fareForIC ?? 0) > 0) {
 		rows.push({ label: 'IC運賃', value: formatCurrency(info.fareForIC) });
@@ -456,23 +503,46 @@ function buildFareRows(info: FareInfo | null): MetricRow[] {
 		rows.push({ label: 'BRT運賃', value: formatCurrency(info.fareForBRT) });
 	}
 	if (info.isRoundtripDiscount || (info.roundTripFareWithCompanyLine ?? 0) > 0) {
-		rows.push({
-			label: '往復運賃',
-			value: formatCurrency(info.roundTripFareWithCompanyLine),
-			note: info.isRoundtripDiscount ? '往復割引適用' : undefined
-		});
+		rows.push(
+			buildInlineFareRow(
+				'往復',
+				formatCurrency(info.roundTripFareWithCompanyLine),
+				'うち会社線',
+				(info.fareForCompanyline ?? 0) > 0 ? formatRoundtripCompanyFare(info) : undefined,
+				'pair',
+				true
+			)
+		);
+		if (info.isRoundtripDiscount) {
+			rows[rows.length - 1].note = '往復割引適用';
+		}
 	}
-	if ((info.childFare ?? 0) > 0) {
-		rows.push({ label: '小児運賃', value: formatCurrency(info.childFare) });
+	if ((info.childFare ?? 0) > 0 || (info.roundtripChildFare ?? 0) > 0) {
+		rows.push(
+			buildInlineFareRow(
+				'小児運賃',
+				formatCurrency(info.childFare),
+				'往復',
+				(info.roundtripChildFare ?? 0) > 0 ? formatCurrency(info.roundtripChildFare) : undefined,
+				'grid'
+			)
+		);
 	}
-	if ((info.roundtripChildFare ?? 0) > 0) {
-		rows.push({ label: '小児往復運賃', value: formatCurrency(info.roundtripChildFare) });
-	}
-	if (info.isAcademicFare && (info.academicFare ?? 0) > 0) {
-		rows.push({ label: '学割運賃', value: formatCurrency(info.academicFare) });
-	}
-	if (info.isAcademicFare && (info.roundtripAcademicFare ?? 0) > 0) {
-		rows.push({ label: '学割往復運賃', value: formatCurrency(info.roundtripAcademicFare) });
+	if (
+		info.isAcademicFare &&
+		((info.academicFare ?? 0) > 0 || (info.roundtripAcademicFare ?? 0) > 0)
+	) {
+		rows.push(
+			buildInlineFareRow(
+				'学割運賃',
+				formatCurrency(info.academicFare),
+				'往復',
+				(info.roundtripAcademicFare ?? 0) > 0
+					? formatCurrency(info.roundtripAcademicFare)
+					: undefined,
+				'grid'
+			)
+		);
 	}
 	const stockDiscounts = Array.isArray(info.stockDiscounts) ? info.stockDiscounts : [];
 	for (const stock of stockDiscounts) {
@@ -753,14 +823,36 @@ function closeExportDialog(): void {
 					{:else}
 						<ul class="metric-list">
 							{#each fareRows as row}
-								<li class="metric-row">
-									<div>
-										<p class="metric-label">{row.label}</p>
-										{#if row.note}
-											<p class="metric-note">{row.note}</p>
-										{/if}
-									</div>
-									<p class="metric-value">{row.value}</p>
+								<li class={`metric-row ${row.layout ? `metric-row-${row.layout}` : ''}`}>
+									{#if row.layout}
+										<div class="metric-inline-block">
+											<div class="metric-inline-pair">
+												<p class="metric-label">{row.label}</p>
+												<p class="metric-value">{row.value}</p>
+											</div>
+											{#if row.secondaryValue}
+												<div class="metric-inline-pair secondary">
+													{#if row.hideSecondaryLabel}
+														<span class="metric-label-spacer" aria-hidden="true"></span>
+													{:else}
+														<p class="metric-label">{row.secondaryLabel}</p>
+													{/if}
+													<p class="metric-value">{row.secondaryValue}</p>
+												</div>
+											{/if}
+											{#if row.note}
+												<p class="metric-note metric-inline-note">{row.note}</p>
+											{/if}
+										</div>
+									{:else}
+										<div>
+											<p class="metric-label">{row.label}</p>
+											{#if row.note}
+												<p class="metric-note">{row.note}</p>
+											{/if}
+										</div>
+										<p class="metric-value">{row.value}</p>
+									{/if}
 								</li>
 							{/each}
 						</ul>
@@ -962,6 +1054,39 @@ function closeExportDialog(): void {
 		gap: 1rem;
 	}
 
+	.metric-row-pair,
+	.metric-row-grid {
+		display: block;
+	}
+
+	.metric-inline-block {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0.5rem 1rem;
+		width: 100%;
+	}
+
+	.metric-inline-pair {
+		display: flex;
+		align-items: baseline;
+		gap: 0.5rem;
+		min-width: 0;
+	}
+
+	.metric-inline-pair.secondary {
+		justify-content: flex-end;
+	}
+
+	.metric-inline-note {
+		grid-column: 1 / -1;
+	}
+
+	.metric-label-spacer {
+		display: inline-block;
+		width: 4.75rem;
+		flex: 0 0 auto;
+	}
+
 	.metric-label {
 		margin: 0;
 		font-size: 0.95rem;
@@ -985,6 +1110,10 @@ function closeExportDialog(): void {
 		font-weight: 700;
 		color: var(--text-main);
 		white-space: nowrap;
+	}
+
+	.metric-row-grid .metric-inline-pair {
+		justify-content: flex-start;
 	}
 
 	.placeholder {
@@ -1135,5 +1264,19 @@ function closeExportDialog(): void {
 		margin: 0;
 		cursor: pointer;
 		z-index: 10;
+	}
+
+	@media (max-width: 640px) {
+		.metric-inline-block {
+			grid-template-columns: 1fr;
+		}
+
+		.metric-inline-pair.secondary {
+			justify-content: flex-start;
+		}
+
+		.metric-label-spacer {
+			display: none;
+		}
 	}
 </style>

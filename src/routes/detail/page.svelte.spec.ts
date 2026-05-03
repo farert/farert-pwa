@@ -111,14 +111,19 @@ const { default: DetailPage } = await import('./+page.svelte');
 					totalSalesKm: 2183,
 					jrSalesKm: 2183,
 					jrCalcKm: 2264,
+					companySalesKm: 244,
+					salesKmForHokkaido: 4055,
+					calcKmForHokkaido: 200,
 					salesKmForEast: 955,
 					isRule114Applied: true,
 					rule114SalesKm: 2005,
 					rule114CalcKm: 2088,
 					rule114ApplyTerminal: '甲斐住吉',
 					fare: 3810,
+					fareForCompanyline: 520,
 					farePriorRule114: 4170,
 					roundTripFareWithCompanyLine: 7620,
+					isRoundtripDiscount: true,
 					roundTripFareWithCompanyLinePriorRule114: 8340,
 					childFare: 1900,
 					roundtripChildFare: 3800,
@@ -151,23 +156,40 @@ const { default: DetailPage } = await import('./+page.svelte');
 		await expect.element(page.getByText('運賃詳細')).toBeInTheDocument();
 		await expect.element(page.getByText('キロ程')).toBeInTheDocument();
 		const kilometerSection = page.getByRole('heading', { name: 'キロ程' }).locator('..');
-		await expect.element(kilometerSection.getByText('218.3km').first()).toBeInTheDocument();
-		await expect.element(kilometerSection.getByText('218.3km').nth(1)).toBeInTheDocument();
-		await expect.element(kilometerSection.getByText('226.4km')).toBeInTheDocument();
+		await expect
+			.element(kilometerSection.getByText('営業キロ / 計算キロ(JR)'))
+			.toBeInTheDocument();
+		await expect.element(kilometerSection.getByText(/218\.3km\s*\/\s*226\.4km/)).toBeInTheDocument();
+		await expect.element(kilometerSection.getByText('JR北海道')).toBeInTheDocument();
+		await expect
+			.element(kilometerSection.getByText(/405\.5km\s*\/\s*20\.0km/))
+			.toBeInTheDocument();
+		await expect.element(kilometerSection.getByText('JR線 / 会社線')).toBeInTheDocument();
+		await expect.element(kilometerSection.getByText(/218\.3km\s*\/\s*24\.4km/)).toBeInTheDocument();
+		await expect.element(kilometerSection.getByText('JR東日本 営業キロ')).toBeInTheDocument();
 		await expect.element(kilometerSection.getByText('95.5km')).toBeInTheDocument();
 		await expect
 			.element(kilometerSection.getByText('規程114条適用 営業キロ / 計算キロ'))
 			.toBeInTheDocument();
 		await expect.element(kilometerSection.getByText('200.5km / 208.8km')).toBeInTheDocument();
-		await expect.element(page.getByRole('heading', { name: '運賃' })).toBeInTheDocument();
-		await expect.element(page.getByText('¥3,810')).toBeInTheDocument();
-		await expect.element(page.getByText('¥7,620')).toBeInTheDocument();
+		const fareSection = page.getByRole('heading', { name: '運賃' }).locator('..');
+		await expect.element(fareSection).toBeInTheDocument();
+		await expect.element(fareSection.getByText('普通運賃')).toBeInTheDocument();
+		await expect.element(fareSection.getByText('うち会社線')).toBeInTheDocument();
+		await expect.element(fareSection.getByText(/^往復$/).first()).toBeInTheDocument();
+		await expect.element(fareSection.getByText(/¥3,810/)).toBeInTheDocument();
+		await expect.element(fareSection.getByText(/¥520/)).toBeInTheDocument();
+		await expect.element(fareSection.getByText(/¥7,620/)).toBeInTheDocument();
 		await expect.element(page.getByText('¥4,170')).toBeInTheDocument();
 		await expect.element(page.getByText('¥8,340')).toBeInTheDocument();
-		await expect.element(page.getByText('¥1,900')).toBeInTheDocument();
-		await expect.element(page.getByText('¥3,800')).toBeInTheDocument();
-		await expect.element(page.getByText('¥3,040')).toBeInTheDocument();
-		await expect.element(page.getByText('¥6,080')).toBeInTheDocument();
+		await expect.element(fareSection.getByText('小児運賃')).toBeInTheDocument();
+		await expect.element(fareSection.getByText('学割運賃')).toBeInTheDocument();
+		await expect.element(fareSection.getByText(/^往復$/).nth(0)).toBeInTheDocument();
+		await expect.element(fareSection.getByText(/^往復$/).nth(1)).toBeInTheDocument();
+		await expect.element(fareSection.getByText('¥1,900')).toBeInTheDocument();
+		await expect.element(fareSection.getByText('¥3,800')).toBeInTheDocument();
+		await expect.element(fareSection.getByText('¥3,040')).toBeInTheDocument();
+		await expect.element(fareSection.getByText('¥6,080')).toBeInTheDocument();
 		await expect
 			.element(page.getByText('株主優待運賃（JR東海株主優待）'))
 			.toBeInTheDocument();
