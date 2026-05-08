@@ -50,9 +50,9 @@
 - Node.js 20+
 - pnpm
 - farert-wasmプロジェクトがビルド済み（`../farert-wasm/`）
-- Docker Desktop (Windowsの場合仮想環境使用せざる得ないので)
-- Visual Stduio Code + DevContainer plug-in (同上)
-- (作者はWindowsを使用しての検証はしていません)
+- Docker Desktop (Optional)
+- Visual Stduio Code + DevContainer plug-in (Optional)
+- Windows + WSL(Linux ディストリビューションはなんでも)
 
 ### インストール
 
@@ -69,6 +69,9 @@ pnpm install
 # WASMファイルのコピー（オプション：最新版を使いたい場合）
 # コミット済みのWASMファイルがあるため、通常は不要
 pnpm copy:wasm
+
+# これ一発でWASMビルド〜更新
+pnpm update:wasm
 ```
 
 ### Docker運用（VSCode不要）
