@@ -1,19 +1,101 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-import { base } from '$app/paths';
+	import { base } from '$app/paths';
 
 	const blogUrl = 'https://farert.blogspot.jp/';
 
 	const usageSteps = [
-		'まず発駅を1つ目のカードから選択します。',
-		'「区間を追加」で到達駅と路線を順に選び、経路を作成します。',
-		'入力が完了すると、一覧に運賃結果が表示されます。',
-		'必要に応じて「きっぷホルダ」を開き、経路内を追加してください。'
+		'発駅カードを押して、発駅を選びます。',
+		'「+ 経路を追加」から路線を選び、次の駅を確定して経路を伸ばします。',
+		'運賃サマリーが表示されたら、押して詳細画面を開きます。',
+		'必要に応じて保存画面で保存し、詳細画面から共有します。'
+	];
+
+	const mainScreenParts = [
+		{
+			name: '発駅カード',
+			description: '現在の発駅を設定・変更する入口です。経路が空のときはここから開始します。'
+		},
+		{
+			name: '区間カード',
+			description: '追加済みの区間を確認する欄です。押すとその区間までの詳細を開けます。'
+		},
+		{
+			name: '運賃サマリーカード',
+			description: '経路全体の運賃結果を確認する欄です。押すと全経路の詳細画面を開きます。'
+		},
+		{
+			name: '+ 経路を追加',
+			description: '次に使う路線と駅を選ぶ入口です。経路が終端に達すると追加できません。'
+		},
+		{
+			name: '下部操作ナビ',
+			description: '戻る、反転、保存、画面上下移動などの基本操作をまとめた固定操作欄です。'
+		},
+		{
+			name: '右上メニュー',
+			description: 'バージョン情報、ヘルプ、経路オプションを開きます。'
+		}
+	];
+
+	const screenManuals = [
+		{
+			title: '発着駅選択',
+			path: '/terminal-selection',
+			steps: [
+				'「グループ」「都道府県」「履歴」から探すか、検索バーで駅名を検索します。',
+				'候補一覧から駅を選ぶと、発駅または着駅として確定します。',
+				'着駅選択では、必要に応じて新幹線利用確認が表示されます。'
+			]
+		},
+		{
+			title: '路線選択',
+			path: '/line-selection',
+			steps: [
+				'現在駅や選択文脈に応じた路線候補が表示されます。',
+				'路線を選ぶと、次の駅を選ぶ画面へ進みます。',
+				'メイン画面から来た場合は「最短経路」で着駅の自動探索にも進めます。'
+			]
+		},
+		{
+			title: '駅選択',
+			path: '/route-station-select',
+			steps: [
+				'メイン画面から来た場合は「分岐駅選択」と「着駅選択」を切り替えられます。',
+				'駅名の下には、かなや所属路線が表示されます。',
+				'駅を選ぶとその路線・駅の組み合わせが経路へ追加されます。'
+			]
+		},
+		{
+			title: '運賃詳細',
+			path: '/detail',
+			steps: [
+				'運賃、営業キロ、有効日数、注記、経由を確認します。',
+				'共有ボタンで URL 共有、結果エクスポートで文字列出力ができます。',
+				'右上メニューでは、特例適用や最安経路計算などの再計算オプションを切り替えられます。'
+			]
+		},
+		{
+			title: '保存',
+			path: '/save',
+			steps: [
+				'現在の経路を保存し、保存済み経路を一覧で管理します。',
+				'保存済み経路を押すと読み込み、編集モードでは削除ができます。',
+				'インポートとエクスポートでは、経路文字列をまとめて扱えます。'
+			]
+		}
 	];
 
 	const options = [
-		'大阪環状線遠回り（大坂～天王寺周辺）',
-		'小倉〜博多新幹線在来線別線扱い（経路条件に応じた補助的な最適化）'
+		'大阪環状線の近回り / 遠回りを切り替えられます。',
+		'小倉-博多間新幹線在来線別線扱いを切り替えられます。',
+		'詳細画面では、特例適用や最安経路計算などの再計算オプションを切り替えられます。'
+	];
+
+	const reuseTips = [
+		'保存画面では、現在経路の保存、保存済み経路の読込、削除ができます。',
+		'詳細画面では、共有 URL を作成して他端末へ渡せます。',
+		'共有やコピーの方法は端末により異なり、共有シート、クリップボード、ダイアログ表示のいずれかを使います。'
 	];
 
 	const faqs = [
@@ -28,6 +110,10 @@ import { base } from '$app/paths';
 		{
 			q: 'ブラウザ版・モバイルで表示が違う？',
 			a: '端末幅でレイアウトが変わるため見え方は変わります。機能自体は同一です。'
+		},
+		{
+			q: '同名駅はどう見分けますか？',
+			a: '必要に応じて駅名に補助表記が付きます。かなや所属路線も合わせて確認してください。'
 		}
 	];
 
@@ -56,10 +142,48 @@ import { base } from '$app/paths';
 	</section>
 
 	<section class="card">
+		<h2>メイン画面の各部</h2>
+		<ul class="plain-list">
+			{#each mainScreenParts as part}
+				<li>
+					<strong>{part.name}</strong>
+					<p>{part.description}</p>
+				</li>
+			{/each}
+		</ul>
+	</section>
+
+	<section class="card">
+		<h2>画面別の操作マニュアル</h2>
+		<div class="manual-grid">
+			{#each screenManuals as manual}
+				<section class="manual-card">
+					<h3>{manual.title}</h3>
+					<p class="route-label">{manual.path}</p>
+					<ul>
+						{#each manual.steps as step}
+							<li>{step}</li>
+						{/each}
+					</ul>
+				</section>
+			{/each}
+		</div>
+	</section>
+
+	<section class="card">
 		<h2>主な設定・オプション</h2>
 		<ul>
 			{#each options as option}
 				<li>{option}</li>
+			{/each}
+		</ul>
+	</section>
+
+	<section class="card">
+		<h2>保存・共有・再利用</h2>
+		<ul>
+			{#each reuseTips as tip}
+				<li>{tip}</li>
 			{/each}
 		</ul>
 	</section>
@@ -71,6 +195,18 @@ import { base } from '$app/paths';
 				>経路運賃キロ計算アプリの使い方〜目次</a
 			>
 		</p>
+	</section>
+
+	<section class="card">
+		<h2>よくある質問</h2>
+		<ul class="faq-list">
+			{#each faqs as faq}
+				<li>
+					<strong>{faq.q}</strong>
+					<p>{faq.a}</p>
+				</li>
+			{/each}
+		</ul>
 	</section>
 
 	<section class="card warning">
@@ -133,7 +269,13 @@ import { base } from '$app/paths';
 	h2 {
 		margin: 0;
 		font-size: 1.05rem;
-        font-weight: bold;
+		font-weight: 700;
+	}
+
+	h3 {
+		margin: 0;
+		font-size: 0.98rem;
+		font-weight: 700;
 	}
 
 	ol,
@@ -149,9 +291,42 @@ import { base } from '$app/paths';
 		line-height: 1.6;
 	}
 
+	p {
+		margin: 0;
+		line-height: 1.6;
+	}
+
 	li span {
 		font-weight: 700;
 		margin-right: 0.35rem;
+	}
+
+	.plain-list,
+	.faq-list {
+		list-style: none;
+		padding-left: 0;
+	}
+
+	.manual-grid {
+		display: grid;
+		gap: 0.75rem;
+	}
+
+	.manual-card {
+		border: 1px solid rgba(100, 116, 139, 0.18);
+		border-radius: 0.75rem;
+		padding: 0.85rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		background: rgba(248, 250, 252, 0.8);
+	}
+
+	.route-label {
+		font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+			'Courier New', monospace;
+		font-size: 0.85rem;
+		color: var(--text-sub, #64748b);
 	}
 
 	.warning p {
@@ -182,5 +357,15 @@ import { base } from '$app/paths';
 		font-size: 1rem;
 		font-weight: 700;
 		cursor: pointer;
+	}
+
+	@media (min-width: 720px) {
+		.help-page {
+			padding: 2rem;
+		}
+
+		.manual-grid {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
 	}
 </style>
