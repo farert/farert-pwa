@@ -66,6 +66,11 @@
 		}
 	];
 
+	const mainScreenImage = {
+		src: `${base}/help/main-screen.png`,
+		alt: 'メイン画面のスクリーンショット'
+	};
+
 	const screenManuals = [
 		{
 			title: '発着駅選択',
@@ -176,37 +181,49 @@
 
 	<section class="card">
 		<h2>メイン画面の各部</h2>
-		<ul class="plain-list">
-			{#each mainScreenParts as part}
-				<li>
-					<strong>{part.name}</strong>
-					<p>{part.description}</p>
-				</li>
-			{/each}
-		</ul>
-		<div class="toolbar-guide">
-			<h3>下部ツールバー</h3>
-			<table class="icon-table">
-				<thead>
-					<tr>
-						<th scope="col">アイコン</th>
-						<th scope="col">説明</th>
-					</tr>
-				</thead>
-				<tbody>
-					{#each bottomToolbarItems as item}
-						<tr>
-							<td>
-								<div class="icon-cell">
-									<span class="material-symbols-rounded toolbar-icon" aria-hidden="true">{item.icon}</span>
-									<span>{item.label}</span>
-								</div>
-							</td>
-							<td>{item.description}</td>
-						</tr>
+		<div class="main-screen-layout">
+			<div class="main-screen-visual">
+				<img
+					class="main-screen-shot"
+					src={mainScreenImage.src}
+					alt={mainScreenImage.alt}
+					loading="lazy"
+				/>
+			</div>
+			<div class="main-screen-details">
+				<ul class="plain-list">
+					{#each mainScreenParts as part}
+						<li>
+							<strong>{part.name}</strong>
+							<p>{part.description}</p>
+						</li>
 					{/each}
-				</tbody>
-			</table>
+				</ul>
+				<div class="toolbar-guide">
+					<h3>下部ツールバー</h3>
+					<table class="icon-table">
+						<thead>
+							<tr>
+								<th scope="col">アイコン</th>
+								<th scope="col">説明</th>
+							</tr>
+						</thead>
+						<tbody>
+							{#each bottomToolbarItems as item}
+								<tr>
+									<td>
+										<div class="icon-cell">
+											<span class="material-symbols-rounded toolbar-icon" aria-hidden="true">{item.icon}</span>
+											<span>{item.label}</span>
+										</div>
+									</td>
+									<td>{item.description}</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
+			</div>
 		</div>
 	</section>
 
@@ -379,6 +396,26 @@
 		background: rgba(248, 250, 252, 0.8);
 	}
 
+	.main-screen-layout {
+		display: grid;
+		gap: 1rem;
+	}
+
+	.main-screen-visual,
+	.main-screen-details {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+
+	.main-screen-shot {
+		width: 100%;
+		border-radius: 0.85rem;
+		border: 1px solid rgba(100, 116, 139, 0.18);
+		background: #e2e8f0;
+		box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+	}
+
 	.toolbar-guide {
 		display: flex;
 		flex-direction: column;
@@ -461,6 +498,11 @@
 	@media (min-width: 720px) {
 		.help-page {
 			padding: 2rem;
+		}
+
+		.main-screen-layout {
+			grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.1fr);
+			align-items: start;
 		}
 
 		.manual-grid {

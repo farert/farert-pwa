@@ -19,6 +19,9 @@ describe('/help/+page.svelte', () => {
 			.element(page.getByRole('heading', { name: 'メイン画面の各部' }))
 			.toBeInTheDocument();
 		await expect
+			.element(page.getByRole('img', { name: 'メイン画面のスクリーンショット', exact: true }))
+			.toHaveAttribute('src', '/help/main-screen.png');
+		await expect
 			.element(page.getByRole('heading', { name: '下部ツールバー' }))
 			.toBeInTheDocument();
 		await expect.element(page.getByRole('columnheader', { name: 'アイコン' })).toBeInTheDocument();
