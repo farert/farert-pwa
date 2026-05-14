@@ -41,7 +41,8 @@
 	const screenManuals = [
 		{
 			title: '発着駅選択',
-			path: '/terminal-selection',
+			image: `${base}/help/terminal-selection.png`,
+			imageAlt: '発着駅選択画面のスクリーンショット',
 			steps: [
 				'「グループ」「都道府県」「履歴」から探すか、検索バーで駅名を検索します。',
 				'候補一覧から駅を選ぶと、発駅または着駅として確定します。',
@@ -50,7 +51,8 @@
 		},
 		{
 			title: '路線選択',
-			path: '/line-selection',
+			image: `${base}/help/line-selection.png`,
+			imageAlt: '路線選択画面のスクリーンショット',
 			steps: [
 				'現在駅や選択文脈に応じた路線候補が表示されます。',
 				'路線を選ぶと、次の駅を選ぶ画面へ進みます。',
@@ -59,7 +61,8 @@
 		},
 		{
 			title: '駅選択',
-			path: '/route-station-select',
+			image: `${base}/help/route-station-select.png`,
+			imageAlt: '駅選択画面のスクリーンショット',
 			steps: [
 				'メイン画面から来た場合は「分岐駅選択」と「着駅選択」を切り替えられます。',
 				'駅名の下には、かなや所属路線が表示されます。',
@@ -68,7 +71,8 @@
 		},
 		{
 			title: '運賃詳細',
-			path: '/detail',
+			image: `${base}/help/detail.png`,
+			imageAlt: '運賃詳細画面のスクリーンショット',
 			steps: [
 				'運賃、営業キロ、有効日数、注記、経由を確認します。',
 				'共有ボタンで URL 共有、結果エクスポートで文字列出力ができます。',
@@ -77,7 +81,8 @@
 		},
 		{
 			title: '保存',
-			path: '/save',
+			image: `${base}/help/save.png`,
+			imageAlt: '保存画面のスクリーンショット',
 			steps: [
 				'現在の経路を保存し、保存済み経路を一覧で管理します。',
 				'保存済み経路を押すと読み込み、編集モードでは削除ができます。',
@@ -159,7 +164,7 @@
 			{#each screenManuals as manual}
 				<section class="manual-card">
 					<h3>{manual.title}</h3>
-					<p class="route-label">{manual.path}</p>
+					<img class="manual-shot" src={manual.image} alt={manual.imageAlt} loading="lazy" />
 					<ul>
 						{#each manual.steps as step}
 							<li>{step}</li>
@@ -322,11 +327,14 @@
 		background: rgba(248, 250, 252, 0.8);
 	}
 
-	.route-label {
-		font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
-			'Courier New', monospace;
-		font-size: 0.85rem;
-		color: var(--text-sub, #64748b);
+	.manual-shot {
+		width: 100%;
+		aspect-ratio: 16 / 10;
+		object-fit: cover;
+		object-position: top center;
+		border-radius: 0.65rem;
+		border: 1px solid rgba(100, 116, 139, 0.18);
+		background: #e2e8f0;
 	}
 
 	.warning p {

@@ -21,9 +21,21 @@ describe('/help/+page.svelte', () => {
 		await expect
 			.element(page.getByRole('heading', { name: '画面別の操作マニュアル' }))
 			.toBeInTheDocument();
-		await expect.element(page.getByText('/terminal-selection')).toBeInTheDocument();
-		await expect.element(page.getByText('/route-station-select')).toBeInTheDocument();
-		await expect.element(page.getByText('/detail')).toBeInTheDocument();
+		await expect
+			.element(page.getByRole('img', { name: '発着駅選択画面のスクリーンショット', exact: true }))
+			.toHaveAttribute('src', '/help/terminal-selection.png');
+		await expect
+			.element(page.getByRole('img', { name: '路線選択画面のスクリーンショット', exact: true }))
+			.toHaveAttribute('src', '/help/line-selection.png');
+		await expect
+			.element(page.getByRole('img', { name: '駅選択画面のスクリーンショット', exact: true }))
+			.toHaveAttribute('src', '/help/route-station-select.png');
+		await expect
+			.element(page.getByRole('img', { name: '運賃詳細画面のスクリーンショット', exact: true }))
+			.toHaveAttribute('src', '/help/detail.png');
+		await expect
+			.element(page.getByRole('img', { name: '保存画面のスクリーンショット', exact: true }))
+			.toHaveAttribute('src', '/help/save.png');
 		await expect.element(page.getByRole('button', { name: '閉じる' })).toBeInTheDocument();
 	});
 
