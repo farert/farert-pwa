@@ -38,6 +38,34 @@
 		}
 	];
 
+	const bottomToolbarItems = [
+		{
+			icon: 'undo',
+			label: '戻る',
+			description: '直前の操作を取り消します。区間があるときは末尾区間を消し、区間がないときは経路全体をクリアします。'
+		},
+		{
+			icon: 'swap_horiz',
+			label: '反転',
+			description: '発駅と着駅の向きを入れ替えて、現在の経路を反転します。'
+		},
+		{
+			icon: 'save',
+			label: '保存',
+			description: '保存画面を開き、現在の経路を保存したり保存済み経路を読み込んだりします。'
+		},
+		{
+			icon: 'vertical_align_top',
+			label: '上へ',
+			description: 'ページ先頭までスクロールします。'
+		},
+		{
+			icon: 'vertical_align_bottom',
+			label: '下へ',
+			description: 'ページ末尾までスクロールします。'
+		}
+	];
+
 	const screenManuals = [
 		{
 			title: '発着駅選択',
@@ -156,6 +184,30 @@
 				</li>
 			{/each}
 		</ul>
+		<div class="toolbar-guide">
+			<h3>下部ツールバー</h3>
+			<table class="icon-table">
+				<thead>
+					<tr>
+						<th scope="col">アイコン</th>
+						<th scope="col">説明</th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each bottomToolbarItems as item}
+						<tr>
+							<td>
+								<div class="icon-cell">
+									<span class="material-symbols-rounded toolbar-icon" aria-hidden="true">{item.icon}</span>
+									<span>{item.label}</span>
+								</div>
+							</td>
+							<td>{item.description}</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
 	</section>
 
 	<section class="card">
@@ -325,6 +377,45 @@
 		flex-direction: column;
 		gap: 0.5rem;
 		background: rgba(248, 250, 252, 0.8);
+	}
+
+	.toolbar-guide {
+		display: flex;
+		flex-direction: column;
+		gap: 0.65rem;
+	}
+
+	.icon-table {
+		width: 100%;
+		border-collapse: collapse;
+		font-size: 0.95rem;
+	}
+
+	.icon-table th,
+	.icon-table td {
+		padding: 0.7rem 0.65rem;
+		border-top: 1px solid rgba(148, 163, 184, 0.28);
+		vertical-align: top;
+		text-align: left;
+	}
+
+	.icon-table thead th {
+		font-size: 0.85rem;
+		color: var(--text-sub, #64748b);
+		font-weight: 700;
+	}
+
+	.icon-cell {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.45rem;
+		font-weight: 700;
+		white-space: nowrap;
+	}
+
+	.toolbar-icon {
+		font-size: 1.3rem;
+		line-height: 1;
 	}
 
 	.manual-shot {

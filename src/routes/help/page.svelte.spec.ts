@@ -19,6 +19,13 @@ describe('/help/+page.svelte', () => {
 			.element(page.getByRole('heading', { name: 'メイン画面の各部' }))
 			.toBeInTheDocument();
 		await expect
+			.element(page.getByRole('heading', { name: '下部ツールバー' }))
+			.toBeInTheDocument();
+		await expect.element(page.getByRole('columnheader', { name: 'アイコン' })).toBeInTheDocument();
+		await expect.element(page.getByRole('columnheader', { name: '説明' })).toBeInTheDocument();
+		await expect.element(page.getByText('戻る', { exact: true })).toBeInTheDocument();
+		await expect.element(page.getByText('ページ先頭までスクロールします。')).toBeInTheDocument();
+		await expect
 			.element(page.getByRole('heading', { name: '画面別の操作マニュアル' }))
 			.toBeInTheDocument();
 		await expect
