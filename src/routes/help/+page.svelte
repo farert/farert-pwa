@@ -124,6 +124,46 @@
 		}
 	];
 
+	const saveScreenDetails = {
+		overviewImage: `${base}/help/save.png`,
+		overviewAlt: '保存画面全体のスクリーンショット',
+		importImage: `${base}/help/save-import-dialog.png`,
+		importAlt: '保存画面のインポートダイアログ',
+		exportImage: `${base}/help/save-export-dialog.png`,
+		exportAlt: '保存画面のエクスポートダイアログ'
+	};
+
+	const saveScreenParts = [
+		{
+			name: '現在経路カード',
+			description: '編集中の経路が 2 区間以上あるときに先頭へ表示されます。保存済みか未保存かもここで確認できます。'
+		},
+		{
+			name: '保存済み経路一覧',
+			description: '保存した経路を一覧で管理します。通常時は押すと読み込み、編集モード時は削除対象になります。'
+		},
+		{
+			name: '編集ボタン',
+			description: '保存済み経路の削除導線を表示する切替です。編集モード中は経路カードを押しても読み込みません。'
+		},
+		{
+			name: '下部アクションバー',
+			description: 'インポート、エクスポート、保存の 3 操作を固定表示します。'
+		}
+	];
+
+	const saveImportSteps = [
+		'経路は 1 行 1 件で入力します。',
+		'区切りはカンマまたはスペースに対応します。',
+		'「インポート実行」を押すと、成功分だけ保存済み一覧へ追加されます。'
+	];
+
+	const saveExportSteps = [
+		'保存済み経路を改行区切りテキストで確認できます。',
+		'ダイアログ表示時にコピーを試行し、結果はダイアログ内に表示されます。',
+		'内容はそのまま保存画面への再インポートや外部メモへの転記に使えます。'
+	];
+
 	const options = [
 		'大阪環状線の近回り / 遠回りを切り替えられます。',
 		'小倉-博多間新幹線在来線別線扱いを切り替えられます。',
@@ -241,6 +281,61 @@
 					</ul>
 				</section>
 			{/each}
+		</div>
+	</section>
+
+	<section class="card">
+		<h2>保存画面の使い方</h2>
+		<div class="save-help-layout">
+			<div class="save-help-visual">
+				<img
+					class="main-screen-shot"
+					src={saveScreenDetails.overviewImage}
+					alt={saveScreenDetails.overviewAlt}
+					loading="lazy"
+				/>
+			</div>
+			<div class="save-help-details">
+				<ul class="plain-list">
+					{#each saveScreenParts as part}
+						<li>
+							<strong>{part.name}</strong>
+							<p>{part.description}</p>
+						</li>
+					{/each}
+				</ul>
+			</div>
+		</div>
+
+		<div class="manual-grid save-detail-grid">
+			<section class="manual-card">
+				<h3>インポート実行</h3>
+				<img
+					class="manual-shot"
+					src={saveScreenDetails.importImage}
+					alt={saveScreenDetails.importAlt}
+					loading="lazy"
+				/>
+				<ul>
+					{#each saveImportSteps as step}
+						<li>{step}</li>
+					{/each}
+				</ul>
+			</section>
+			<section class="manual-card">
+				<h3>エクスポート結果</h3>
+				<img
+					class="manual-shot"
+					src={saveScreenDetails.exportImage}
+					alt={saveScreenDetails.exportAlt}
+					loading="lazy"
+				/>
+				<ul>
+					{#each saveExportSteps as step}
+						<li>{step}</li>
+					{/each}
+				</ul>
+			</section>
 		</div>
 	</section>
 
@@ -416,6 +511,18 @@
 		box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
 	}
 
+	.save-help-layout {
+		display: grid;
+		gap: 1rem;
+	}
+
+	.save-help-visual,
+	.save-help-details {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+
 	.toolbar-guide {
 		display: flex;
 		flex-direction: column;
@@ -457,12 +564,14 @@
 
 	.manual-shot {
 		width: 100%;
-		aspect-ratio: 16 / 10;
-		object-fit: cover;
-		object-position: top center;
+		max-height: 28rem;
+		object-fit: contain;
+		object-position: center top;
+		padding: 0.35rem;
+		box-sizing: border-box;
 		border-radius: 0.65rem;
 		border: 1px solid rgba(100, 116, 139, 0.18);
-		background: #e2e8f0;
+		background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
 	}
 
 	.warning p {
@@ -502,6 +611,11 @@
 
 		.main-screen-layout {
 			grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.1fr);
+			align-items: start;
+		}
+
+		.save-help-layout {
+			grid-template-columns: minmax(280px, 0.95fr) minmax(0, 1.05fr);
 			align-items: start;
 		}
 

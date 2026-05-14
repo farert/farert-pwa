@@ -46,6 +46,9 @@ type ImportErrorDetail = {
 	let importDialogOpen = $state(false);
 	let importDialogText = $state('');
 	let importDialogResolver: ((result: string | null) => void) | null = null;
+	let exportDialogOpen = $state(false);
+	let exportDialogText = $state('');
+	let exportDialogStatus = $state('');
 
 	let unsubscribeRoute: (() => void) | null = null;
 	let unsubscribeSaved: (() => void) | null = null;
@@ -424,21 +427,15 @@ type ImportErrorDetail = {
 			return;
 		}
 		const text = savedList.join('\n');
-		try {
-			if (navigator.share) {
-				await navigator.share({ text });
-				showInfo('共有しました。');
-				return;
-			}
-		} catch (err) {
-			console.warn('共有に失敗しました', err);
-		}
+		exportDialogText = text;
+		exportDialogStatus = '';
+		exportDialogOpen = true;
 		try {
 			await copyExportText(text);
-			showInfo('クリップボードへコピーしました。');
+			exportDialogStatus = 'クリップボードへコピーしました。';
 		} catch (err) {
 			console.error('エクスポートに失敗しました', err);
-			showError('エクスポートに失敗しました。');
+			exportDialogStatus = 'エクスポートに失敗しました。';
 		}
 	}
 
@@ -617,6 +614,42 @@ type ImportErrorDetail = {
 						onclick={() => resolveImportDialog(null)}
 					>
 						キャンセル
+					</button>
+				</div>
+			</section>
+		</div>
+	{/if}
+
+	{#if exportDialogOpen}
+		<div class="modal-backdrop" role="dialog" aria-modal="true" aria-label="経路エクスポート">
+			<section class="modal">
+				<h3>エクスポート結果</h3>
+				<p class="placeholder small">
+					保存済み経路を改行区切りで出力しています。必要に応じてそのまま再利用できます。
+				</p>
+				{#if exportDialogStatus}
+					<p class="banner info export-status" role="status">{exportDialogStatus}</p>
+				{/if}
+				<textarea
+					class="route-textarea"
+					aria-label="エクスポート結果"
+					rows="8"
+					readonly
+					value={exportDialogText}
+				></textarea>
+				<div class="confirm-actions">
+					<button type="button" class="confirm-primary" onclick={handleExport}>
+						再コピー
+					</button>
+					<button
+						type="button"
+						class="confirm-secondary"
+						onclick={() => {
+							exportDialogOpen = false;
+							exportDialogStatus = '';
+						}}
+					>
+						閉じる
 					</button>
 				</div>
 			</section>

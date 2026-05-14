@@ -46,6 +46,18 @@ describe('/help/+page.svelte', () => {
 		await expect
 			.element(page.getByRole('img', { name: '保存画面のスクリーンショット', exact: true }))
 			.toHaveAttribute('src', '/help/save.png');
+		await expect
+			.element(page.getByRole('heading', { name: '保存画面の使い方' }))
+			.toBeInTheDocument();
+		await expect
+			.element(page.getByRole('img', { name: '保存画面全体のスクリーンショット', exact: true }))
+			.toHaveAttribute('src', '/help/save.png');
+		await expect
+			.element(page.getByRole('img', { name: '保存画面のインポートダイアログ', exact: true }))
+			.toHaveAttribute('src', '/help/save-import-dialog.png');
+		await expect
+			.element(page.getByRole('img', { name: '保存画面のエクスポートダイアログ', exact: true }))
+			.toHaveAttribute('src', '/help/save-export-dialog.png');
 		await expect.element(page.getByRole('button', { name: '閉じる' })).toBeInTheDocument();
 	});
 
