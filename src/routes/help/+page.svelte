@@ -505,9 +505,14 @@
 
 	.main-screen-shot {
 		width: 100%;
+		max-height: 32rem;
+		object-fit: contain;
+		object-position: center top;
+		padding: 0.35rem;
+		box-sizing: border-box;
 		border-radius: 0.85rem;
 		border: 1px solid rgba(100, 116, 139, 0.18);
-		background: #e2e8f0;
+		background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
 		box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
 	}
 
