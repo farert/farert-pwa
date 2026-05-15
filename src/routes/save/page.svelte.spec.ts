@@ -1,3 +1,7 @@
+/**
+ * 保存画面の表示と保存管理フローを検証するテストです。
+ * 保存、削除、読込、import/export の契約を固定します。
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';

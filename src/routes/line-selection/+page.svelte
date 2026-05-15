@@ -1,3 +1,7 @@
+<!--
+路線候補を一覧表示し、次の駅選択へ進める画面です。
+現在駅と文脈に応じた路線一覧の読み込みと分岐を扱います。
+-->
 <script lang="ts">
 import { goto } from '$app/navigation';
 import { base } from '$app/paths';
@@ -54,6 +58,11 @@ onMount(() => {
 	};
 });
 
+/**
+ * `resolveParams` の解決結果を返します。
+ *
+ * @returns 処理結果を返します。
+ */
 function resolveParams(): LineSelectionParams {
 	if (presetParams) {
 		return {
@@ -82,6 +91,12 @@ function resolveParams(): LineSelectionParams {
 	};
 }
 
+/**
+ * `loadLines` の読み込み処理を行います。
+ *
+ * @param context 処理対象の文字列です。
+ * @returns この処理は戻り値を持ちません。
+ */
 function loadLines(context: LineSelectionParams): void {
 	try {
 		let payload = '';
@@ -119,6 +134,12 @@ function loadLines(context: LineSelectionParams): void {
 	}
 }
 
+/**
+ * `fetchPrefectureLines` を処理します。
+ *
+ * @param prefecture 処理に必要な入力値です。
+ * @returns 文字列結果を返します。
+ */
 function fetchPrefectureLines(prefecture: string): string {
 	const normalized = toWasmPrefecture(prefecture);
 	const normalizedPayload = getLinesByPrefect(normalized);
@@ -128,6 +149,12 @@ function fetchPrefectureLines(prefecture: string): string {
 	return getLinesByPrefect(prefecture);
 }
 
+/**
+ * `parseList` の解析結果を返します。
+ *
+ * @param raw 処理対象の文字列です。
+ * @returns 文字列結果を返します。
+ */
 function parseList(raw: string): string[] {
 	try {
 		if (!raw) return [];
@@ -150,6 +177,12 @@ function parseList(raw: string): string[] {
 	return [];
 }
 
+/**
+ * `normalizeStringList` を正規化します。
+ *
+ * @param value 処理対象の値です。
+ * @returns 文字列結果を返します。
+ */
 function normalizeStringList(value: unknown): string[] {
 	if (!Array.isArray(value)) return [];
 	const result: string[] = [];
@@ -162,6 +195,12 @@ function normalizeStringList(value: unknown): string[] {
 	return result;
 }
 
+/**
+ * `dedupe` を処理します。
+ *
+ * @param values 処理対象の値です。
+ * @returns 文字列結果を返します。
+ */
 function dedupe(values: string[]): string[] {
 	const seen = new Set<string>();
 	const result: string[] = [];
@@ -176,6 +215,11 @@ function dedupe(values: string[]): string[] {
 }
 
 
+/**
+ * `goBack` を処理します。
+ *
+ * @returns この処理は戻り値を持ちません。
+ */
 function goBack(): void {
 	if (typeof window !== 'undefined' && window.history.length > 1) {
 		window.history.back();
@@ -184,14 +228,31 @@ function goBack(): void {
 	goto(`${base}/`);
 }
 
+/**
+ * `handleAutoRoute` のイベント処理を行います。
+ *
+ * @returns この処理は戻り値を持ちません。
+ */
 function handleAutoRoute(): void {
 	goto(`${base}/terminal-selection?mode=destination`);
 }
 
+/**
+ * `isDisabled` の判定結果を返します。
+ *
+ * @param lineName 対象の路線名です。
+ * @returns 判定結果を返します。
+ */
 function isDisabled(lineName: string): boolean {
 	return Boolean(params.line && params.line === lineName);
 }
 
+/**
+ * `handleLineSelect` のイベント処理を行います。
+ *
+ * @param lineName 対象の路線名です。
+ * @returns この処理は戻り値を持ちません。
+ */
 function handleLineSelect(lineName: string): void {
 	if (isDisabled(lineName)) return;
 	if (splitViewEnabled) {

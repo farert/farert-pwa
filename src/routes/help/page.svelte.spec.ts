@@ -1,3 +1,7 @@
+/**
+ * ヘルプ画面の主要セクション表示を検証するテストです。
+ * スクリーンショット、FAQ、外部リンク導線が表示されることを固定します。
+ */
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';

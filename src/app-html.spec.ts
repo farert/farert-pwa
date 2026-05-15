@@ -1,3 +1,7 @@
+/**
+ * `app.html` のテンプレート出力を検証するテストです。
+ * アプリ共通の HTML シェルが想定どおり生成されることを固定します。
+ */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 

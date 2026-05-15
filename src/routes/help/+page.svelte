@@ -1,3 +1,7 @@
+<!--
+アプリの使い方と注意事項をまとめるヘルプ画面です。
+各画面説明、FAQ、外部導線を静的コンテンツとして提供します。
+-->
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { base } from '$app/paths';
@@ -195,7 +199,12 @@
 		}
 	];
 
-	function close(): void {
+		/**
+	 * `close` を終了または非表示にします。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+function close(): void {
 		goto(`${base}/`);
 	}
 </script>

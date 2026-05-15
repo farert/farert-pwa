@@ -1,3 +1,7 @@
+/**
+ * PWA 設定値を検証するテストです。
+ * マニフェストや Service Worker 設定の想定値を固定します。
+ */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 

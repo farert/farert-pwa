@@ -1,3 +1,7 @@
+<!--
+データモデルと永続化の動作確認に使うテスト用画面です。
+開発中の手動確認用に store とストレージの状態を可視化します。
+-->
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { initFarert, Farert } from '$lib/wasm';
@@ -24,12 +28,24 @@
 		currentStationHistory = $stationHistory;
 	});
 
-	function addTestResult(message: string) {
+		/**
+	 * `addTestResult` を処理します。
+	 *
+	 * @param message 表示または処理に使うメッセージです。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+function addTestResult(message: string) {
 		testResults = [...testResults, `✅ ${message}`];
 		console.log(`[TEST] ${message}`);
 	}
 
-	function addTestError(message: string) {
+		/**
+	 * `addTestError` を処理します。
+	 *
+	 * @param message 表示または処理に使うメッセージです。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+function addTestError(message: string) {
 		testResults = [...testResults, `❌ ${message}`];
 		console.error(`[TEST] ${message}`);
 	}
@@ -55,7 +71,12 @@
 		}
 	});
 
-	async function runTests() {
+		/**
+	 * `runTests` を処理します。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+async function runTests() {
 		addTestResult('=== データモデルテスト開始 ===');
 
 		// Test 1: 経路作成とrouteScript
@@ -207,12 +228,22 @@
 		addTestResult('=== データモデルテスト完了 ===');
 	}
 
-	function handleClearAll() {
+		/**
+	 * `handleClearAll` のイベント処理を行います。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+function handleClearAll() {
 		clearAllStores();
 		testResults = [...testResults, '⚠️ すべてのストアをクリアしました'];
 	}
 
-	function handleReload() {
+		/**
+	 * `handleReload` のイベント処理を行います。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+function handleReload() {
 		window.location.reload();
 	}
 </script>

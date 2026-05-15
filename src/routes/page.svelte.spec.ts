@@ -1,3 +1,7 @@
+/**
+ * メイン画面の表示と主要操作を検証するテストです。
+ * 経路追加、詳細遷移、メニュー、ドロワー操作の契約を固定します。
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';

@@ -1,3 +1,7 @@
+/**
+ * 経路文字列の URL 圧縮共有を扱うユーティリティです。
+ * routeScript の正規化、圧縮、伸長、復元を提供します。
+ */
 import LZString from 'lz-string';
 import { Farert } from '$lib/wasm';
 import type { FaretClass } from '$lib/wasm/types';
@@ -5,6 +9,12 @@ import { getSerializedRouteScript } from './routeScriptPersistence';
 
 export type FarertConstructor = new () => FaretClass;
 
+/**
+ * `normalizeRouteScript` を正規化します。
+ *
+ * @param script 処理対象の文字列です。
+ * @returns 文字列結果を返します。
+ */
 export function normalizeRouteScript(script: string): string {
 	return (script ?? '')
 		.replace(/\uFF0C+/gu, ',')
@@ -76,6 +86,12 @@ export function decompressRouteFromUrl(
 	}
 }
 
+/**
+ * `isSuccessfulBuild` の判定結果を返します。
+ *
+ * @param result 処理対象の値です。
+ * @returns 判定結果を返します。
+ */
 function isSuccessfulBuild(result: unknown): boolean {
 	const successCodes = new Set([0, 1, 4, 5]);
 
@@ -140,6 +156,12 @@ export function generateShareUrl(
 	return `${normalizedOrigin}${normalizedBase}/detail?r=${compressed}`;
 }
 
+/**
+ * `normalizeBasePath` を正規化します。
+ *
+ * @param path 処理に必要な入力値です。
+ * @returns 文字列結果を返します。
+ */
 function normalizeBasePath(path: string | undefined): string {
 	if (!path) return '';
 	const prefixed = path.startsWith('/') ? path : `/${path}`;
@@ -147,10 +169,24 @@ function normalizeBasePath(path: string | undefined): string {
 	return prefixed.endsWith('/') ? prefixed.slice(0, -1) : prefixed;
 }
 
+/**
+ * `restoreRouteFromScript` を処理します。
+ *
+ * @param route 対象の経路または経路文字列です。
+ * @param script 処理対象の文字列です。
+ * @returns 判定結果を返します。
+ */
 export function restoreRouteFromScript(route: FaretClass, script: string): boolean {
 	return restoreRouteStrict(route, normalizeRouteScript(script));
 }
 
+/**
+ * `selectRouteScript` を処理します。
+ *
+ * @param routeScript 対象の経路または経路文字列です。
+ * @param segmentCount 処理に必要な入力値です。
+ * @returns 文字列結果を返します。
+ */
 function selectRouteScript(routeScript: string, segmentCount: number): string {
 	if (segmentCount < 0) {
 		return routeScript;
@@ -161,6 +197,13 @@ function selectRouteScript(routeScript: string, segmentCount: number): string {
 	return tokens.slice(0, sliceLength).join(',');
 }
 
+/**
+ * `restoreRouteStrict` を処理します。
+ *
+ * @param route 対象の経路または経路文字列です。
+ * @param script 処理対象の文字列です。
+ * @returns 判定結果を返します。
+ */
 function restoreRouteStrict(route: FaretClass, script: string): boolean {
 	try {
 		route.removeAll?.();

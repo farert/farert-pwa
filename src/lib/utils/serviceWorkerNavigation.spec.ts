@@ -1,3 +1,7 @@
+/**
+ * Service Worker のナビゲーション判定を検証するテストです。
+ * キャッシュ対象とシェルフォールバックの条件を固定します。
+ */
 import { describe, expect, it } from 'vitest';
 import { shouldCacheNetworkResponse, shouldServeShellFallback } from './serviceWorkerNavigation';
 

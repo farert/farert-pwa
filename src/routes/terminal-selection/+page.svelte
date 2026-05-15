@@ -1,3 +1,7 @@
+<!--
+発駅または着駅の選択を行う画面です。
+グループ、都道府県、履歴、検索の各導線を統合して扱います。
+-->
 <script lang="ts">
 import { goto } from '$app/navigation';
 import { base } from '$app/paths';
@@ -207,6 +211,11 @@ onMount(() => {
 	};
 });
 
+/**
+ * `loadInitialLists` の読み込み処理を行います。
+ *
+ * @returns この処理は戻り値を持ちません。
+ */
 async function loadInitialLists(): Promise<void> {
 	companies = parseList(getCompanys(), 'JRグループの取得に失敗しました', 'companies');
 	const prefectList = parseList(getPrefects(), '都道府県一覧の取得に失敗しました', [
@@ -216,6 +225,15 @@ async function loadInitialLists(): Promise<void> {
 	prefectures = normalizePrefectures(prefectList);
 }
 
+/**
+ * `parseList` の解析結果を返します。
+ *
+ * @param payload 処理対象の文字列です。
+ * @param errorLabel 処理に必要な入力値です。
+ * @param keyHints 処理に必要な入力値です。
+ * @param options 受け取り値のまとまりです。
+ * @returns 文字列結果を返します。
+ */
 function parseList(
 	payload: string,
 	errorLabel: string,
@@ -258,6 +276,12 @@ function parseList(
 	}
 }
 
+/**
+ * `normalizeStringList` を正規化します。
+ *
+ * @param value 処理対象の値です。
+ * @returns 文字列結果を返します。
+ */
 function normalizeStringList(value: unknown): string[] {
 	if (!Array.isArray(value)) return [];
 	const result: string[] = [];
@@ -270,6 +294,12 @@ function normalizeStringList(value: unknown): string[] {
 	return result;
 }
 
+/**
+ * `dedupe` を処理します。
+ *
+ * @param values 処理対象の値です。
+ * @returns 文字列結果を返します。
+ */
 function dedupe(values: string[]): string[] {
 	const seen = new Set<string>();
 	const result: string[] = [];
@@ -281,6 +311,12 @@ function dedupe(values: string[]): string[] {
 	return result;
 }
 
+/**
+ * `normalizePrefectures` を正規化します。
+ *
+ * @param list 処理に必要な入力値です。
+ * @returns 文字列結果を返します。
+ */
 function normalizePrefectures(list: string[]): string[] {
 	const normalized = Array.from(
 		new Set(
@@ -293,11 +329,23 @@ function normalizePrefectures(list: string[]): string[] {
 	return PREFECTURE_FALLBACK;
 }
 
+/**
+ * `handleError` のイベント処理を行います。
+ *
+ * @param message 表示または処理に使うメッセージです。
+ * @param err 処理に必要な入力値です。
+ * @returns この処理は戻り値を持ちません。
+ */
 function handleError(message: string, err: unknown): void {
 	console.error('[TERMINAL_SELECTION]', message, err);
 	errorMessage = `${message}: ${(err as Error)?.message ?? err}`;
 }
 
+/**
+ * `resetSelections` を処理します。
+ *
+ * @returns この処理は戻り値を持ちません。
+ */
 function resetSelections(): void {
 	stage = 'root';
 	lines = [];
@@ -309,6 +357,11 @@ function resetSelections(): void {
 	panelLoading = false;
 }
 
+/**
+ * `resetToInitialState` を処理します。
+ *
+ * @returns この処理は戻り値を持ちません。
+ */
 function resetToInitialState(): void {
 	clearSearch();
 	resetSelections();
@@ -317,6 +370,12 @@ function resetToInitialState(): void {
 	errorMessage = '';
 }
 
+/**
+ * `selectTab` を処理します。
+ *
+ * @param next 処理に必要な入力値です。
+ * @returns この処理は戻り値を持ちません。
+ */
 function selectTab(next: Tab): void {
 	if (tab === next) return;
 	tab = next;
@@ -333,6 +392,11 @@ function selectTab(next: Tab): void {
 	}
 }
 
+/**
+ * `getListTitle` を取得します。
+ *
+ * @returns 文字列結果を返します。
+ */
 function getListTitle(): string {
 	if (searchMode && searchQuery.trim().length > 0) {
 		return `一致件数: ${searchResults.length}件`;
@@ -363,10 +427,20 @@ function getListTitle(): string {
 	}
 }
 
+/**
+ * `clearError` を処理します。
+ *
+ * @returns この処理は戻り値を持ちません。
+ */
 function clearError(): void {
 	errorMessage = '';
 }
 
+/**
+ * `clearSearch` を処理します。
+ *
+ * @returns この処理は戻り値を持ちません。
+ */
 function clearSearch(): void {
 	searchQuery = '';
 	searchMode = false;
@@ -374,6 +448,11 @@ function clearSearch(): void {
 	searchLoading = false;
 }
 
+/**
+ * `handleBack` のイベント処理を行います。
+ *
+ * @returns この処理は戻り値を持ちません。
+ */
 function handleBack(): void {
 	if (searchMode) {
 		clearSearch();
@@ -401,18 +480,36 @@ function handleBack(): void {
 	goto(`${base}/`);
 }
 
+/**
+ * `openLinesFromGroup` を開始または表示します。
+ *
+ * @param company 処理に必要な入力値です。
+ * @returns この処理は戻り値を持ちません。
+ */
 async function openLinesFromGroup(company: string): Promise<void> {
 	selectionBase = 'group';
 	selectedCompany = company;
 	await loadLines(() => getLinesByCompany(company));
 }
 
+/**
+ * `openLinesFromPrefecture` を開始または表示します。
+ *
+ * @param prefecture 処理に必要な入力値です。
+ * @returns この処理は戻り値を持ちません。
+ */
 async function openLinesFromPrefecture(prefecture: string): Promise<void> {
 	selectionBase = 'prefecture';
 	selectedPrefecture = prefecture;
 	await loadLines(() => fetchPrefectureLines(prefecture));
 }
 
+/**
+ * `fetchPrefectureLines` を処理します。
+ *
+ * @param prefecture 処理に必要な入力値です。
+ * @returns 文字列結果を返します。
+ */
 function fetchPrefectureLines(prefecture: string): string {
 	const normalized = toWasmPrefecture(prefecture);
 	const normalizedPayload = getLinesByPrefect(normalized);
@@ -422,10 +519,23 @@ function fetchPrefectureLines(prefecture: string): string {
 	return getLinesByPrefect(prefecture);
 }
 
+/**
+ * `prefecturePayloadHasLines` を処理します。
+ *
+ * @param payload 処理対象の文字列です。
+ * @param prefecture 処理に必要な入力値です。
+ * @returns 判定結果を返します。
+ */
 function prefecturePayloadHasLines(payload: string, prefecture: string): boolean {
 	return extractLinesFromPrefecturePayload(payload, prefecture).length > 0;
 }
 
+/**
+ * `loadLines` の読み込み処理を行います。
+ *
+ * @param fetcher 処理に必要な入力値です。
+ * @returns この処理は戻り値を持ちません。
+ */
 async function loadLines(fetcher: () => string): Promise<void> {
 	stage = 'lines';
 	panelLoading = true;
@@ -450,6 +560,13 @@ async function loadLines(fetcher: () => string): Promise<void> {
 	}
 }
 
+/**
+ * `filterLinesByPrefecture` を処理します。
+ *
+ * @param lineList 対象の路線名です。
+ * @param prefecture 処理に必要な入力値です。
+ * @returns 文字列結果を返します。
+ */
 function filterLinesByPrefecture(lineList: string[], prefecture: string): string[] {
 	const filtered: string[] = [];
 	for (const line of lineList) {
@@ -460,6 +577,13 @@ function filterLinesByPrefecture(lineList: string[], prefecture: string): string
 	return filtered;
 }
 
+/**
+ * `lineBelongsToPrefecture` を処理します。
+ *
+ * @param line 対象の路線名です。
+ * @param prefecture 処理に必要な入力値です。
+ * @returns 判定結果を返します。
+ */
 function lineBelongsToPrefecture(line: string, prefecture: string): boolean {
 	const normalizedPref = toWasmPrefecture(prefecture);
 	const cached = linePrefectureCache.get(line);
@@ -516,6 +640,13 @@ function lineBelongsToPrefecture(line: string, prefecture: string): boolean {
 	return found;
 }
 
+/**
+ * `resolveStationsByPrefecture` の解決結果を返します。
+ *
+ * @param line 対象の路線名です。
+ * @param prefecture 処理に必要な入力値です。
+ * @returns 文字列結果を返します。
+ */
 function resolveStationsByPrefecture(line: string, prefecture: string): string[] {
 	const payload = getStationsByPrefectureAndLine(toWasmPrefecture(prefecture), line);
 	let parseFailed = false;
@@ -551,6 +682,13 @@ function resolveStationsByPrefecture(line: string, prefecture: string): string[]
 	return [];
 }
 
+/**
+ * `filterStationsByPrefecture` を処理します。
+ *
+ * @param stationList 対象の駅名です。
+ * @param prefecture 処理に必要な入力値です。
+ * @returns 文字列結果を返します。
+ */
 function filterStationsByPrefecture(stationList: string[], prefecture: string): string[] {
 	const normalizedPref = toWasmPrefecture(prefecture);
 	if (!normalizedPref) {
@@ -571,6 +709,12 @@ function filterStationsByPrefecture(stationList: string[], prefecture: string): 
 	return matched;
 }
 
+/**
+ * `openStations` を開始または表示します。
+ *
+ * @param line 対象の路線名です。
+ * @returns この処理は戻り値を持ちません。
+ */
 async function openStations(line: string): Promise<void> {
 	selectedLine = line;
 	if (!splitViewEnabled) {
@@ -597,6 +741,13 @@ async function openStations(line: string): Promise<void> {
 	}
 }
 
+/**
+ * `buildStationListMeta` を組み立てます。
+ *
+ * @param stationNames 対象の駅名です。
+ * @param currentLine 対象の路線名です。
+ * @returns 文字列結果を返します。
+ */
 function buildStationListMeta(stationNames: string[], currentLine: string): Record<string, StationListMeta> {
 	return buildStationDisplayMeta(stationNames, currentLine, {
 		executeSql,
@@ -610,6 +761,14 @@ function buildStationListMeta(stationNames: string[], currentLine: string): Reco
 	});
 }
 
+/**
+ * `stationPrefecture` を処理します。
+ *
+ * @param station 対象の駅名です。
+ * @param stationNames 対象の駅名です。
+ * @param index 対象位置を表す数値です。
+ * @returns 文字列結果を返します。
+ */
 function stationPrefecture(station: string, stationNames: string[], index: number): string {
 	const prefecture = stationListMeta[station]?.prefecture ?? '';
 	if (!prefecture) return '';
@@ -619,6 +778,12 @@ function stationPrefecture(station: string, stationNames: string[], index: numbe
 	return previousPrefecture === prefecture ? '' : prefecture;
 }
 
+/**
+ * `searchResultPrefecture` を処理します。
+ *
+ * @param index 対象位置を表す数値です。
+ * @returns 文字列結果を返します。
+ */
 function searchResultPrefecture(index: number): string {
 	const prefecture = searchResults[index]?.prefecture?.trim() ?? '';
 	if (!prefecture) return '';
@@ -626,6 +791,12 @@ function searchResultPrefecture(index: number): string {
 	return previousPrefecture === prefecture ? '' : prefecture;
 }
 
+/**
+ * `stationMetaText` を処理します。
+ *
+ * @param station 対象の駅名です。
+ * @returns 文字列結果を返します。
+ */
 function stationMetaText(station: string): string {
 	const meta = stationListMeta[station];
 	if (!meta) return '';
@@ -639,6 +810,12 @@ function stationMetaText(station: string): string {
 	return parts.join('/');
 }
 
+/**
+ * `handleStationSelect` のイベント処理を行います。
+ *
+ * @param station 対象の駅名です。
+ * @returns この処理は戻り値を持ちません。
+ */
 async function handleStationSelect(station: string): Promise<void> {
 	if (!station) return;
 	const selectedStation = stationListMeta[station]?.name ?? station;
@@ -673,6 +850,12 @@ async function handleStationSelect(station: string): Promise<void> {
 	}
 }
 
+/**
+ * `shouldConfirmRouteOverwrite` の判定結果を返します。
+ *
+ * @param route 対象の経路または経路文字列です。
+ * @returns 判定結果を返します。
+ */
 function shouldConfirmRouteOverwrite(route: FaretClass): boolean {
 	try {
 		const count = route.getRouteCount ? route.getRouteCount() : 0;
@@ -683,10 +866,21 @@ function shouldConfirmRouteOverwrite(route: FaretClass): boolean {
 	}
 }
 
+/**
+ * `confirmRouteOverwrite` を処理します。
+ *
+ * @returns 非同期処理の成否を返します。
+ */
 function confirmRouteOverwrite(): Promise<boolean> {
 	return openConfirmDialog('経路が消去されますがよろしいですか？');
 }
 
+/**
+ * `openConfirmDialog` を開始または表示します。
+ *
+ * @param message 表示または処理に使うメッセージです。
+ * @returns 非同期処理の成否を返します。
+ */
 function openConfirmDialog(message: string): Promise<boolean> {
 	if (confirmResolver) {
 		confirmResolver(false);
@@ -699,6 +893,12 @@ function openConfirmDialog(message: string): Promise<boolean> {
 	});
 }
 
+/**
+ * `resolveConfirmDialog` の解決結果を返します。
+ *
+ * @param result 処理対象の値です。
+ * @returns この処理は戻り値を持ちません。
+ */
 function resolveConfirmDialog(result: boolean): void {
 	confirmDialogOpen = false;
 	confirmDialogMessage = '';
@@ -707,11 +907,22 @@ function resolveConfirmDialog(result: boolean): void {
 	resolver?.(result);
 }
 
+/**
+ * `cancelAutoRouteDialog` の判定結果を返します。
+ *
+ * @returns この処理は戻り値を持ちません。
+ */
 function cancelAutoRouteDialog(): void {
 	pendingDestinationStation = '';
 	autoRouteDialogOpen = false;
 }
 
+/**
+ * `confirmAutoRoute` を処理します。
+ *
+ * @param useBulletTrain 処理に必要な入力値です。
+ * @returns この処理は戻り値を持ちません。
+ */
 function confirmAutoRoute(useBulletTrain: boolean): void {
 	const destination = pendingDestinationStation;
 	if (!destination) {
@@ -723,6 +934,13 @@ function confirmAutoRoute(useBulletTrain: boolean): void {
 	executeAutoRoute(useBulletTrain, destination);
 }
 
+/**
+ * `executeAutoRoute` を処理します。
+ *
+ * @param useBulletTrain 処理に必要な入力値です。
+ * @param destination 処理に必要な入力値です。
+ * @returns この処理は戻り値を持ちません。
+ */
 async function executeAutoRoute(useBulletTrain: boolean, destination: string): Promise<void> {
 	const route = routeRef;
 	if (!route) {
@@ -758,6 +976,12 @@ async function executeAutoRoute(useBulletTrain: boolean, destination: string): P
 	}
 }
 
+/**
+ * `isRouteOperationSuccess` の判定結果を返します。
+ *
+ * @param result 処理対象の値です。
+ * @returns 判定結果を返します。
+ */
 function isRouteOperationSuccess(result: unknown): boolean {
 	if (typeof result === 'number') return result >= 0;
 	if (typeof result === 'string') {
@@ -775,17 +999,36 @@ function isRouteOperationSuccess(result: unknown): boolean {
 	return false;
 }
 
+/**
+ * `removeHistoryItem` を処理します。
+ *
+ * @param station 対象の駅名です。
+ * @returns この処理は戻り値を持ちません。
+ */
 function removeHistoryItem(station: string): void {
 	if (!station) return;
 	updateSwipeOffset(station, 0);
 	stationHistory.update((items) => items.filter((item) => item !== station));
 }
 
+/**
+ * `handleHistorySelect` のイベント処理を行います。
+ *
+ * @param station 対象の駅名です。
+ * @returns この処理は戻り値を持ちません。
+ */
 function handleHistorySelect(station: string): void {
 	resetSwipe(station);
 	handleStationSelect(station);
 }
 
+/**
+ * `handleHistoryKeydown` のイベント処理を行います。
+ *
+ * @param station 対象の駅名です。
+ * @param event 発生したイベントです。
+ * @returns この処理は戻り値を持ちません。
+ */
 function handleHistoryKeydown(station: string, event: KeyboardEvent): void {
 	if (event.key === 'Delete' || event.key === 'Backspace') {
 		updateSwipeOffset(station, -MAX_SWIPE_DISTANCE);
@@ -800,6 +1043,12 @@ function handleHistoryKeydown(station: string, event: KeyboardEvent): void {
 }
 
 
+/**
+ * `handleSearchInput` のイベント処理を行います。
+ *
+ * @param value 処理対象の値です。
+ * @returns この処理は戻り値を持ちません。
+ */
 function handleSearchInput(value: string): void {
 	searchQuery = value;
 	const keyword = value.trim();
@@ -812,6 +1061,12 @@ function handleSearchInput(value: string): void {
 	performSearch(keyword);
 }
 
+/**
+ * `readStationMeta` を処理します。
+ *
+ * @param station 対象の駅名です。
+ * @returns 処理結果を返します。
+ */
 function readStationMeta(station: string): SearchMeta {
 	try {
 		return {
@@ -835,10 +1090,23 @@ function readStationMeta(station: string): SearchMeta {
 	}
 }
 
+/**
+ * `buildSearchDisplayName` を組み立てます。
+ *
+ * @param name 処理に必要な入力値です。
+ * @param samename 処理に必要な入力値です。
+ * @returns 文字列結果を返します。
+ */
 function buildSearchDisplayName(name: string, samename?: string[]): string {
 	return buildStationDisplayNameFromCandidates(name, samename);
 }
 
+/**
+ * `dedupeSearchResults` を処理します。
+ *
+ * @param items 処理に必要な入力値です。
+ * @returns 配列結果を返します。
+ */
 function dedupeSearchResults(items: SearchResultItem[]): SearchResultItem[] {
 	const seen = new Set<string>();
 	const result: SearchResultItem[] = [];
@@ -856,6 +1124,12 @@ function dedupeSearchResults(items: SearchResultItem[]): SearchResultItem[] {
 	return result;
 }
 
+/**
+ * `parseFuzzySearchItems` の解析結果を返します。
+ *
+ * @param payload 処理対象の文字列です。
+ * @returns 配列結果を返します。
+ */
 function parseFuzzySearchItems(payload: string): FuzzySearchItem[] {
 	try {
 		if (!payload) return [];
@@ -884,6 +1158,12 @@ function parseFuzzySearchItems(payload: string): FuzzySearchItem[] {
 	}
 }
 
+/**
+ * `performSearch` を処理します。
+ *
+ * @param keyword 処理に必要な入力値です。
+ * @returns この処理は戻り値を持ちません。
+ */
 async function performSearch(keyword: string): Promise<void> {
 	const token = ++searchToken;
 	searchLoading = true;
@@ -922,14 +1202,33 @@ async function performSearch(keyword: string): Promise<void> {
 const MAX_SWIPE_DISTANCE = 110;
 const OPEN_THRESHOLD = 50;
 
+/**
+ * `updateSwipeOffset` を処理します。
+ *
+ * @param station 対象の駅名です。
+ * @param offset 対象位置を表す数値です。
+ * @returns この処理は戻り値を持ちません。
+ */
 function updateSwipeOffset(station: string, offset: number): void {
 	historySwipeOffsets = { ...historySwipeOffsets, [station]: offset };
 }
 
+/**
+ * `getSwipeOffset` を取得します。
+ *
+ * @param station 対象の駅名です。
+ * @returns 数値結果を返します。
+ */
 function getSwipeOffset(station: string): number {
 	return historySwipeOffsets[station] ?? 0;
 }
 
+/**
+ * `resetSwipe` を処理します。
+ *
+ * @param station 対象の駅名です。
+ * @returns この処理は戻り値を持ちません。
+ */
 function resetSwipe(station: string): void {
 	if (historySwipeOffsets[station]) {
 		const clone = { ...historySwipeOffsets };
@@ -941,6 +1240,13 @@ function resetSwipe(station: string): void {
 	}
 }
 
+/**
+ * `handleSwipeStart` のイベント処理を行います。
+ *
+ * @param station 対象の駅名です。
+ * @param event 発生したイベントです。
+ * @returns この処理は戻り値を持ちません。
+ */
 function handleSwipeStart(station: string, event: PointerEvent): void {
 	if (!event.isPrimary) return;
 	swipeSession = {
@@ -952,6 +1258,13 @@ function handleSwipeStart(station: string, event: PointerEvent): void {
 	activeSwipeStation = station;
 }
 
+/**
+ * `handleSwipeMove` のイベント処理を行います。
+ *
+ * @param station 対象の駅名です。
+ * @param event 発生したイベントです。
+ * @returns この処理は戻り値を持ちません。
+ */
 function handleSwipeMove(station: string, event: PointerEvent): void {
 	if (!swipeSession || swipeSession.station !== station) return;
 	const delta = event.clientX - swipeSession.startX;
@@ -960,6 +1273,13 @@ function handleSwipeMove(station: string, event: PointerEvent): void {
 	event.preventDefault();
 }
 
+/**
+ * `handleSwipeEnd` のイベント処理を行います。
+ *
+ * @param station 対象の駅名です。
+ * @param event 発生したイベントです。
+ * @returns この処理は戻り値を持ちません。
+ */
 function handleSwipeEnd(station: string, event: PointerEvent): void {
 	if (!swipeSession || swipeSession.station !== station) return;
 	const current = getSwipeOffset(station);
@@ -971,6 +1291,13 @@ function handleSwipeEnd(station: string, event: PointerEvent): void {
 	swipeSession = null;
 }
 
+/**
+ * `handleSwipeCancel` のイベント処理を行います。
+ *
+ * @param station 対象の駅名です。
+ * @param event 発生したイベントです。
+ * @returns この処理は戻り値を持ちません。
+ */
 function handleSwipeCancel(station: string, event: PointerEvent): void {
 	if (!swipeSession || swipeSession.station !== station) return;
 	updateSwipeOffset(station, 0);
@@ -978,20 +1305,41 @@ function handleSwipeCancel(station: string, event: PointerEvent): void {
 	swipeSession = null;
 }
 
+/**
+ * `clampOffset` を処理します。
+ *
+ * @param offset 対象位置を表す数値です。
+ * @returns 数値結果を返します。
+ */
 function clampOffset(offset: number): number {
 	return Math.min(0, Math.max(-MAX_SWIPE_DISTANCE, offset));
 }
 
 const historyEmptyMessage = '履歴がまだありません';
 
+/**
+ * `showCompanies` を処理します。
+ *
+ * @returns 判定結果を返します。
+ */
 function showCompanies(): boolean {
 	return tab === 'group' && stage === 'root';
 }
 
+/**
+ * `showPrefectures` を処理します。
+ *
+ * @returns 判定結果を返します。
+ */
 function showPrefectures(): boolean {
 	return tab === 'prefecture' && stage === 'root';
 }
 
+/**
+ * `showHistory` を処理します。
+ *
+ * @returns 判定結果を返します。
+ */
 function showHistory(): boolean {
 	return tab === 'history' && stage === 'root';
 }
@@ -1000,10 +1348,20 @@ const showFloatingScrollButtons = $derived(
 	(tab === 'prefecture' && stage === 'root') || stage === 'stations' || (splitViewEnabled && stage === 'lines' && Boolean(selectedLine))
 );
 
+/**
+ * `scrollToTop` を処理します。
+ *
+ * @returns この処理は戻り値を持ちません。
+ */
 function scrollToTop(): void {
 	scrollPageToTop();
 }
 
+/**
+ * `scrollToBottom` を処理します。
+ *
+ * @returns この処理は戻り値を持ちません。
+ */
 function scrollToBottom(): void {
 	scrollPageToBottom();
 }
