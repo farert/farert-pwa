@@ -9,36 +9,43 @@
 	const blogUrl = 'https://farert.blogspot.jp/';
 
 	const usageSteps = [
-		'発駅カードを押して、発駅を選びます。',
-		'「+ 経路を追加」から路線を選び、次の駅を確定して経路を伸ばします。',
-		'運賃サマリーが表示されたら、押して詳細画面を開きます。',
-		'必要に応じて保存画面で保存し、詳細画面から共有します。'
+		{
+			html: '「<a class="help-inline-link" href="#terminal-selection-manual">発駅</a>」で、発駅を選びます。'
+		},
+		{
+			html: '「<a class="help-inline-link" href="#line-selection-manual">+ 経路を追加</a>」から路線を選び、次の駅を確定して経路を伸ばします。'
+		},
+		{
+			html: '運賃サマリーが表示されたら、押して詳細画面を開きます。'
+		},
+		{
+			html: '必要に応じて<a class="help-inline-link" href="#archive-manual">保存画面を開き</a>、保存し、詳細画面から共有します。'
+		},
+		{
+			html: '<span class="inline-icon-label"><span class="material-symbols-rounded inline-symbol" aria-hidden="true">menu</span></span> メニューから開くきっぷホルダでも「保存画面」と同様に経路を保存できます。こちらは運賃額の集計に利用します。'
+		}
 	];
 
 	const mainScreenParts = [
 		{
-			name: '発駅カード',
-			description: '現在の発駅を設定・変更する入口です。経路が空のときはここから開始します。'
+			nameHtml: '<a class="help-inline-link" href="#terminal-selection-manual">発駅カード</a>',
+			description: '現在の発駅を設定・変更する入口です。経路が空のときはここから開始します。  経路を新規に入力しなおすときも、ここから発駅を指定することで上書きして開始します'
 		},
 		{
-			name: '区間カード',
-			description: '追加済みの区間を確認する欄です。押すとその区間までの詳細を開けます。'
+			nameHtml: '区間カード',
+			description: '丸囲み数字で始まる、追加済みの区間を確認する欄です。押すとその区間までの詳細を開けます。'
 		},
 		{
-			name: '運賃サマリーカード',
+			nameHtml: '<a class="help-inline-link" href="#detail-manual">運賃サマリーカード</a>',
 			description: '経路全体の運賃結果を確認する欄です。押すと全経路の詳細画面を開きます。'
 		},
 		{
-			name: '+ 経路を追加',
+			nameHtml: '<a class="help-inline-link" href="#line-selection-manual">+ 経路を追加</a>',
 			description: '次に使う路線と駅を選ぶ入口です。経路が終端に達すると追加できません。'
 		},
 		{
-			name: '下部操作ナビ',
-			description: '戻る、反転、保存、画面上下移動などの基本操作をまとめた固定操作欄です。'
-		},
-		{
-			name: '右上メニュー',
-			description: 'バージョン情報、ヘルプ、経路オプションを開きます。'
+			nameHtml: '右上メニュー',
+			description: 'バージョン情報、ヘルプ（今見ている画面）、経路オプションを開きます。経路オプションは、大阪環状線を通った際に大回りする指定ができます。'
 		}
 	];
 
@@ -46,17 +53,17 @@
 		{
 			icon: 'undo',
 			label: '戻る',
-			description: '直前の操作を取り消します。区間があるときは末尾区間を消し、区間がないときは経路全体をクリアします。'
+			description: '直前の操作を取り消します。区間カードを一番下から消していきます。区間がないときは発駅（経路全体）をクリアします。'
 		},
 		{
 			icon: 'swap_horiz',
 			label: '反転',
-			description: '発駅と着駅の向きを入れ替えて、現在の経路を反転します。'
+			description: '発駅と着駅の向きを入れ替えて、現在の経路を反転します。Pの字型の経路など反転できな経路もあります。'
 		},
 		{
 			icon: 'save',
 			label: '保存',
-			description: '保存画面を開き、現在の経路を保存したり保存済み経路を読み込んだりします。'
+			description: ' <a class="help-inline-link" href="#archive-manual">保存画面を開き</a>、現在の経路を保存したり保存済み経路を読み込んだりします。 他の端末へ既存経路を移すときもこの機能をお使いください。'
 		},
 		{
 			icon: 'vertical_align_top',
@@ -77,53 +84,63 @@
 
 	const screenManuals = [
 		{
+			id: 'terminal-selection-manual',
 			title: '発着駅選択',
 			image: `${base}/help/terminal-selection.png`,
 			imageAlt: '発着駅選択画面のスクリーンショット',
 			steps: [
-				'「グループ」「都道府県」「履歴」から探すか、検索バーで駅名を検索します。',
-				'候補一覧から駅を選ぶと、発駅または着駅として確定します。',
-				'着駅選択では、必要に応じて新幹線利用確認が表示されます。'
+				{ html: '「JRグループ」「都道府県」「履歴」から探すか、検索バーで駅名を直接入力して指定します。' },
+				{ html: '候補一覧から駅を選ぶと、発駅または着駅として確定します。' },
 			]
 		},
 		{
+			id: 'line-selection-manual',
 			title: '路線選択',
 			image: `${base}/help/line-selection.png`,
 			imageAlt: '路線選択画面のスクリーンショット',
 			steps: [
-				'現在駅や選択文脈に応じた路線候補が表示されます。',
-				'路線を選ぶと、次の駅を選ぶ画面へ進みます。',
-				'メイン画面から来た場合は「最短経路」で着駅の自動探索にも進めます。'
+				{ html: '発着駅選択画面や、経路（区間）指定時に、路線候補が表示されます。' },
+				{
+					html: '路線を選ぶと、<a class="help-inline-link" href="#station-selection-manual">次の駅を選ぶ画面へ進みます</a>。'
+				},
+				{ html: 'メイン画面の「＋経路を追加」から来た場合は「最短経路」で着駅を指定し、最短経路を自動算出することができます。' }
 			]
 		},
 		{
+			id: 'station-selection-manual',
 			title: '駅選択',
 			image: `${base}/help/route-station-select.png`,
 			imageAlt: '駅選択画面のスクリーンショット',
 			steps: [
-				'メイン画面から来た場合は「分岐駅選択」と「着駅選択」を切り替えられます。',
-				'駅名の下には、かなや所属路線が表示されます。',
-				'駅を選ぶとその路線・駅の組み合わせが経路へ追加されます。'
+				{ html: '「発着駅指定」の場合、駅一覧が表示されますので、選んでください。'},
+                { html: '「＋経路を追加」の場合、分岐駅、つまり乗り換え駅のみしか表示されません。'},
+                { html: '乗り換え駅を選ぶ場合は、そのまま乗り換え駅を選んでください。'},
+                { html: '目的地がその路線内である場合は右上の「着駅選択」を選んでください。'},
+                { html: '一覧表示を「分岐駅選択」と「着駅選択」とで切り替えられます。' }
 			]
 		},
 		{
+			id: 'detail-manual',
 			title: '運賃詳細',
 			image: `${base}/help/detail.png`,
 			imageAlt: '運賃詳細画面のスクリーンショット',
 			steps: [
-				'運賃、営業キロ、有効日数、注記、経由を確認します。',
-				'共有ボタンで URL 共有、結果エクスポートで文字列出力ができます。',
-				'右上メニューでは、特例適用や最安経路計算などの再計算オプションを切り替えられます。'
+				{ html: '運賃、営業キロ、有効日数、注記、経由を表示します。' },
+				{ html: '共有ボタンで URL 共有、結果エクスポートで文字列出力ができます。' },
+                { html: 'URL 共有を作成して他端末へ渡すこともできます。'},
+				{ html: '右上メニューでは、特例適用や最安経路計算などの再計算オプションを切り替えられます。' },
+                { html: '共有やコピーの方法は端末により異なり、共有シート、クリップボード、ダイアログ表示のいずれかを使います。'}
 			]
 		},
 		{
+			id: 'archive-manual',
 			title: '保存',
 			image: `${base}/help/save.png`,
 			imageAlt: '保存画面のスクリーンショット',
 			steps: [
-				'現在の経路を保存し、保存済み経路を一覧で管理します。',
-				'保存済み経路を押すと読み込み、編集モードでは削除ができます。',
-				'インポートとエクスポートでは、経路文字列をまとめて扱えます。'
+				{ html: '現在の経路を保存し、保存済み経路を一覧で管理します。' },
+				{ html: '保存済み経路を押すと読み込み、編集モードでは削除ができます。' },
+				{ html: 'インポートとエクスポートでは、経路文字列をまとめて扱えます。' }
 			]
 		}
 	];
@@ -140,11 +157,11 @@
 	const saveScreenParts = [
 		{
 			name: '現在経路カード',
-			description: '編集中の経路が 2 区間以上あるときに先頭へ表示されます。保存済みか未保存かもここで確認できます。'
+			description: '編集中の経路が 2 区間以上あるときに先頭へ表示されます。保存済みか未保存かもここで確認できます。保存したい場合「保存」を選んでください。'
 		},
 		{
 			name: '保存済み経路一覧',
-			description: '保存した経路を一覧で管理します。通常時は押すと読み込み、編集モード時は削除対象になります。'
+			description: '保存した経路を一覧で管理します。通常時は選択するメイン画面へその経路で表示します。編集モード時は削除対象になります。'
 		},
 		{
 			name: '編集ボタン',
@@ -157,49 +174,22 @@
 	];
 
 	const saveImportSteps = [
-		'経路は 1 行 1 件で入力します。',
+		'「インポート実行」すると、保存済み一覧へ追加されます。',
+		'',
+		'経路は 1 行 1 件で入力します。改行で複数経路を指定可能です',
+		'経路は、発駅 路線 駅 路線 駅 ... と指定します。',
+        '例えば、 "あき亀山 可部線 広島 山陽新幹線 新大阪 東海道線 大阪 大阪環状線 天王寺" などと奇数個指定します。',
+        '偶数の個数を指定すると最後の駅は自動経路で検索補完されます',
+        '例えば、 "横浜 東海道線 東神奈川 国母" などと指定すると、東神奈川から最短経路で国母までの経路が選ばれます。',
 		'区切りはカンマまたはスペースに対応します。',
-		'「インポート実行」を押すと、成功分だけ保存済み一覧へ追加されます。'
 	];
 
 	const saveExportSteps = [
-		'保存済み経路を改行区切りテキストで確認できます。',
+		'保存済み経路をCSVテキストでエクスポートします。',
 		'ダイアログ表示時にコピーを試行し、結果はダイアログ内に表示されます。',
 		'内容はそのまま保存画面への再インポートや外部メモへの転記に使えます。'
 	];
-
-	const options = [
-		'大阪環状線の近回り / 遠回りを切り替えられます。',
-		'小倉-博多間新幹線在来線別線扱いを切り替えられます。',
-		'詳細画面では、特例適用や最安経路計算などの再計算オプションを切り替えられます。'
-	];
-
-	const reuseTips = [
-		'保存画面では、現在経路の保存、保存済み経路の読込、削除ができます。',
-		'詳細画面では、共有 URL を作成して他端末へ渡せます。',
-		'共有やコピーの方法は端末により異なり、共有シート、クリップボード、ダイアログ表示のいずれかを使います。'
-	];
-
-	const faqs = [
-		{
-			q: '結果が想定と違う場合はどうすればよいですか？',
-			a: '運賃制度の更新タイミングや地域運行条件により、表示結果に差異が出ることがあります。実利用前に、公式窓口で再確認してください。'
-		},
-		{
-			q: '保存機能はどこ？',
-			a: '画面下部の保存系操作（環境設定により）から経路を保存できます。'
-		},
-		{
-			q: 'ブラウザ版・モバイルで表示が違う？',
-			a: '端末幅でレイアウトが変わるため見え方は変わります。機能自体は同一です。'
-		},
-		{
-			q: '同名駅はどう見分けますか？',
-			a: '必要に応じて駅名に補助表記が付きます。かなや所属路線も合わせて確認してください。'
-		}
-	];
-
-		/**
+    /**
 	 * `close` を終了または非表示にします。
 	 *
 	 * @returns この処理は戻り値を持ちません。
@@ -216,14 +206,14 @@ function close(): void {
 
 	<section class="card">
 		<h2>このアプリについて</h2>
-		<p>経路を作成すると、運賃を算出して表示します。駅・路線の選択結果をもとに、各種条件付き運賃の適用有無を判定します。</p>
+		<p>経路を作成すると、運賃を算出して表示します。駅・路線の選択結果をもとに、JRグループの旅客営業規則に基づいた各種運賃を表示します。</p>
 	</section>
 
 	<section class="card">
 		<h2>基本の使い方</h2>
 		<ol>
 			{#each usageSteps as step, index}
-				<li><span>{index + 1}.</span>{step}</li>
+				<li><span>{index + 1}.</span>{@html step.html}</li>
 			{/each}
 		</ol>
 	</section>
@@ -243,7 +233,7 @@ function close(): void {
 				<ul class="plain-list">
 					{#each mainScreenParts as part}
 						<li>
-							<strong>{part.name}</strong>
+							<strong>{@html part.nameHtml}</strong>
 							<p>{part.description}</p>
 						</li>
 					{/each}
@@ -266,7 +256,7 @@ function close(): void {
 											<span>{item.label}</span>
 										</div>
 									</td>
-									<td>{item.description}</td>
+									<td>{@html item.description}</td>
 								</tr>
 							{/each}
 						</tbody>
@@ -280,12 +270,12 @@ function close(): void {
 		<h2>画面別の操作マニュアル</h2>
 		<div class="manual-grid">
 			{#each screenManuals as manual}
-				<section class="manual-card">
+				<section class="manual-card" id={manual.id}>
 					<h3>{manual.title}</h3>
 					<img class="manual-shot" src={manual.image} alt={manual.imageAlt} loading="lazy" />
 					<ul>
 						{#each manual.steps as step}
-							<li>{step}</li>
+							<li>{@html step.html}</li>
 						{/each}
 					</ul>
 				</section>
@@ -293,7 +283,7 @@ function close(): void {
 		</div>
 	</section>
 
-	<section class="card">
+	<section class="card" id="archive-manual">
 		<h2>保存画面の使い方</h2>
 		<div class="save-help-layout">
 			<div class="save-help-visual">
@@ -349,49 +339,15 @@ function close(): void {
 	</section>
 
 	<section class="card">
-		<h2>主な設定・オプション</h2>
-		<ul>
-			{#each options as option}
-				<li>{option}</li>
-			{/each}
-		</ul>
-	</section>
-
-	<section class="card">
-		<h2>保存・共有・再利用</h2>
-		<ul>
-			{#each reuseTips as tip}
-				<li>{tip}</li>
-			{/each}
-		</ul>
-	</section>
-
-	<section class="card">
-		<h2>外部サイト</h2>
+		<h2>その他詳しい使い方は</h2>
 		<p>
-			<a href="https://farert.blogspot.com/2017/03/blog-post_54.html" target="_blank" rel="noopener noreferrer"
+			<a
+				class="external-help-link"
+				href="https://farert.blogspot.com/2017/03/blog-post_54.html"
+				target="_blank"
+				rel="noopener noreferrer"
 				>経路運賃キロ計算アプリの使い方〜目次</a
 			>
-		</p>
-	</section>
-
-	<section class="card">
-		<h2>よくある質問</h2>
-		<ul class="faq-list">
-			{#each faqs as faq}
-				<li>
-					<strong>{faq.q}</strong>
-					<p>{faq.a}</p>
-				</li>
-			{/each}
-		</ul>
-	</section>
-
-	<section class="card warning">
-		<h2>注意・免責</h2>
-		<p>
-			本アプリの表示結果は、時刻表・運賃制度の更新、地域ごとの運用条件、データ反映のタイミング等により実際の運賃と異なる場合があります。<br />
-			実利用前に、公式窓口でご確認ください。
 		</p>
 	</section>
 
@@ -576,6 +532,18 @@ function close(): void {
 		line-height: 1;
 	}
 
+	.inline-icon-label {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		vertical-align: text-bottom;
+	}
+
+	.inline-symbol {
+		font-size: 1.2rem;
+		line-height: 1;
+	}
+
 	.manual-shot {
 		width: 100%;
 		max-height: 28rem;
@@ -605,6 +573,48 @@ function close(): void {
 		font-weight: 700;
 		text-decoration: underline;
 		cursor: pointer;
+	}
+
+	.help-page :global(a.help-inline-link) {
+		display: inline-block;
+		padding: 0.05rem 0.35rem;
+		border-radius: 999px;
+		color: #1d4ed8;
+		background: rgba(59, 130, 246, 0.12);
+		text-decoration: underline;
+		text-underline-offset: 0.14em;
+		font-weight: 700;
+	}
+
+	.help-page :global(a.help-inline-link:hover),
+	.help-page :global(a.help-inline-link:focus-visible) {
+		background: rgba(59, 130, 246, 0.2);
+		outline: none;
+	}
+
+	.external-help-link {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+		padding: 0.16rem 0.45rem;
+		border-radius: 0.5rem;
+		color: #1d4ed8;
+		background: rgba(59, 130, 246, 0.1);
+		text-decoration: underline;
+		text-underline-offset: 0.16em;
+		font-weight: 700;
+	}
+
+	.external-help-link::after {
+		content: '↗';
+		font-size: 0.9em;
+		line-height: 1;
+	}
+
+	.external-help-link:hover,
+	.external-help-link:focus-visible {
+		background: rgba(59, 130, 246, 0.18);
+		outline: none;
 	}
 
 	.close-button {

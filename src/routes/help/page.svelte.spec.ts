@@ -36,11 +36,20 @@ describe('/help/+page.svelte', () => {
 			.element(page.getByRole('heading', { name: '画面別の操作マニュアル' }))
 			.toBeInTheDocument();
 		await expect
+			.element(page.getByRole('link', { name: '発駅', exact: true }))
+			.toHaveAttribute('href', '#terminal-selection-manual');
+		await expect
+			.element(page.getByRole('link', { name: '保存画面を開き', exact: true }).first())
+			.toHaveAttribute('href', '#archive-manual');
+		await expect
 			.element(page.getByRole('img', { name: '発着駅選択画面のスクリーンショット', exact: true }))
 			.toHaveAttribute('src', '/help/terminal-selection.png');
 		await expect
 			.element(page.getByRole('img', { name: '路線選択画面のスクリーンショット', exact: true }))
 			.toHaveAttribute('src', '/help/line-selection.png');
+		await expect
+			.element(page.getByRole('link', { name: '次の駅を選ぶ画面へ進みます', exact: true }))
+			.toHaveAttribute('href', '#station-selection-manual');
 		await expect
 			.element(page.getByRole('img', { name: '駅選択画面のスクリーンショット', exact: true }))
 			.toHaveAttribute('src', '/help/route-station-select.png');

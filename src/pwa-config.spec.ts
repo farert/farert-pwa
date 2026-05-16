@@ -22,4 +22,13 @@ describe('PWA config', () => {
 		expect(source).toContain("sizes: '512x512'");
 		expect(source).toContain("purpose: 'any maskable'");
 	});
+
+	it('provides a static manifest for development requests', () => {
+		const source = readFileSync(new URL('../static/manifest.webmanifest', import.meta.url), 'utf-8');
+
+		expect(source).toContain('"short_name": "Farert"');
+		expect(source).toContain('"start_url": "/"');
+		expect(source).toContain('"src": "icon-192.png"');
+		expect(source).toContain('"src": "icon-512.png"');
+	});
 });
