@@ -586,7 +586,7 @@ x戸畑,鹿児島線,小倉,山陽新幹線,厚狭,美祢線,長門市,山陰線
 		await expect.element(page.getByText('クリップボードへコピーしました。')).toBeInTheDocument();
 	});
 
-	it('バックアップを共有できる', async () => {
+	it('バックアップをファイルとして保存できる', async () => {
 		const current = new MockFarert();
 		current.buildRoute('東京,東海道線,熱海,伊東線,伊東');
 		mainRouteStore.set(current);
@@ -595,24 +595,28 @@ x戸畑,鹿児島線,小倉,山陽新幹線,厚狭,美祢線,長門市,山陰線
 			{ order: 1, routeScript: '東京,東海道線,熱海', fareType: FareType.NORMAL }
 		]);
 		stationHistoryStore.set(['東京', '新大阪']);
-		const shareMock = vi.fn().mockResolvedValue(undefined);
-		vi.stubGlobal('navigator', { share: shareMock });
 
 		render(SavePage);
 
+		const createObjectURLSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:backup');
+		const revokeObjectURLSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+		const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+
+		await page.getByRole('button', { name: 'バックアップメニュー' }).click();
+		await expect.element(page.getByRole('button', { name: 'バックアップを書き出す' })).toBeInTheDocument();
 		await page.getByRole('button', { name: 'バックアップを書き出す' }).click();
 
-		expect(shareMock).toHaveBeenCalledTimes(1);
-		const payload = shareMock.mock.calls[0]?.[0] as { title?: string; text?: string };
-		expect(payload?.title).toBe('Farert バックアップ');
-		expect(payload?.text).toContain('"currentRoute": "東京,東海道線,熱海,伊東線,伊東"');
-		expect(payload?.text).toContain('"savedRoutes": [');
-		expect(payload?.text).toContain('"ticketHolder": [');
-		expect(payload?.text).toContain('"stationHistory": [');
-		await expect.element(page.getByText('バックアップを共有しました。')).toBeInTheDocument();
+		expect(createObjectURLSpy).toHaveBeenCalled();
+		expect(clickSpy).toHaveBeenCalledTimes(1);
+		expect(revokeObjectURLSpy).toHaveBeenCalledWith('blob:backup');
+		await expect.element(page.getByText('バックアップファイルを保存しました。')).toBeInTheDocument();
+
+		createObjectURLSpy.mockRestore();
+		revokeObjectURLSpy.mockRestore();
+		clickSpy.mockRestore();
 	});
 
-	it('バックアップを読み込んで全体状態を復元できる', async () => {
+	it('バックアップファイルを読み込んで全体状態を復元できる', async () => {
 		const current = new MockFarert();
 		current.buildRoute('旧,旧線,旧終点');
 		mainRouteStore.set(current);
@@ -623,24 +627,38 @@ x戸畑,鹿児島線,小倉,山陽新幹線,厚狭,美祢線,長門市,山陰線
 		stationHistoryStore.set(['旧']);
 		render(SavePage);
 
-		await page.getByRole('button', { name: 'バックアップを読み込む' }).click();
-		const textArea = page.getByRole('textbox', { name: 'バックアップJSON' });
-		await textArea.fill(
-			JSON.stringify({
-				version: '1.0',
-				storage: {
-					currentRoute: '東京,東海道線,熱海,伊東線,伊東',
-					savedRoutes: ['東京,東海道線,熱海', '東京,東海道線,熱海 ', '仙台,東北線,盛岡'],
-					ticketHolder: [
-						{ order: 1, routeScript: '東京,東海道線,熱海', fareType: 'NORMAL' },
-						{ order: 2, routeScript: '仙台,東北線,盛岡', fareType: 'CHILD' }
-					],
-					stationHistory: ['東京', '仙台', '東京']
-				}
-			})
+		const file = new File(
+			[
+				JSON.stringify({
+					version: '1.0',
+					storage: {
+						currentRoute: '東京,東海道線,熱海,伊東線,伊東',
+						savedRoutes: ['東京,東海道線,熱海', '東京,東海道線,熱海 ', '仙台,東北線,盛岡'],
+						ticketHolder: [
+							{ order: 1, routeScript: '東京,東海道線,熱海', fareType: 'NORMAL' },
+							{ order: 2, routeScript: '仙台,東北線,盛岡', fareType: 'CHILD' }
+						],
+						stationHistory: ['東京', '仙台', '東京']
+					}
+				})
+			],
+			'farert-backup.json',
+			{ type: 'application/json' }
 		);
+		const fileInput = document.querySelector(
+			'input[type="file"][aria-label="バックアップファイル"]'
+		) as HTMLInputElement;
+		Object.defineProperty(fileInput, 'files', {
+			configurable: true,
+			value: [file]
+		});
 
-		await page.getByRole('button', { name: '読み込む', exact: true }).click();
+		await page.getByRole('button', { name: 'バックアップメニュー' }).click();
+		await expect
+			.element(page.getByRole('button', { name: 'バックアップファイルを読み込む' }))
+			.toBeInTheDocument();
+		await page.getByRole('button', { name: 'バックアップファイルを読み込む' }).click();
+		await fileInput.dispatchEvent(new Event('change', { bubbles: true }));
 		await page.getByRole('button', { name: 'はい' }).click();
 
 		expect(get(mainRouteStore)?.routeScript()).toBe('東京,東海道線,熱海,伊東線,伊東');

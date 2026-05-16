@@ -73,6 +73,37 @@ export function exportAppBackup(storage: AppStorage): string {
 	return JSON.stringify(backup, null, 2);
 }
 
+export function downloadAppBackupAsFile(
+	storage: AppStorage,
+	filename = 'farert-backup.json'
+): void {
+	try {
+		const jsonString = exportAppBackup(storage);
+		const blob = new Blob([jsonString], { type: 'application/json' });
+		const url = URL.createObjectURL(blob);
+
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = filename;
+		a.click();
+
+		URL.revokeObjectURL(url);
+	} catch (error) {
+		console.error('[BACKUP] ファイルの保存に失敗しました:', error);
+		throw error;
+	}
+}
+
+export async function importAppBackupFromFile(file: File): Promise<AppBackup> {
+	try {
+		const text = await file.text();
+		return importAppBackup(text);
+	} catch (error) {
+		console.error('[BACKUP] ファイルからの復元に失敗しました:', error);
+		throw error;
+	}
+}
+
 export function importAppBackup(jsonString: string): AppBackup {
 	try {
 		const parsed = JSON.parse(jsonString) as Partial<AppBackup>;

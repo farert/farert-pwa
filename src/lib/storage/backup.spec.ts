@@ -1,6 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { FareType, type AppStorage } from '$lib/types';
-import { exportAppBackup, importAppBackup } from './backup';
+import {
+	downloadAppBackupAsFile,
+	exportAppBackup,
+	importAppBackup,
+	importAppBackupFromFile
+} from './backup';
 
 describe('backup helpers', () => {
 	it('AppStorage をバックアップ JSON に変換する', () => {
@@ -67,5 +72,55 @@ describe('backup helpers', () => {
 				})
 			)
 		).toThrow('互換性のないバージョンです');
+	});
+
+	it('バックアップファイルを保存できる', () => {
+		const clickMock = vi.fn();
+		vi.stubGlobal('document', {
+			createElement: vi.fn().mockReturnValue({
+				href: '',
+				download: '',
+				click: clickMock
+			})
+		});
+		const createObjectURLSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:backup');
+		const revokeObjectURLSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+
+		downloadAppBackupAsFile({
+			currentRoute: null,
+			savedRoutes: [],
+			ticketHolder: [],
+			stationHistory: []
+		});
+
+		expect(createObjectURLSpy).toHaveBeenCalled();
+		expect(document.createElement).toHaveBeenCalledWith('a');
+		expect(clickMock).toHaveBeenCalledTimes(1);
+		expect(revokeObjectURLSpy).toHaveBeenCalledWith('blob:backup');
+
+		vi.unstubAllGlobals();
+		createObjectURLSpy.mockRestore();
+		revokeObjectURLSpy.mockRestore();
+	});
+
+	it('バックアップファイルから復元できる', async () => {
+		const file = new File(
+			[
+				JSON.stringify({
+					version: '1.0',
+					storage: {
+						currentRoute: null,
+						savedRoutes: [],
+						ticketHolder: [],
+						stationHistory: []
+					}
+				})
+			],
+			'farert-backup.json',
+			{ type: 'application/json' }
+		);
+
+		const backup = await importAppBackupFromFile(file);
+		expect(backup.version).toBe('1.0');
 	});
 });

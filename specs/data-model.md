@@ -104,6 +104,7 @@ interface AppBackup {
 - `ticketHolder` は `routeScript` と `fareType` を保持したまま復元する。
 - `stationHistory` は配列として復元し、実装側で件数上限を再適用してよい。
 - 既存の `savedRoutes` テキスト入出力は routeScript 専用の簡易導線として残す。
+- バックアップの主導線は JSON ファイルの保存 / 読込とし、テキスト貼り付けは補助導線として扱う。
 
 ## 画面表示系モデル
 

@@ -31,11 +31,13 @@
 ### 下部アクションバー
 - インポート
 - エクスポート
+- バックアップメニュー
 - 保存
 
 ### バックアップ領域
-- 全体バックアップのエクスポート
-- 全体バックアップのインポート
+- 全体バックアップのファイル保存
+- 全体バックアップのファイル読込
+- 全体バックアップのテキスト貼り付け復元
 
 ### ダイアログ
 - 警告ダイアログ
@@ -94,8 +96,9 @@
 - `navigator.clipboard.writeText()` が失敗する環境では、選択可能な一時テキストエリアと `execCommand('copy')` へフォールバックする。
 
 ## 全体バックアップ
-- `mainRoute`, `savedRoutes`, `ticketHolder`, `stationHistory` を JSON にまとめてエクスポートする。
-- バックアップ形式は `AppBackup` として扱う。
+- `mainRoute`, `savedRoutes`, `ticketHolder`, `stationHistory` を JSON にまとめた `AppBackup` を、`.json` ファイルとして保存する。
+- バックアップの主導線はファイル保存 / ファイル読込とする。
+- テキスト貼り付け復元は補助導線として残してよい。
 - JSON インポート時は既存データを置き換える。
 - `currentRoute` は `buildRoute()` 成功時のみ反映する。
 - `savedRoutes` と `stationHistory` は正規化して復元する。
@@ -106,4 +109,5 @@
 - 保存画面は「routeScript のリスト管理画面」であり、運賃計算画面ではない。
 - 永続化正本は `savedRoutes` で、カード表示はその派生表現にすぎない。
 - 全体バックアップは永続化正本のスナップショットとして扱い、画面固有の表示状態は含めない。
+- クリップボードはバックアップの主媒体にしない。
 - 画面初期化は `initFarert()` に依存するため、`farert.js` / `farert.wasm` / `farert.data` を app shell と同様にキャッシュ対象とする。

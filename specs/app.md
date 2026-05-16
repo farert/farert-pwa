@@ -42,7 +42,7 @@
 - `farert_ticket_holder`: きっぷホルダ。
 - `farert_station_history`: 駅履歴。
 - `theme`: ライト / ダーク設定。
-- 機種変更やブラウザ変更向けの全体バックアップは `AppBackup` の JSON として `/save` 画面から入出力する。
+- 機種変更やブラウザ変更向けの全体バックアップは `AppBackup` の JSON ファイルを正本として `/save` 画面から入出力する。テキスト貼り付けは補助導線とする。
 
 `initStores(Farert)` が起動時復元を担い、各 store の購読で即時保存する。共有 URL やエクスポート文字列は `localStorage` には保存せず、都度生成する。
 

@@ -5,7 +5,11 @@ import { onDestroy, onMount } from 'svelte';
 import SavedRouteCard from '$lib/components/SavedRouteCard.svelte';
 import { initFarert, Farert } from '$lib/wasm';
 import { initStores, mainRoute, savedRoutes, stationHistory, ticketHolder } from '$lib/stores';
-import { exportAppBackup, importAppBackup } from '$lib/storage/backup';
+import {
+	downloadAppBackupAsFile,
+	importAppBackup,
+	importAppBackupFromFile
+} from '$lib/storage/backup';
 import type { FaretClass } from '$lib/wasm/types';
 import type { AppStorage, TicketHolderItem } from '$lib/types';
 import { getSerializedRouteScript } from '$lib/utils/routeScriptPersistence';
@@ -36,6 +40,7 @@ type ImportErrorDetail = {
 	let importErrorDetails = $state<ImportErrorDetail[]>([]);
 	let infoMessage = $state('');
 	let isEditing = $state(false);
+	let backupMenuOpen = $state(false);
 	let currentRoute: FaretClass | null = null;
 	let currentRouteScript = $state('');
 	let savedList = $state<string[]>([]);
@@ -51,6 +56,7 @@ type ImportErrorDetail = {
 	let backupImportDialogOpen = $state(false);
 	let backupImportDialogText = $state('');
 	let backupImportDialogResolver: ((result: string | null) => void) | null = null;
+	let backupFileInput: HTMLInputElement | null = null;
 
 	let unsubscribeRoute: (() => void) | null = null;
 	let unsubscribeSaved: (() => void) | null = null;
@@ -164,6 +170,10 @@ type ImportErrorDetail = {
 		isEditing = !isEditing;
 	}
 
+	function toggleBackupMenu(): void {
+		backupMenuOpen = !backupMenuOpen;
+	}
+
 	function handleSaveCurrent(): void {
 		clearMessages();
 		const normalizedCurrent = normalizeRouteScript(currentRouteScript);
@@ -269,6 +279,36 @@ type ImportErrorDetail = {
 		const resolver = backupImportDialogResolver;
 		backupImportDialogResolver = null;
 		resolver?.(result);
+	}
+
+	function handleBackupFileButtonClick(): void {
+		backupFileInput?.click();
+	}
+
+	async function handleBackupFileChange(event: Event): Promise<void> {
+		const input = event.currentTarget as HTMLInputElement;
+		const file = input.files?.[0] ?? null;
+		input.value = '';
+		if (!file) return;
+
+		clearMessages();
+		try {
+			const backup = await importAppBackupFromFile(file);
+			const confirmed = await requestConfirm(
+				'バックアップファイルを読み込むと現在の保存データを置き換えます。よろしいですか？'
+			);
+			if (!confirmed) {
+				return;
+			}
+
+			applyImportedBackup(backup.storage);
+			showInfo('バックアップを復元しました。');
+		} catch (err) {
+			console.error('バックアップファイルの読み込みに失敗しました', err);
+			showError(
+				err instanceof Error ? err.message : 'バックアップファイルの読み込みに失敗しました。'
+			);
+		}
 	}
 
 	async function importRoutesFromText(rawText: string): Promise<void> {
@@ -482,21 +522,15 @@ type ImportErrorDetail = {
 	async function handleExportBackup(): Promise<void> {
 		clearMessages();
 		try {
-			const text = exportAppBackup(getCurrentStorageSnapshot());
-			if (navigator.share) {
-				await navigator.share({ title: 'Farert バックアップ', text });
-				showInfo('バックアップを共有しました。');
-				return;
-			}
-			await copyExportText(text);
-			showInfo('バックアップをクリップボードへコピーしました。');
+			downloadAppBackupAsFile(getCurrentStorageSnapshot());
+			showInfo('バックアップファイルを保存しました。');
 		} catch (err) {
 			console.error('バックアップのエクスポートに失敗しました', err);
 			showError('バックアップのエクスポートに失敗しました。');
 		}
 	}
 
-	async function handleImportBackup(): Promise<void> {
+	async function handleImportBackupFromText(): Promise<void> {
 		clearMessages();
 		const input = await openBackupImportDialog('');
 		if (input === null) {
@@ -662,22 +696,56 @@ type ImportErrorDetail = {
 			<span class="material-symbols-rounded" aria-hidden="true">upload</span>
 			<span>エクスポート</span>
 		</button>
+		<button type="button" aria-label="バックアップメニュー" onclick={toggleBackupMenu}>
+			<span class="material-symbols-rounded" aria-hidden="true">backup</span>
+			<span>バックアップ</span>
+		</button>
 		<button type="button" aria-label="保存" onclick={handleSaveCurrent}>
 			<span class="material-symbols-rounded" aria-hidden="true">save</span>
 			<span>保存</span>
 		</button>
 	</footer>
 
-	<section class="backup-panel" aria-label="全体バックアップ">
-		<button type="button" class="backup-button" aria-label="バックアップを書き出す" onclick={handleExportBackup}>
-			<span class="material-symbols-rounded" aria-hidden="true">backup</span>
-			<span>バックアップ出力</span>
-		</button>
-		<button type="button" class="backup-button" aria-label="バックアップを読み込む" onclick={handleImportBackup}>
-			<span class="material-symbols-rounded" aria-hidden="true">cloud_download</span>
-			<span>バックアップ読込</span>
-		</button>
-	</section>
+	{#if backupMenuOpen}
+		<section class="backup-panel" aria-label="全体バックアップ">
+			<button
+				type="button"
+				class="backup-button"
+				aria-label="バックアップを書き出す"
+				onclick={handleExportBackup}
+			>
+				<span class="material-symbols-rounded" aria-hidden="true">backup</span>
+				<span>バックアップ保存</span>
+			</button>
+			<button
+				type="button"
+				class="backup-button"
+				aria-label="バックアップファイルを読み込む"
+				onclick={handleBackupFileButtonClick}
+			>
+				<span class="material-symbols-rounded" aria-hidden="true">cloud_download</span>
+				<span>ファイル読込</span>
+			</button>
+			<button
+				type="button"
+				class="backup-button"
+				aria-label="バックアップをテキストで復元する"
+				onclick={handleImportBackupFromText}
+			>
+				<span class="material-symbols-rounded" aria-hidden="true">text_fields</span>
+				<span>テキスト復元</span>
+			</button>
+		</section>
+	{/if}
+
+	<input
+		bind:this={backupFileInput}
+		type="file"
+		accept="application/json,.json"
+		hidden
+		aria-label="バックアップファイル"
+		onchange={handleBackupFileChange}
+	/>
 
 	{#if warnDialog}
 		<div class="modal-backdrop">
@@ -898,7 +966,7 @@ type ImportErrorDetail = {
 
 	.backup-panel {
 		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
+		grid-template-columns: repeat(3, minmax(0, 1fr));
 		gap: 0.75rem;
 	}
 
