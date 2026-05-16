@@ -17,13 +17,13 @@
 			html: '「<a class="help-inline-link" href="#line-selection-manual">+ 経路を追加</a>」から路線を選び、次の駅を確定して経路を伸ばします。'
 		},
 		{
-			html: '運賃サマリーが表示されたら、押して詳細画面を開きます。'
+			html: '運賃サマリーが表示されたら、押して<a class="help-inline-link" href="#detail-manual">詳細画面</a>を開きます。'
 		},
 		{
-			html: '必要に応じて<a class="help-inline-link" href="#archive-manual">保存画面を開き</a>、保存し、詳細画面から共有します。'
+			html: '必要に応じて<a class="help-inline-link" href="#archive-manual">保存画面を開き</a>、保存し、<a class="help-inline-link" href="#detail-manual">詳細画面</a>から共有します。'
 		},
 		{
-			html: '<span class="inline-icon-label"><span class="material-symbols-rounded inline-symbol" aria-hidden="true">menu</span></span> メニューから開くきっぷホルダでも「保存画面」と同様に経路を保存できます。こちらは運賃額の集計に利用します。'
+			html: '<span class="inline-icon-label"><span class="material-symbols-rounded inline-symbol" aria-hidden="true">menu</span></span> メニューから開くきっぷホルダでも「<a class="help-inline-link" href="#archive-manual">保存画面</a>」と同様に経路を保存できます。こちらは運賃額の集計に利用します。'
 		}
 	];
 
@@ -74,23 +74,23 @@
 
 	const mainScreenParts = [
 		{
-			nameHtml: '<a class="help-inline-link" href="#terminal-selection-manual">発駅カード</a>',
-			description: '現在の発駅を設定・変更する入口です。経路が空のときはここから開始します。  経路を新規に入力しなおすときも、ここから発駅を指定することで上書きして開始します'
+			name: '発駅カード',
+			description: '現在の発駅を設定・変更する入口です。経路が空のときはここから開始します。  経路を新規に入力しなおすときも、ここから発駅を指定することで上書きして開始します。<a class="help-inline-link" href="#terminal-selection-manual">発駅選択画面</a>が開きます。'
 		},
 		{
-			nameHtml: '区間カード',
-			description: '丸囲み数字で始まる、追加済みの区間を確認する欄です。押すとその区間までの詳細を開けます。'
+			name: '区間カード',
+			description: '丸囲み数字で始まる、追加済みの区間を確認する欄です。押すとその区間までの<a class="help-inline-link" href="#detail-manual">詳細</a>を開けます。'
 		},
 		{
-			nameHtml: '<a class="help-inline-link" href="#detail-manual">運賃サマリーカード</a>',
-			description: '経路全体の運賃結果を確認する欄です。押すと全経路の詳細画面を開きます。'
+			name: '運賃サマリーカード',
+			description: '経路全体の運賃結果を確認する欄です。押すと全経路の<a class="help-inline-link" href="#detail-manual">詳細画面</a>を開きます。'
 		},
 		{
-			nameHtml: '<a class="help-inline-link" href="#line-selection-manual">+ 経路を追加</a>',
-			description: '次に使う路線と駅を選ぶ入口です。経路が終端に達すると追加できません。'
+			name: '+ 経路を追加',
+			description: '次に使う路線と駅を選ぶ入口です。経路が終端に達すると追加できません。<a class="help-inline-link" href="#line-selection-manual">路線選択画面</a>が開きます。'
 		},
 		{
-			nameHtml: '右上メニュー',
+			name: '右上メニュー',
 			description: 'バージョン情報、ヘルプ（今見ている画面）、経路オプションを開きます。経路オプションは、大阪環状線を通った際に大回りする指定ができます。'
 		}
 	];
@@ -325,8 +325,8 @@ function close(): void {
 				<ul class="plain-list">
 					{#each mainScreenParts as part}
 						<li>
-							<strong>{@html part.nameHtml}</strong>
-							<p>{part.description}</p>
+							<strong>{part.name}</strong>
+							<p>{@html part.description}</p>
 						</li>
 					{/each}
 				</ul>
@@ -604,7 +604,6 @@ function close(): void {
 
 	.flow-chart {
 		display: block;
-		min-width: 42rem;
 		width: 100%;
 		height: auto;
 		border-radius: 0.75rem;
