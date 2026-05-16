@@ -235,6 +235,31 @@ describe('/save/+page.svelte', () => {
 		}
 	});
 
+	it('保存済み経路が30件以上あると上下スクロールボタンを表示する', async () => {
+		const routes = Array.from({ length: 30 }, (_, index) => `東京,東海道線,熱海${index}`);
+		savedRoutesStore.set(routes);
+		const scrollSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+
+		try {
+			render(SavePage);
+
+			await expect
+				.element(page.getByRole('button', { name: '一覧の先頭へスクロール' }))
+				.toBeInTheDocument();
+			await expect
+				.element(page.getByRole('button', { name: '一覧の末尾へスクロール' }))
+				.toBeInTheDocument();
+
+			await page.getByRole('button', { name: '一覧の先頭へスクロール' }).click();
+			expect(scrollSpy).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' });
+
+			await page.getByRole('button', { name: '一覧の末尾へスクロール' }).click();
+			expect(scrollSpy).toHaveBeenCalled();
+		} finally {
+			scrollSpy.mockRestore();
+		}
+	});
+
 	it('既存の保存経路重複を初期表示時に解消する', async () => {
 		savedRoutesStore.set(['東京,東海道線,熱海', ' 東京,東海道線,熱海 ', '', '仙台,東北線,盛岡']);
 		render(SavePage);

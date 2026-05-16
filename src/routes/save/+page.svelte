@@ -13,6 +13,7 @@ import {
 import type { FaretClass } from '$lib/wasm/types';
 import type { AppStorage, TicketHolderItem } from '$lib/types';
 import { getSerializedRouteScript } from '$lib/utils/routeScriptPersistence';
+import { scrollPageToBottom, scrollPageToTop } from '$lib/utils/responsiveLayout';
 import { normalizeRouteScript, restoreRouteFromScript } from '$lib/utils/urlRoute';
 
 type BuildRouteResult = {
@@ -115,6 +116,7 @@ type ImportErrorDetail = {
 	);
 	const floatingStatusMessage = $derived(infoMessage || simpleErrorMessage);
 	const floatingStatusTone = $derived(infoMessage ? 'info' : 'error');
+	const showFloatingScrollButtons = $derived(savedList.length >= 20);
 
 	function safeRouteScript(route: FaretClass | null): string {
 		try {
@@ -195,6 +197,14 @@ type ImportErrorDetail = {
 
 	function handleBack(): void {
 		goto(`${base}/`);
+	}
+
+	function scrollToTop(): void {
+		scrollPageToTop();
+	}
+
+	function scrollToBottom(): void {
+		scrollPageToBottom();
 	}
 
 	function toggleEdit(): void {
@@ -793,6 +803,27 @@ type ImportErrorDetail = {
 		</div>
 	{/if}
 
+	{#if showFloatingScrollButtons}
+		<div class="floating-scroll-buttons" aria-label="スクロール操作">
+			<button
+				type="button"
+				class="floating-scroll-button"
+				aria-label="一覧の先頭へスクロール"
+				onclick={scrollToTop}
+			>
+				<span class="material-symbols-rounded" aria-hidden="true">vertical_align_top</span>
+			</button>
+			<button
+				type="button"
+				class="floating-scroll-button"
+				aria-label="一覧の末尾へスクロール"
+				onclick={scrollToBottom}
+			>
+				<span class="material-symbols-rounded" aria-hidden="true">vertical_align_bottom</span>
+			</button>
+		</div>
+	{/if}
+
 	<input
 		bind:this={backupFileInput}
 		type="file"
@@ -1002,6 +1033,34 @@ type ImportErrorDetail = {
 	.floating-status.error {
 		background: var(--error-bg);
 		color: var(--error-text);
+	}
+
+	.floating-scroll-buttons {
+		position: fixed;
+		right: max(1rem, env(safe-area-inset-right, 0.75rem));
+		bottom: max(1rem, calc(4.75rem + env(safe-area-inset-bottom, 0.75rem)));
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+		z-index: 40;
+	}
+
+	.floating-scroll-button {
+		width: 3.25rem;
+		height: 3.25rem;
+		border: none;
+		border-radius: 999px;
+		background: linear-gradient(135deg, #7e22ce, #5b21b6);
+		color: #fff;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		box-shadow: 0 12px 28px rgba(91, 33, 182, 0.32);
+		cursor: pointer;
+	}
+
+	.floating-scroll-button .material-symbols-rounded {
+		font-size: 1.5rem;
 	}
 
 	.list {
