@@ -174,6 +174,10 @@ type ImportErrorDetail = {
 		backupMenuOpen = !backupMenuOpen;
 	}
 
+	function closeBackupMenu(): void {
+		backupMenuOpen = false;
+	}
+
 	function handleSaveCurrent(): void {
 		clearMessages();
 		const normalizedCurrent = normalizeRouteScript(currentRouteScript);
@@ -282,6 +286,7 @@ type ImportErrorDetail = {
 	}
 
 	function handleBackupFileButtonClick(): void {
+		closeBackupMenu();
 		backupFileInput?.click();
 	}
 
@@ -521,6 +526,7 @@ type ImportErrorDetail = {
 
 	async function handleExportBackup(): Promise<void> {
 		clearMessages();
+		closeBackupMenu();
 		try {
 			downloadAppBackupAsFile(getCurrentStorageSnapshot());
 			showInfo('バックアップファイルを保存しました。');
@@ -532,6 +538,7 @@ type ImportErrorDetail = {
 
 	async function handleImportBackupFromText(): Promise<void> {
 		clearMessages();
+		closeBackupMenu();
 		const input = await openBackupImportDialog('');
 		if (input === null) {
 			return;
@@ -696,47 +703,54 @@ type ImportErrorDetail = {
 			<span class="material-symbols-rounded" aria-hidden="true">upload</span>
 			<span>エクスポート</span>
 		</button>
-		<button type="button" aria-label="バックアップメニュー" onclick={toggleBackupMenu}>
-			<span class="material-symbols-rounded" aria-hidden="true">backup</span>
-			<span>バックアップ</span>
-		</button>
+		<div class="backup-menu-anchor">
+			<button
+				type="button"
+				aria-label="バックアップメニュー"
+				aria-haspopup="menu"
+				aria-expanded={backupMenuOpen}
+				onclick={toggleBackupMenu}
+			>
+				<span class="material-symbols-rounded" aria-hidden="true">backup</span>
+				<span>バックアップ</span>
+			</button>
+			{#if backupMenuOpen}
+				<section class="backup-popover" aria-label="全体バックアップ">
+					<button
+						type="button"
+						class="backup-button"
+						aria-label="バックアップを書き出す"
+						onclick={handleExportBackup}
+					>
+						<span class="material-symbols-rounded" aria-hidden="true">backup</span>
+						<span>バックアップ保存</span>
+					</button>
+					<button
+						type="button"
+						class="backup-button"
+						aria-label="バックアップファイルを読み込む"
+						onclick={handleBackupFileButtonClick}
+					>
+						<span class="material-symbols-rounded" aria-hidden="true">cloud_download</span>
+						<span>ファイル読込</span>
+					</button>
+					<button
+						type="button"
+						class="backup-button"
+						aria-label="バックアップをテキストで復元する"
+						onclick={handleImportBackupFromText}
+					>
+						<span class="material-symbols-rounded" aria-hidden="true">text_fields</span>
+						<span>テキスト復元</span>
+					</button>
+				</section>
+			{/if}
+		</div>
 		<button type="button" aria-label="保存" onclick={handleSaveCurrent}>
 			<span class="material-symbols-rounded" aria-hidden="true">save</span>
 			<span>保存</span>
 		</button>
 	</footer>
-
-	{#if backupMenuOpen}
-		<section class="backup-panel" aria-label="全体バックアップ">
-			<button
-				type="button"
-				class="backup-button"
-				aria-label="バックアップを書き出す"
-				onclick={handleExportBackup}
-			>
-				<span class="material-symbols-rounded" aria-hidden="true">backup</span>
-				<span>バックアップ保存</span>
-			</button>
-			<button
-				type="button"
-				class="backup-button"
-				aria-label="バックアップファイルを読み込む"
-				onclick={handleBackupFileButtonClick}
-			>
-				<span class="material-symbols-rounded" aria-hidden="true">cloud_download</span>
-				<span>ファイル読込</span>
-			</button>
-			<button
-				type="button"
-				class="backup-button"
-				aria-label="バックアップをテキストで復元する"
-				onclick={handleImportBackupFromText}
-			>
-				<span class="material-symbols-rounded" aria-hidden="true">text_fields</span>
-				<span>テキスト復元</span>
-			</button>
-		</section>
-	{/if}
 
 	<input
 		bind:this={backupFileInput}
@@ -964,23 +978,47 @@ type ImportErrorDetail = {
 		font-size: 0.9rem;
 	}
 
-	.backup-panel {
-		display: grid;
-		grid-template-columns: repeat(3, minmax(0, 1fr));
-		gap: 0.75rem;
+	.backup-menu-anchor {
+		position: relative;
+		display: flex;
+		align-items: stretch;
+		justify-content: center;
+	}
+
+	.backup-menu-anchor > button {
+		width: 100%;
+	}
+
+	.backup-popover {
+		position: absolute;
+		left: 50%;
+		bottom: calc(100% + 0.5rem);
+		transform: translateX(-50%);
+		z-index: 20;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		width: min(17rem, calc(100vw - 1.5rem));
+		padding: 0.75rem;
+		border: 1px solid var(--border-color);
+		border-radius: 1rem;
+		background: var(--card-bg);
+		box-shadow: 0 14px 32px rgba(15, 23, 42, 0.18);
 	}
 
 	.backup-button {
 		border: none;
-		border-radius: 0.85rem;
-		padding: 0.9rem 0.75rem;
+		border-radius: 0.75rem;
+		padding: 0.8rem 0.9rem;
 		display: flex;
 		align-items: center;
-		justify-content: center;
-		gap: 0.35rem;
-		background: var(--card-bg);
+		justify-content: flex-start;
+		gap: 0.5rem;
+		background: var(--surface-bg, var(--card-bg));
 		color: var(--text-main);
-		box-shadow: var(--card-shadow);
+		box-shadow: none;
+		text-align: left;
+		font-weight: 600;
 	}
 
 	.modal-backdrop {
