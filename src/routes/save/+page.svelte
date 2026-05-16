@@ -674,6 +674,9 @@ type ImportErrorDetail = {
 		</button>
 		<h1>経路保存</h1>
 		<div class="actions">
+			<span class="saved-count" aria-label={`保存済み経路 ${savedList.length}件`}>
+				保存済み {savedList.length}件
+			</span>
 			<button
 				type="button"
 				class="icon-button"
@@ -957,6 +960,21 @@ type ImportErrorDetail = {
 	.actions {
 		display: flex;
 		gap: 0.5rem;
+		align-items: center;
+	}
+
+	.saved-count {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0.35rem 0.75rem;
+		border-radius: 999px;
+		background: rgba(255, 255, 255, 0.14);
+		color: #fff;
+		font-size: 0.8rem;
+		font-weight: 700;
+		white-space: nowrap;
+		letter-spacing: 0.02em;
 	}
 
 	.icon-button {

@@ -199,6 +199,14 @@ describe('/save/+page.svelte', () => {
 		await expect.element(page.getByText('柏木平,釜石線,陸羽東線')).toBeInTheDocument();
 	});
 
+	it('編集ボタンの左に保存済み件数を表示する', async () => {
+		savedRoutesStore.set(['東京,東海道線,熱海', '仙台,東北線,盛岡']);
+
+		render(SavePage);
+
+		await expect.element(page.getByText('保存済み 2件')).toBeInTheDocument();
+	});
+
 	it('保存ボタンで現在の経路を保存する', async () => {
 		const current = new MockFarert();
 		current.addStartRoute('東京');
