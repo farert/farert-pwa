@@ -25,10 +25,12 @@ describe('/help/+page.svelte', () => {
 			.toBeInTheDocument();
 		await expect
 			.element(
-				page.getByText('分岐駅を選ぶと分岐点へ戻り、必要な区間を順に指定します。', { exact: false })
+				page.getByText('分岐駅を選ぶとメイン画面へ戻り、必要な区間を順に指定します。', {
+					exact: false
+				})
 			)
 			.toBeInTheDocument();
-		await expect.element(page.getByRole('heading', { name: '最短経路検出' })).toBeInTheDocument();
+		await expect.element(page.getByRole('heading', { name: '最短経路指定' })).toBeInTheDocument();
 		await expect.element(page.getByText('使用路線選択')).toBeInTheDocument();
 		await expect.element(page.getByText('最短経路', { exact: true })).toBeInTheDocument();
 		await expect
