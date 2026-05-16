@@ -80,6 +80,31 @@ interface TicketHolderItem {
 - `string[]`
 - 実体は最近選択した駅名一覧
 
+### `AppBackup`
+- アプリ全体を端末間で移行するためのバックアップ形式。
+- 保存対象:
+  - `currentRoute`
+  - `savedRoutes`
+  - `ticketHolder`
+  - `stationHistory`
+- `theme` は端末ごとの差を許容しやすい UI 設定として含めない。
+
+#### 推奨構造
+```ts
+interface AppBackup {
+  version: string;
+  exportedAt?: string;
+  storage: AppStorage;
+}
+```
+
+#### 取り扱い方針
+- `currentRoute` は `buildRoute()` で復元できる場合のみ反映する。
+- `savedRoutes` は正規化と重複排除を行う。
+- `ticketHolder` は `routeScript` と `fareType` を保持したまま復元する。
+- `stationHistory` は配列として復元し、実装側で件数上限を再適用してよい。
+- 既存の `savedRoutes` テキスト入出力は routeScript 専用の簡易導線として残す。
+
 ## 画面表示系モデル
 
 ### `FareInfo`
@@ -190,6 +215,7 @@ const STORAGE_KEYS = {
 - `ticketHolder` は `TicketHolderItem[]` として保存する。
 - `stationHistory` は `string[]` として保存する。
 - `theme` は UI 設定として別キーで保存する。
+- バックアップ/リストアは `localStorage` の生データを直接配布するのではなく、`AppBackup` の JSON 文字列として扱う。
 
 ### 実装上の担当
 - キー定義: `src/lib/types/index.ts`

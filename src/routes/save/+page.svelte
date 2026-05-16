@@ -4,9 +4,10 @@ import { base } from '$app/paths';
 import { onDestroy, onMount } from 'svelte';
 import SavedRouteCard from '$lib/components/SavedRouteCard.svelte';
 import { initFarert, Farert } from '$lib/wasm';
-import { initStores, mainRoute, savedRoutes, ticketHolder } from '$lib/stores';
+import { initStores, mainRoute, savedRoutes, stationHistory, ticketHolder } from '$lib/stores';
+import { exportAppBackup, importAppBackup } from '$lib/storage/backup';
 import type { FaretClass } from '$lib/wasm/types';
-import type { TicketHolderItem } from '$lib/types';
+import type { AppStorage, TicketHolderItem } from '$lib/types';
 import { getSerializedRouteScript } from '$lib/utils/routeScriptPersistence';
 import { normalizeRouteScript, restoreRouteFromScript } from '$lib/utils/urlRoute';
 
@@ -39,6 +40,7 @@ type ImportErrorDetail = {
 	let currentRouteScript = $state('');
 	let savedList = $state<string[]>([]);
 	let holderItems = $state<TicketHolderItem[]>([]);
+	let stationHistoryList = $state<string[]>([]);
 	let warnDialog = $state('');
 	let confirmDialogOpen = $state(false);
 	let confirmDialogMessage = $state('');
@@ -46,10 +48,14 @@ type ImportErrorDetail = {
 	let importDialogOpen = $state(false);
 	let importDialogText = $state('');
 	let importDialogResolver: ((result: string | null) => void) | null = null;
+	let backupImportDialogOpen = $state(false);
+	let backupImportDialogText = $state('');
+	let backupImportDialogResolver: ((result: string | null) => void) | null = null;
 
 	let unsubscribeRoute: (() => void) | null = null;
 	let unsubscribeSaved: (() => void) | null = null;
 	let unsubscribeHolder: (() => void) | null = null;
+	let unsubscribeStationHistory: (() => void) | null = null;
 
 	onMount(() => {
 		(async () => {
@@ -70,19 +76,23 @@ type ImportErrorDetail = {
 				unsubscribeHolder = ticketHolder.subscribe((value) => {
 					holderItems = [...value];
 				});
-			} catch (err) {
-				console.error('保存画面初期化エラー', err);
-				errorMessage = '保存画面の初期化に失敗しました。';
-			} finally {
-				loading = false;
-			}
-		})();
-	});
+				unsubscribeStationHistory = stationHistory.subscribe((value) => {
+					stationHistoryList = [...value];
+				});
+				} catch (err) {
+					console.error('保存画面初期化エラー', err);
+					errorMessage = '保存画面の初期化に失敗しました。';
+				} finally {
+					loading = false;
+				}
+			})();
+		});
 
 	onDestroy(() => {
 		unsubscribeRoute?.();
 		unsubscribeSaved?.();
 		unsubscribeHolder?.();
+		unsubscribeStationHistory?.();
 	});
 
 	const isCurrentSaved = $derived(
@@ -240,6 +250,24 @@ type ImportErrorDetail = {
 		importDialogOpen = false;
 		const resolver = importDialogResolver;
 		importDialogResolver = null;
+		resolver?.(result);
+	}
+
+	function openBackupImportDialog(defaultText = ''): Promise<string | null> {
+		if (backupImportDialogResolver) {
+			backupImportDialogResolver(null);
+		}
+		backupImportDialogText = defaultText;
+		backupImportDialogOpen = true;
+		return new Promise((resolve) => {
+			backupImportDialogResolver = resolve;
+		});
+	}
+
+	function resolveBackupImportDialog(result: string | null): void {
+		backupImportDialogOpen = false;
+		const resolver = backupImportDialogResolver;
+		backupImportDialogResolver = null;
 		resolver?.(result);
 	}
 
@@ -442,6 +470,82 @@ type ImportErrorDetail = {
 		}
 	}
 
+	function getCurrentStorageSnapshot(): AppStorage {
+		return {
+			currentRoute: currentRouteScript || null,
+			savedRoutes: [...savedList],
+			ticketHolder: [...holderItems],
+			stationHistory: [...stationHistoryList]
+		};
+	}
+
+	async function handleExportBackup(): Promise<void> {
+		clearMessages();
+		try {
+			const text = exportAppBackup(getCurrentStorageSnapshot());
+			if (navigator.share) {
+				await navigator.share({ title: 'Farert バックアップ', text });
+				showInfo('バックアップを共有しました。');
+				return;
+			}
+			await copyExportText(text);
+			showInfo('バックアップをクリップボードへコピーしました。');
+		} catch (err) {
+			console.error('バックアップのエクスポートに失敗しました', err);
+			showError('バックアップのエクスポートに失敗しました。');
+		}
+	}
+
+	async function handleImportBackup(): Promise<void> {
+		clearMessages();
+		const input = await openBackupImportDialog('');
+		if (input === null) {
+			return;
+		}
+
+		if (!input) {
+			showError('バックアップJSONがありません。');
+			return;
+		}
+
+		const confirmed = await requestConfirm(
+			'バックアップを読み込むと現在の保存データを置き換えます。よろしいですか？'
+		);
+		if (!confirmed) {
+			return;
+		}
+
+		try {
+			const backup = importAppBackup(input);
+			applyImportedBackup(backup.storage);
+			showInfo('バックアップを復元しました。');
+		} catch (err) {
+			console.error('バックアップのインポートに失敗しました', err);
+			showError(
+				err instanceof Error ? err.message : 'バックアップのインポートに失敗しました。'
+			);
+		}
+	}
+
+	function applyImportedBackup(storage: AppStorage): void {
+		const routeScript = normalizeRouteScript(storage.currentRoute ?? '');
+		if (storage.currentRoute === null) {
+			mainRoute.set(null);
+		} else if (routeScript) {
+			const route = new Farert();
+			const restored = restoreRouteFromScript(route, routeScript);
+			if (restored) {
+				mainRoute.set(route);
+			} else {
+				warnDialog = '現在の経路の復元に失敗しました。';
+			}
+		}
+
+		savedRoutes.set(storage.savedRoutes);
+		ticketHolder.set(storage.ticketHolder);
+		stationHistory.set(storage.stationHistory);
+	}
+
 	async function copyExportText(text: string): Promise<void> {
 		if (navigator.clipboard?.writeText) {
 			try {
@@ -564,6 +668,17 @@ type ImportErrorDetail = {
 		</button>
 	</footer>
 
+	<section class="backup-panel" aria-label="全体バックアップ">
+		<button type="button" class="backup-button" aria-label="バックアップを書き出す" onclick={handleExportBackup}>
+			<span class="material-symbols-rounded" aria-hidden="true">backup</span>
+			<span>バックアップ出力</span>
+		</button>
+		<button type="button" class="backup-button" aria-label="バックアップを読み込む" onclick={handleImportBackup}>
+			<span class="material-symbols-rounded" aria-hidden="true">cloud_download</span>
+			<span>バックアップ読込</span>
+		</button>
+	</section>
+
 	{#if warnDialog}
 		<div class="modal-backdrop">
 			<section class="modal">
@@ -622,13 +737,42 @@ type ImportErrorDetail = {
 			</section>
 		</div>
 	{/if}
+
+	{#if backupImportDialogOpen}
+		<div class="modal-backdrop" role="dialog" aria-modal="true" aria-label="バックアップ読込">
+			<section class="modal">
+				<h3>バックアップJSONを入力</h3>
+				<p class="placeholder small">
+					この画面には AppBackup 形式の JSON を貼り付けてください
+				</p>
+				<textarea
+					class="route-textarea"
+					aria-label="バックアップJSON"
+					rows="10"
+					bind:value={backupImportDialogText}
+				></textarea>
+				<div class="confirm-actions">
+					<button type="button" class="confirm-primary" onclick={() => resolveBackupImportDialog(backupImportDialogText)}>
+						読み込む
+					</button>
+					<button
+						type="button"
+						class="confirm-secondary"
+						onclick={() => resolveBackupImportDialog(null)}
+					>
+						キャンセル
+					</button>
+				</div>
+			</section>
+		</div>
+	{/if}
 </div>
 
 <style>
 	.save-page {
 		max-width: 720px;
 		margin: 0 auto;
-		padding: 1rem 1rem 5rem;
+		padding: 1rem 1rem 9rem;
 		display: flex;
 		flex-direction: column;
 		gap: 1rem;
@@ -750,6 +894,25 @@ type ImportErrorDetail = {
 		padding: 0.35rem 0.25rem;
 		color: var(--text-main);
 		font-size: 0.9rem;
+	}
+
+	.backup-panel {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0.75rem;
+	}
+
+	.backup-button {
+		border: none;
+		border-radius: 0.85rem;
+		padding: 0.9rem 0.75rem;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.35rem;
+		background: var(--card-bg);
+		color: var(--text-main);
+		box-shadow: var(--card-shadow);
 	}
 
 	.modal-backdrop {
