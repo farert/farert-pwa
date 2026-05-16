@@ -77,19 +77,25 @@ describe('/help/+page.svelte', () => {
 		await expect
 			.element(page.getByRole('img', { name: 'バックアップとレストア画面', exact: true }))
 			.toHaveAttribute('src', '/help/bkuprestore.png');
-		await expect
-			.element(page.getByText('現在経路、保存済み経路、きっぷホルダ、駅履歴をまとめてJSONファイルへ保存できます。'))
-			.toBeInTheDocument();
+	await expect
+		.element(page.getByText('現在経路、保存済み経路、きっぷホルダ、駅履歴をまとめてファイルへ保存できます。'))
+		.toBeInTheDocument();
 		await expect.element(page.getByRole('button', { name: '閉じる' })).toBeInTheDocument();
 	});
 
-	it('よくある質問と外部サイト導線を表示する', async () => {
+	it('不具合報告・問い合わせと外部サイト導線を表示する', async () => {
 		render(HelpPage);
 
-		await expect.element(page.getByRole('heading', { name: 'よくある質問' })).toBeInTheDocument();
+		await expect.element(page.getByRole('heading', { name: '不具合報告・問い合わせ' })).toBeInTheDocument();
 		await expect
-			.element(page.getByText('結果が想定と違う場合はどうすればよいですか？'))
+			.element(page.getByText('不具合や質問を送る'))
 			.toBeInTheDocument();
+		await expect
+			.element(page.getByRole('link', { name: '不具合報告・問い合わせフォームを開く' }))
+			.toHaveAttribute(
+				'href',
+				'https://nostalgic-wasabi-423.notion.site/28edffbd711a801ba33edaf258af9562'
+			);
 		await expect
 			.element(page.getByRole('link', { name: '経路運賃キロ計算アプリの使い方〜目次' }))
 			.toHaveAttribute('href', 'https://farert.blogspot.com/2017/03/blog-post_54.html');

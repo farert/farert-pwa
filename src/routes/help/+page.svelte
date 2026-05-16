@@ -7,6 +7,7 @@
 	import { base } from '$app/paths';
 
 	const blogUrl = 'https://farert.blogspot.jp/';
+	const inquiryUrl = 'https://nostalgic-wasabi-423.notion.site/28edffbd711a801ba33edaf258af9562';
 
 	const usageSteps = [
 		{
@@ -360,23 +361,21 @@ function close(): void {
 			</div>
 			</section>
 
-		<section class="card" id="faq-manual">
-			<h2>よくある質問</h2>
+		<section class="card" id="inquiry-manual">
+			<h2>不具合報告・問い合わせ</h2>
 			<div class="faq-list">
 				<div class="faq-item">
-					<h3>結果が想定と違う場合はどうすればよいですか？</h3>
+					<h3>不具合や質問を送る</h3>
 					<p>
-						右上メニューの経路オプションや、保存画面のバックアップから現在の経路を見直してください。
-						必要なら
+						結果が想定と違う場合や操作で困った場合は、経路、画面、操作内容を添えて送ってください。
 						<a
 							class="external-help-link"
-							href="https://farert.blogspot.com/2017/03/blog-post_54.html"
+							href={inquiryUrl}
 							target="_blank"
 							rel="noopener noreferrer"
 						>
-							使い方〜目次を開く
+							不具合報告・問い合わせフォームを開く
 						</a>
-						も参照できます。
 					</p>
 				</div>
 			</div>
