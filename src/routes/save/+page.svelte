@@ -726,6 +726,7 @@ type ImportErrorDetail = {
 						<span class="material-symbols-rounded" aria-hidden="true">backup</span>
 						<span>バックアップ保存</span>
 					</button>
+					<div class="backup-divider" aria-hidden="true"></div>
 					<button
 						type="button"
 						class="backup-button"
@@ -733,8 +734,9 @@ type ImportErrorDetail = {
 						onclick={handleBackupFileButtonClick}
 					>
 						<span class="material-symbols-rounded" aria-hidden="true">cloud_download</span>
-						<span>ファイル読込</span>
+						<span>ファイル読み込み</span>
 					</button>
+					<div class="backup-divider" aria-hidden="true"></div>
 					<button
 						type="button"
 						class="backup-button"
@@ -992,9 +994,9 @@ type ImportErrorDetail = {
 
 	.backup-popover {
 		position: absolute;
-		left: 50%;
+		left: 0;
 		bottom: calc(100% + 0.5rem);
-		transform: translateX(-50%);
+		transform: none;
 		z-index: 20;
 		display: flex;
 		flex-direction: column;
@@ -1015,23 +1017,38 @@ type ImportErrorDetail = {
 		font-weight: 700;
 		letter-spacing: 0.04em;
 		text-transform: uppercase;
+		text-align: left;
 	}
 
 	.backup-button {
 		border: none;
 		border-radius: 0;
-		padding: 0.8rem 0.25rem;
+		padding: 0.85rem 0.15rem;
 		display: flex;
 		align-items: center;
 		justify-content: flex-start;
-		gap: 0.75rem;
+		gap: 0.9rem;
 		background: var(--surface-bg, var(--card-bg));
 		color: var(--text-main);
 		box-shadow: none;
 		text-align: left;
 		font-weight: 600;
-		border-top: 1px solid var(--border-color);
+		border-top: none;
 		width: 100%;
+		align-self: stretch;
+	}
+
+	.backup-popover .backup-button {
+		align-items: center;
+		justify-content: flex-start;
+		text-align: left;
+	}
+
+	.backup-divider {
+		height: 1px;
+		width: 100%;
+		background: var(--border-color);
+		opacity: 0.9;
 	}
 
 	.backup-button:first-of-type {
