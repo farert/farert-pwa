@@ -74,23 +74,23 @@
 
 	const mainScreenParts = [
 		{
-			name: '発駅カード',
+			nameHtml: '発駅カード',
 			description: '現在の発駅を設定・変更する入口です。経路が空のときはここから開始します。  経路を新規に入力しなおすときも、ここから発駅を指定することで上書きして開始します。<a class="help-inline-link" href="#terminal-selection-manual">発駅選択画面</a>が開きます。'
 		},
 		{
-			name: '区間カード',
+			nameHtml: '区間カード',
 			description: '丸囲み数字で始まる、追加済みの区間を確認する欄です。押すとその区間までの<a class="help-inline-link" href="#detail-manual">詳細</a>を開けます。'
 		},
 		{
-			name: '運賃サマリーカード',
+			nameHtml: '運賃サマリーカード',
 			description: '経路全体の運賃結果を確認する欄です。押すと全経路の<a class="help-inline-link" href="#detail-manual">詳細画面</a>を開きます。'
 		},
 		{
-			name: '+ 経路を追加',
+			nameHtml: '+ 経路を追加',
 			description: '次に使う路線と駅を選ぶ入口です。経路が終端に達すると追加できません。<a class="help-inline-link" href="#line-selection-manual">路線選択画面</a>が開きます。'
 		},
 		{
-			name: '右上メニュー',
+			nameHtml: '<span class="inline-icon-label"><span class="material-symbols-rounded inline-symbol" aria-hidden="true">more_vert</span>メニュー</span>',
 			description: 'バージョン情報、ヘルプ（今見ている画面）、経路オプションを開きます。経路オプションは、大阪環状線を通った際に大回りする指定ができます。'
 		}
 	];
@@ -172,9 +172,9 @@
 			imageAlt: '運賃詳細画面のスクリーンショット',
 			steps: [
 				{ html: '運賃、営業キロ、有効日数、注記、経由を表示します。' },
-				{ html: '共有ボタンで URL 共有、結果エクスポートで文字列出力ができます。' },
-                { html: 'URL 共有を作成して他端末へ渡すこともできます。'},
-				{ html: '右上メニューでは、特例適用や最安経路計算などの再計算オプションを切り替えられます。' },
+				{ html: '<span class="inline-icon-label"><span class="material-symbols-rounded inline-symbol" aria-hidden="true">description</span>文字列出力し、表示テキストをクリップボードへエクスポートします。</span>'},
+                { html: '<span class="inline-icon-label"><span class="material-symbols-rounded inline-symbol" aria-hidden="true">share</span>URL 共有ができます。URL 共有を作成して他端末へ渡すこともできます。</span>' },
+				{ html: '<span class="inline-icon-label"><span class="material-symbols-rounded inline-symbol" aria-hidden="true">more_vert</span>特例非適用や最安経路計算などの再計算オプションを切り替えられます。特例非適用は指定した経路の運賃計算経路ではない営業キロを確認したいときなどに利用します。</span>'},
                 { html: '共有やコピーの方法は端末により異なり、共有シート、クリップボード、ダイアログ表示のいずれかを使います。'}
 			]
 		},
@@ -325,7 +325,7 @@ function close(): void {
 				<ul class="plain-list">
 					{#each mainScreenParts as part}
 						<li>
-							<strong>{part.name}</strong>
+							<strong>{@html part.nameHtml}</strong>
 							<p>{@html part.description}</p>
 						</li>
 					{/each}
@@ -718,14 +718,15 @@ function close(): void {
 		line-height: 1;
 	}
 
-	.inline-icon-label {
+	.help-page :global(.inline-icon-label) {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
+		gap: 0.1rem;
 		vertical-align: text-bottom;
 	}
 
-	.inline-symbol {
+	.help-page :global(.inline-symbol) {
 		font-size: 1.2rem;
 		line-height: 1;
 	}

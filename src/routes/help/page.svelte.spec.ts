@@ -37,6 +37,8 @@ describe('/help/+page.svelte', () => {
 		await expect
 			.element(page.getByRole('heading', { name: 'メイン画面の各部' }))
 			.toBeInTheDocument();
+		await expect.element(page.getByText('more_vert').first()).toBeInTheDocument();
+		await expect.element(page.getByText('右上メニュー').first()).toBeInTheDocument();
 		await expect
 			.element(page.getByRole('img', { name: 'メイン画面のスクリーンショット', exact: true }))
 			.toHaveAttribute('src', '/help/main-screen.png');
@@ -71,6 +73,10 @@ describe('/help/+page.svelte', () => {
 		await expect
 			.element(page.getByRole('img', { name: '運賃詳細画面のスクリーンショット', exact: true }))
 			.toHaveAttribute('src', '/help/detail.png');
+		await expect.element(page.getByText('description')).toBeInTheDocument();
+		await expect.element(page.getByText('結果エクスポート')).toBeInTheDocument();
+		await expect.element(page.getByText('share')).toBeInTheDocument();
+		await expect.element(page.getByText('共有で URL 共有ができます。', { exact: false })).toBeInTheDocument();
 		await expect
 			.element(page.getByRole('img', { name: '保存画面のスクリーンショット', exact: true }))
 			.toHaveAttribute('src', '/help/save.png');
