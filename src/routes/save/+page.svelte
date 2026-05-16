@@ -8,10 +8,16 @@ import { base } from '$app/paths';
 import { onDestroy, onMount } from 'svelte';
 import SavedRouteCard from '$lib/components/SavedRouteCard.svelte';
 import { initFarert, Farert } from '$lib/wasm';
-import { initStores, mainRoute, savedRoutes, ticketHolder } from '$lib/stores';
+import { initStores, mainRoute, savedRoutes, stationHistory, ticketHolder } from '$lib/stores';
+import {
+	downloadAppBackupAsFile,
+	importAppBackup,
+	importAppBackupFromFile
+} from '$lib/storage/backup';
 import type { FaretClass } from '$lib/wasm/types';
-import type { TicketHolderItem } from '$lib/types';
+import type { AppStorage, TicketHolderItem } from '$lib/types';
 import { getSerializedRouteScript } from '$lib/utils/routeScriptPersistence';
+import { scrollPageToBottom, scrollPageToTop } from '$lib/utils/responsiveLayout';
 import { normalizeRouteScript, restoreRouteFromScript } from '$lib/utils/urlRoute';
 
 type BuildRouteResult = {
@@ -39,10 +45,12 @@ type ImportErrorDetail = {
 	let importErrorDetails = $state<ImportErrorDetail[]>([]);
 	let infoMessage = $state('');
 	let isEditing = $state(false);
+	let backupMenuOpen = $state(false);
 	let currentRoute: FaretClass | null = null;
 	let currentRouteScript = $state('');
 	let savedList = $state<string[]>([]);
 	let holderItems = $state<TicketHolderItem[]>([]);
+	let stationHistoryList = $state<string[]>([]);
 	let warnDialog = $state('');
 	let confirmDialogOpen = $state(false);
 	let confirmDialogMessage = $state('');
@@ -50,13 +58,18 @@ type ImportErrorDetail = {
 	let importDialogOpen = $state(false);
 	let importDialogText = $state('');
 	let importDialogResolver: ((result: string | null) => void) | null = null;
+	let backupImportDialogOpen = $state(false);
+	let backupImportDialogText = $state('');
+	let backupImportDialogResolver: ((result: string | null) => void) | null = null;
+	let backupFileInput: HTMLInputElement | null = null;
+	let statusTimer: ReturnType<typeof setTimeout> | null = null;
 	let exportDialogOpen = $state(false);
 	let exportDialogText = $state('');
 	let exportDialogStatus = $state('');
-
 	let unsubscribeRoute: (() => void) | null = null;
 	let unsubscribeSaved: (() => void) | null = null;
 	let unsubscribeHolder: (() => void) | null = null;
+	let unsubscribeStationHistory: (() => void) | null = null;
 
 	onMount(() => {
 		(async () => {
@@ -77,19 +90,24 @@ type ImportErrorDetail = {
 				unsubscribeHolder = ticketHolder.subscribe((value) => {
 					holderItems = [...value];
 				});
-			} catch (err) {
-				console.error('保存画面初期化エラー', err);
-				errorMessage = '保存画面の初期化に失敗しました。';
-			} finally {
-				loading = false;
-			}
-		})();
-	});
+				unsubscribeStationHistory = stationHistory.subscribe((value) => {
+					stationHistoryList = [...value];
+				});
+				} catch (err) {
+					console.error('保存画面初期化エラー', err);
+					errorMessage = '保存画面の初期化に失敗しました。';
+				} finally {
+					loading = false;
+				}
+			})();
+		});
 
 	onDestroy(() => {
+		clearStatusTimer();
 		unsubscribeRoute?.();
 		unsubscribeSaved?.();
 		unsubscribeHolder?.();
+		unsubscribeStationHistory?.();
 	});
 
 	const isCurrentSaved = $derived(
@@ -99,6 +117,12 @@ type ImportErrorDetail = {
 	const visibleSavedList = $derived(
 		savedList.filter((route) => !(currentRouteCount > 1 && route === currentRouteScript))
 	);
+	const simpleErrorMessage = $derived(
+		errorMessage && importErrorDetails.length === 0 ? errorMessage : ''
+	);
+	const floatingStatusMessage = $derived(infoMessage || simpleErrorMessage);
+	const floatingStatusTone = $derived(infoMessage ? 'info' : 'error');
+	const showFloatingScrollButtons = $derived(savedList.length >= 20);
 
 		/**
 	 * `safeRouteScript` を処理します。
@@ -171,6 +195,7 @@ function moveRouteToFront(routes: string[], routeScript: string): string[] {
 	 */
 function showInfo(message: string): void {
 		infoMessage = message;
+		scheduleStatusClear();
 	}
 
 		/**
@@ -183,6 +208,11 @@ function showInfo(message: string): void {
 function showError(message: string, details: ImportErrorDetail[] = []): void {
 		errorMessage = message;
 		importErrorDetails = details;
+		if (details.length === 0) {
+			scheduleStatusClear();
+			return;
+		}
+		clearStatusTimer();
 	}
 
 		/**
@@ -195,6 +225,24 @@ function clearMessages(): void {
 		importErrorDetails = [];
 		infoMessage = '';
 		warnDialog = '';
+		clearStatusTimer();
+	}
+
+	function clearStatusTimer(): void {
+		if (statusTimer === null) return;
+		clearTimeout(statusTimer);
+		statusTimer = null;
+	}
+
+	function scheduleStatusClear(delay = 3000): void {
+		clearStatusTimer();
+		statusTimer = setTimeout(() => {
+			infoMessage = '';
+			if (importErrorDetails.length === 0) {
+				errorMessage = '';
+			}
+			statusTimer = null;
+		}, delay);
 	}
 
 		/**
@@ -206,15 +254,27 @@ function handleBack(): void {
 		goto(`${base}/`);
 	}
 
-		/**
-	 * `toggleEdit` の切替処理を行います。
-	 *
-	 * @returns この処理は戻り値を持ちません。
-	 */
-function toggleEdit(): void {
+	function scrollToTop(): void {
+		scrollPageToTop();
+	}
+
+	function scrollToBottom(): void {
+		scrollPageToBottom();
+	}
+
+	function toggleEdit(): void {
 		isEditing = !isEditing;
 	}
 
+	function toggleBackupMenu(): void {
+		backupMenuOpen = !backupMenuOpen;
+	}
+
+	function closeBackupMenu(): void {
+		backupMenuOpen = false;
+	}
+
+	function handleSaveCurrent(): void {
 		/**
 	 * `handleSaveCurrent` のイベント処理を行います。
 	 *
@@ -355,13 +415,56 @@ function resolveImportDialog(result: string | null): void {
 		resolver?.(result);
 	}
 
-		/**
-	 * `importRoutesFromText` を処理します。
-	 *
-	 * @param rawText 処理対象の文字列です。
-	 * @returns この処理は戻り値を持ちません。
-	 */
-async function importRoutesFromText(rawText: string): Promise<void> {
+	function openBackupImportDialog(defaultText = ''): Promise<string | null> {
+		if (backupImportDialogResolver) {
+			backupImportDialogResolver(null);
+		}
+		backupImportDialogText = defaultText;
+		backupImportDialogOpen = true;
+		return new Promise((resolve) => {
+			backupImportDialogResolver = resolve;
+		});
+	}
+
+	function resolveBackupImportDialog(result: string | null): void {
+		backupImportDialogOpen = false;
+		const resolver = backupImportDialogResolver;
+		backupImportDialogResolver = null;
+		resolver?.(result);
+	}
+
+	function handleBackupFileButtonClick(): void {
+		closeBackupMenu();
+		backupFileInput?.click();
+	}
+
+	async function handleBackupFileChange(event: Event): Promise<void> {
+		const input = event.currentTarget as HTMLInputElement;
+		const file = input.files?.[0] ?? null;
+		input.value = '';
+		if (!file) return;
+
+		clearMessages();
+		try {
+			const backup = await importAppBackupFromFile(file);
+			const confirmed = await requestConfirm(
+				'バックアップファイルを読み込むと現在の保存データを置き換えます。よろしいですか？'
+			);
+			if (!confirmed) {
+				return;
+			}
+
+			applyImportedBackup(backup.storage);
+			showInfo('バックアップを復元しました。');
+		} catch (err) {
+			console.error('バックアップファイルの読み込みに失敗しました', err);
+			showError(
+				err instanceof Error ? err.message : 'バックアップファイルの読み込みに失敗しました。'
+			);
+		}
+	}
+
+	async function importRoutesFromText(rawText: string): Promise<void> {
 		try {
 			const candidates = parseImportCandidates(rawText);
 			if (!candidates.length) {
@@ -596,13 +699,79 @@ async function handleExport(): Promise<void> {
 		}
 	}
 
-		/**
-	 * `copyExportText` を処理します。
-	 *
-	 * @param text 処理対象の文字列です。
-	 * @returns この処理は戻り値を持ちません。
-	 */
-async function copyExportText(text: string): Promise<void> {
+	function getCurrentStorageSnapshot(): AppStorage {
+		return {
+			currentRoute: currentRouteScript || null,
+			savedRoutes: [...savedList],
+			ticketHolder: [...holderItems],
+			stationHistory: [...stationHistoryList]
+		};
+	}
+
+	async function handleExportBackup(): Promise<void> {
+		clearMessages();
+		closeBackupMenu();
+		try {
+			downloadAppBackupAsFile(getCurrentStorageSnapshot());
+			showInfo('バックアップファイルを保存しました。');
+		} catch (err) {
+			console.error('バックアップのエクスポートに失敗しました', err);
+			showError('バックアップのエクスポートに失敗しました。');
+		}
+	}
+
+	async function handleImportBackupFromText(): Promise<void> {
+		clearMessages();
+		closeBackupMenu();
+		const input = await openBackupImportDialog('');
+		if (input === null) {
+			return;
+		}
+
+		if (!input) {
+			showError('バックアップJSONがありません。');
+			return;
+		}
+
+		const confirmed = await requestConfirm(
+			'バックアップを読み込むと現在の保存データを置き換えます。よろしいですか？'
+		);
+		if (!confirmed) {
+			return;
+		}
+
+		try {
+			const backup = importAppBackup(input);
+			applyImportedBackup(backup.storage);
+			showInfo('バックアップを復元しました。');
+		} catch (err) {
+			console.error('バックアップのインポートに失敗しました', err);
+			showError(
+				err instanceof Error ? err.message : 'バックアップのインポートに失敗しました。'
+			);
+		}
+	}
+
+	function applyImportedBackup(storage: AppStorage): void {
+		const routeScript = normalizeRouteScript(storage.currentRoute ?? '');
+		if (storage.currentRoute === null) {
+			mainRoute.set(null);
+		} else if (routeScript) {
+			const route = new Farert();
+			const restored = restoreRouteFromScript(route, routeScript);
+			if (restored) {
+				mainRoute.set(route);
+			} else {
+				warnDialog = '現在の経路の復元に失敗しました。';
+			}
+		}
+
+		savedRoutes.set(storage.savedRoutes);
+		ticketHolder.set(storage.ticketHolder);
+		stationHistory.set(storage.stationHistory);
+	}
+
+	async function copyExportText(text: string): Promise<void> {
 		if (navigator.clipboard?.writeText) {
 			try {
 				await navigator.clipboard.writeText(text);
@@ -654,6 +823,9 @@ function copyTextWithExecCommand(text: string): void {
 		</button>
 		<h1>経路保存</h1>
 		<div class="actions">
+			<span class="saved-count" aria-label={`保存済み経路 ${savedList.length}件`}>
+				保存済み {savedList.length}件
+			</span>
 			<button
 				type="button"
 				class="icon-button"
@@ -680,9 +852,6 @@ function copyTextWithExecCommand(text: string): void {
 					</div>
 				{/each}
 			</div>
-		{/if}
-		{#if infoMessage}
-			<p class="banner info" role="status">{infoMessage}</p>
 		{/if}
 
 		<section class="list">
@@ -724,11 +893,97 @@ function copyTextWithExecCommand(text: string): void {
 			<span class="material-symbols-rounded" aria-hidden="true">upload</span>
 			<span>エクスポート</span>
 		</button>
+		<div class="backup-menu-anchor">
+			<button
+				type="button"
+				aria-label="バックアップメニュー"
+				aria-haspopup="menu"
+				aria-expanded={backupMenuOpen}
+				onclick={toggleBackupMenu}
+			>
+				<span class="material-symbols-rounded" aria-hidden="true">backup</span>
+				<span>バックアップ</span>
+			</button>
+			{#if backupMenuOpen}
+				<section class="backup-popover" aria-label="全体バックアップ">
+					<p class="backup-popover-title">バックアップ</p>
+					<button
+						type="button"
+						class="backup-button"
+						aria-label="バックアップを書き出す"
+						onclick={handleExportBackup}
+					>
+						<span class="material-symbols-rounded" aria-hidden="true">backup</span>
+						<span>バックアップ保存</span>
+					</button>
+					<div class="backup-divider" aria-hidden="true"></div>
+					<button
+						type="button"
+						class="backup-button"
+						aria-label="バックアップファイルを読み込む"
+						onclick={handleBackupFileButtonClick}
+					>
+						<span class="material-symbols-rounded" aria-hidden="true">cloud_download</span>
+						<span>ファイル読み込み</span>
+					</button>
+					<div class="backup-divider" aria-hidden="true"></div>
+					<button
+						type="button"
+						class="backup-button"
+						aria-label="バックアップをテキストで復元する"
+						onclick={handleImportBackupFromText}
+					>
+						<span class="material-symbols-rounded" aria-hidden="true">text_fields</span>
+						<span>テキスト復元</span>
+					</button>
+				</section>
+			{/if}
+		</div>
 		<button type="button" aria-label="保存" onclick={handleSaveCurrent}>
 			<span class="material-symbols-rounded" aria-hidden="true">save</span>
 			<span>保存</span>
 		</button>
 	</footer>
+
+	{#if floatingStatusMessage}
+		<div
+			class={`floating-status ${floatingStatusTone}`}
+			role="status"
+			aria-live="polite"
+		>
+			<p>{floatingStatusMessage}</p>
+		</div>
+	{/if}
+
+	{#if showFloatingScrollButtons}
+		<div class="floating-scroll-buttons" aria-label="スクロール操作">
+			<button
+				type="button"
+				class="floating-scroll-button"
+				aria-label="一覧の先頭へスクロール"
+				onclick={scrollToTop}
+			>
+				<span class="material-symbols-rounded" aria-hidden="true">vertical_align_top</span>
+			</button>
+			<button
+				type="button"
+				class="floating-scroll-button"
+				aria-label="一覧の末尾へスクロール"
+				onclick={scrollToBottom}
+			>
+				<span class="material-symbols-rounded" aria-hidden="true">vertical_align_bottom</span>
+			</button>
+		</div>
+	{/if}
+
+	<input
+		bind:this={backupFileInput}
+		type="file"
+		accept="application/json,.json"
+		hidden
+		aria-label="バックアップファイル"
+		onchange={handleBackupFileChange}
+	/>
 
 	{#if warnDialog}
 		<div class="modal-backdrop">
@@ -789,36 +1044,29 @@ function copyTextWithExecCommand(text: string): void {
 		</div>
 	{/if}
 
-	{#if exportDialogOpen}
-		<div class="modal-backdrop" role="dialog" aria-modal="true" aria-label="経路エクスポート">
+	{#if backupImportDialogOpen}
+		<div class="modal-backdrop" role="dialog" aria-modal="true" aria-label="バックアップ読込">
 			<section class="modal">
-				<h3>エクスポート結果</h3>
+				<h3>バックアップJSONを入力</h3>
 				<p class="placeholder small">
-					保存済み経路を改行区切りで出力しています。必要に応じてそのまま再利用できます。
+					この画面には AppBackup 形式の JSON を貼り付けてください
 				</p>
-				{#if exportDialogStatus}
-					<p class="banner info export-status" role="status">{exportDialogStatus}</p>
-				{/if}
 				<textarea
 					class="route-textarea"
-					aria-label="エクスポート結果"
-					rows="8"
-					readonly
-					value={exportDialogText}
+					aria-label="バックアップJSON"
+					rows="10"
+					bind:value={backupImportDialogText}
 				></textarea>
 				<div class="confirm-actions">
-					<button type="button" class="confirm-primary" onclick={handleExport}>
-						再コピー
+					<button type="button" class="confirm-primary" onclick={() => resolveBackupImportDialog(backupImportDialogText)}>
+						読み込む
 					</button>
 					<button
 						type="button"
 						class="confirm-secondary"
-						onclick={() => {
-							exportDialogOpen = false;
-							exportDialogStatus = '';
-						}}
+						onclick={() => resolveBackupImportDialog(null)}
 					>
-						閉じる
+						キャンセル
 					</button>
 				</div>
 			</section>
@@ -830,7 +1078,7 @@ function copyTextWithExecCommand(text: string): void {
 	.save-page {
 		max-width: 720px;
 		margin: 0 auto;
-		padding: 1rem 1rem 5rem;
+		padding: 1rem 1rem 9rem;
 		display: flex;
 		flex-direction: column;
 		gap: 1rem;
@@ -861,6 +1109,21 @@ function copyTextWithExecCommand(text: string): void {
 	.actions {
 		display: flex;
 		gap: 0.5rem;
+		align-items: center;
+	}
+
+	.saved-count {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0.35rem 0.75rem;
+		border-radius: 999px;
+		background: rgba(255, 255, 255, 0.14);
+		color: #fff;
+		font-size: 0.8rem;
+		font-weight: 700;
+		white-space: nowrap;
+		letter-spacing: 0.02em;
 	}
 
 	.icon-button {
@@ -912,6 +1175,61 @@ function copyTextWithExecCommand(text: string): void {
 		color: var(--success-text);
 	}
 
+	.floating-status {
+		position: fixed;
+		left: 50%;
+		transform: translateX(-50%);
+		top: calc(4.75rem + env(safe-area-inset-top, 0));
+		z-index: 30;
+		width: min(720px, calc(100vw - 1.5rem));
+		padding: 0.85rem 1rem;
+		border-radius: 0.85rem;
+		box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
+	}
+
+	.floating-status p {
+		margin: 0;
+		font-weight: 700;
+	}
+
+	.floating-status.info {
+		background: var(--success-bg);
+		color: var(--success-text);
+	}
+
+	.floating-status.error {
+		background: var(--error-bg);
+		color: var(--error-text);
+	}
+
+	.floating-scroll-buttons {
+		position: fixed;
+		right: max(1rem, env(safe-area-inset-right, 0.75rem));
+		bottom: max(1rem, calc(4.75rem + env(safe-area-inset-bottom, 0.75rem)));
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+		z-index: 40;
+	}
+
+	.floating-scroll-button {
+		width: 3.25rem;
+		height: 3.25rem;
+		border: none;
+		border-radius: 999px;
+		background: linear-gradient(135deg, #7e22ce, #5b21b6);
+		color: #fff;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		box-shadow: 0 12px 28px rgba(91, 33, 182, 0.32);
+		cursor: pointer;
+	}
+
+	.floating-scroll-button .material-symbols-rounded {
+		font-size: 1.5rem;
+	}
+
 	.list {
 		display: flex;
 		flex-direction: column;
@@ -934,7 +1252,7 @@ function copyTextWithExecCommand(text: string): void {
 		right: 0;
 		bottom: 0;
 		display: grid;
-		grid-template-columns: repeat(3, 1fr);
+		grid-template-columns: repeat(4, minmax(0, 1fr));
 		background: var(--card-bg);
 		border-top: 1px solid var(--border-color);
 		padding: 0.5rem 0.75rem env(safe-area-inset-bottom, 0);
@@ -952,6 +1270,86 @@ function copyTextWithExecCommand(text: string): void {
 		padding: 0.35rem 0.25rem;
 		color: var(--text-main);
 		font-size: 0.9rem;
+	}
+
+	.backup-menu-anchor {
+		position: relative;
+		display: flex;
+		align-items: stretch;
+		justify-content: center;
+	}
+
+	.backup-menu-anchor > button {
+		width: 100%;
+	}
+
+	.backup-popover {
+		position: absolute;
+		left: 0;
+		bottom: calc(100% + 0.5rem);
+		transform: none;
+		z-index: 20;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		width: min(17rem, calc(100vw - 1.5rem));
+		padding: 0.75rem;
+		border: 1px solid var(--border-color);
+		border-radius: 1rem;
+		background: var(--card-bg);
+		box-shadow: 0 14px 32px rgba(15, 23, 42, 0.18);
+	}
+
+	.backup-popover-title {
+		margin: 0;
+		padding: 0 0.25rem 0.2rem;
+		color: var(--subtitle-color);
+		font-size: 0.78rem;
+		font-weight: 700;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		text-align: left;
+	}
+
+	.backup-button {
+		border: none;
+		border-radius: 0;
+		padding: 0.85rem 0.15rem;
+		display: flex;
+		align-items: center;
+		justify-content: flex-start;
+		gap: 0.9rem;
+		background: var(--surface-bg, var(--card-bg));
+		color: var(--text-main);
+		box-shadow: none;
+		text-align: left;
+		font-weight: 600;
+		border-top: none;
+		width: 100%;
+		align-self: stretch;
+	}
+
+	.backup-popover .backup-button {
+		align-items: center;
+		justify-content: flex-start;
+		text-align: left;
+	}
+
+	.backup-divider {
+		height: 1px;
+		width: 100%;
+		background: var(--border-color);
+		opacity: 0.9;
+	}
+
+	.backup-button:first-of-type {
+		border-top: none;
+	}
+
+	.backup-button .material-symbols-rounded {
+		font-size: 1.45rem;
+		line-height: 1;
+		flex: 0 0 auto;
 	}
 
 	.modal-backdrop {

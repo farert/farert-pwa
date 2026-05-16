@@ -7,6 +7,7 @@ import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';
 import { writable, get, type Writable } from 'svelte/store';
 import type { FaretClass } from '$lib/wasm/types';
+import { FareType } from '$lib/types';
 
 class MockFarert implements FaretClass {
 	script = '';
@@ -158,12 +159,14 @@ vi.mock('$lib/wasm', () => ({
 const mainRouteStore: Writable<FaretClass | null> = writable(null);
 const savedRoutesStore: Writable<string[]> = writable([]);
 const ticketHolderStore: Writable<unknown[]> = writable([]);
+const stationHistoryStore: Writable<string[]> = writable([]);
 const initStoresMock = vi.fn();
 
 vi.mock('$lib/stores', () => ({
 	mainRoute: mainRouteStore,
 	savedRoutes: savedRoutesStore,
 	ticketHolder: ticketHolderStore,
+	stationHistory: stationHistoryStore,
 	initStores: (...args: unknown[]) => initStoresMock(...args)
 }));
 
@@ -181,6 +184,7 @@ describe('/save/+page.svelte', () => {
 		mainRouteStore.set(null);
 		savedRoutesStore.set([]);
 		ticketHolderStore.set([]);
+		stationHistoryStore.set([]);
 	});
 
 	it('現在の経路と保存済み経路を表示する', async () => {
@@ -199,6 +203,14 @@ describe('/save/+page.svelte', () => {
 		await expect.element(page.getByText('柏木平,釜石線,陸羽東線')).toBeInTheDocument();
 	});
 
+	it('編集ボタンの左に保存済み件数を表示する', async () => {
+		savedRoutesStore.set(['東京,東海道線,熱海', '仙台,東北線,盛岡']);
+
+		render(SavePage);
+
+		await expect.element(page.getByText('保存済み 2件')).toBeInTheDocument();
+	});
+
 	it('保存ボタンで現在の経路を保存する', async () => {
 		const current = new MockFarert();
 		current.addStartRoute('東京');
@@ -213,6 +225,51 @@ describe('/save/+page.svelte', () => {
 		await saveButton.click();
 
 		expect(get(savedRoutesStore)).toContain('東京,東海道線,熱海,伊東線,伊東,伊豆急行,伊豆急下田');
+	});
+
+	it('保存通知は数秒後に自動で消える', async () => {
+		vi.useFakeTimers();
+		try {
+			const current = new MockFarert();
+			current.buildRoute('東京,東海道線,熱海,伊東線,伊東');
+			mainRouteStore.set(current);
+			savedRoutesStore.set(['東京,東海道線,熱海,伊東線,伊東']);
+
+			render(SavePage);
+
+			await page.getByRole('button', { name: '保存', exact: true }).click();
+			await expect.element(page.getByText('すでに保存済みです。')).toBeInTheDocument();
+
+			await vi.advanceTimersByTimeAsync(3000);
+			await expect.element(page.getByText('すでに保存済みです。')).not.toBeInTheDocument();
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it('保存済み経路が30件以上あると上下スクロールボタンを表示する', async () => {
+		const routes = Array.from({ length: 30 }, (_, index) => `東京,東海道線,熱海${index}`);
+		savedRoutesStore.set(routes);
+		const scrollSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+
+		try {
+			render(SavePage);
+
+			await expect
+				.element(page.getByRole('button', { name: '一覧の先頭へスクロール' }))
+				.toBeInTheDocument();
+			await expect
+				.element(page.getByRole('button', { name: '一覧の末尾へスクロール' }))
+				.toBeInTheDocument();
+
+			await page.getByRole('button', { name: '一覧の先頭へスクロール' }).click();
+			expect(scrollSpy).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' });
+
+			await page.getByRole('button', { name: '一覧の末尾へスクロール' }).click();
+			expect(scrollSpy).toHaveBeenCalled();
+		} finally {
+			scrollSpy.mockRestore();
+		}
 	});
 
 	it('既存の保存経路重複を初期表示時に解消する', async () => {
@@ -588,5 +645,90 @@ x戸畑,鹿児島線,小倉,山陽新幹線,厚狭,美祢線,長門市,山陰線
 		await expect
 			.element(page.getByRole('textbox', { name: 'エクスポート結果' }))
 			.toHaveValue('東京,東海道線,熱海\n仙台,東北線,盛岡');
+	});
+
+	it('バックアップをファイルとして保存できる', async () => {
+		const current = new MockFarert();
+		current.buildRoute('東京,東海道線,熱海,伊東線,伊東');
+		mainRouteStore.set(current);
+		savedRoutesStore.set(['東京,東海道線,熱海']);
+		ticketHolderStore.set([
+			{ order: 1, routeScript: '東京,東海道線,熱海', fareType: FareType.NORMAL }
+		]);
+		stationHistoryStore.set(['東京', '新大阪']);
+
+		render(SavePage);
+
+		const createObjectURLSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:backup');
+		const revokeObjectURLSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+		const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+
+		await page.getByRole('button', { name: 'バックアップメニュー' }).click();
+		await expect.element(page.getByRole('button', { name: 'バックアップを書き出す' })).toBeInTheDocument();
+		await page.getByRole('button', { name: 'バックアップを書き出す' }).click();
+
+		expect(createObjectURLSpy).toHaveBeenCalled();
+		expect(clickSpy).toHaveBeenCalledTimes(1);
+		expect(revokeObjectURLSpy).toHaveBeenCalledWith('blob:backup');
+		await expect.element(page.getByText('バックアップファイルを保存しました。')).toBeInTheDocument();
+
+		createObjectURLSpy.mockRestore();
+		revokeObjectURLSpy.mockRestore();
+		clickSpy.mockRestore();
+	});
+
+	it('バックアップファイルを読み込んで全体状態を復元できる', async () => {
+		const current = new MockFarert();
+		current.buildRoute('旧,旧線,旧終点');
+		mainRouteStore.set(current);
+		savedRoutesStore.set(['旧,旧線,旧終点']);
+		ticketHolderStore.set([
+			{ order: 9, routeScript: '旧,旧線,旧終点', fareType: FareType.CHILD }
+		]);
+		stationHistoryStore.set(['旧']);
+		render(SavePage);
+
+		const file = new File(
+			[
+				JSON.stringify({
+					version: '1.0',
+					storage: {
+						currentRoute: '東京,東海道線,熱海,伊東線,伊東',
+						savedRoutes: ['東京,東海道線,熱海', '東京,東海道線,熱海 ', '仙台,東北線,盛岡'],
+						ticketHolder: [
+							{ order: 1, routeScript: '東京,東海道線,熱海', fareType: 'NORMAL' },
+							{ order: 2, routeScript: '仙台,東北線,盛岡', fareType: 'CHILD' }
+						],
+						stationHistory: ['東京', '仙台', '東京']
+					}
+				})
+			],
+			'farert-backup.json',
+			{ type: 'application/json' }
+		);
+		const fileInput = document.querySelector(
+			'input[type="file"][aria-label="バックアップファイル"]'
+		) as HTMLInputElement;
+		Object.defineProperty(fileInput, 'files', {
+			configurable: true,
+			value: [file]
+		});
+
+		await page.getByRole('button', { name: 'バックアップメニュー' }).click();
+		await expect
+			.element(page.getByRole('button', { name: 'バックアップファイルを読み込む' }))
+			.toBeInTheDocument();
+		await page.getByRole('button', { name: 'バックアップファイルを読み込む' }).click();
+		await fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+		await page.getByRole('button', { name: 'はい' }).click();
+
+		expect(get(mainRouteStore)?.routeScript()).toBe('東京,東海道線,熱海,伊東線,伊東');
+		expect(get(savedRoutesStore)).toEqual(['東京,東海道線,熱海', '仙台,東北線,盛岡']);
+		expect(get(ticketHolderStore)).toEqual([
+			{ order: 1, routeScript: '東京,東海道線,熱海', fareType: FareType.NORMAL },
+			{ order: 2, routeScript: '仙台,東北線,盛岡', fareType: FareType.CHILD }
+		]);
+		expect(get(stationHistoryStore)).toEqual(['東京', '仙台']);
+		await expect.element(page.getByText('バックアップを復元しました。')).toBeInTheDocument();
 	});
 });

@@ -96,6 +96,19 @@ export interface AppStorage {
 }
 
 /**
+ * 全体バックアップ/リストア用データ形式
+ * 保存画面の機種変更向けエクスポート機能で使用
+ */
+export interface AppBackup {
+	/** フォーマットバージョン */
+	version: string;
+	/** エクスポート日時（ISO 8601形式） */
+	exportedAt?: string;
+	/** アプリの保存状態 */
+	storage: AppStorage;
+}
+
+/**
  * エクスポート/インポート用データ形式
  * 保存画面のエクスポート機能で使用
  */
