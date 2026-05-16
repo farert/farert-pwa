@@ -27,6 +27,51 @@
 		}
 	];
 
+	const basicUsageFlowCharts = [
+		{
+			title: '経路を指定して運賃額を確認',
+			viewBox: '0 0 980 330',
+			nodes: [
+				{ id: 'A', x: 40, y: 62, label: ['発駅選択', '(駅選択)'] },
+				{ id: 'B', x: 200, y: 62, label: ['経路追加'] },
+				{ id: 'C', x: 360, y: 62, label: ['路線選択'] },
+				{ id: 'D', x: 520, y: 62, label: ['分岐駅選択'] },
+				{ id: 'E', x: 200, y: 210, label: ['経路追加'] },
+				{ id: 'F', x: 360, y: 210, label: ['路線選択'] },
+				{ id: 'G', x: 520, y: 210, label: ['分岐駅選択'] },
+				{ id: 'H', x: 680, y: 210, label: ['着駅選択'] },
+				{ id: 'I', x: 840, y: 210, label: ['運賃詳細'] }
+			],
+			edges: [
+				'M160 89 L200 89',
+				'M320 89 L360 89',
+				'M480 89 L520 89',
+				'M580 62 C580 20 260 20 260 62',
+				'M580 116 C580 150 260 176 260 210',
+				'M320 237 L360 237',
+				'M480 237 L520 237',
+				'M580 264 C580 310 260 310 260 264',
+				'M640 237 L680 237',
+				'M800 237 L840 237'
+			],
+			note: '分岐駅を選ぶと経路追加へ戻り、必要な区間を順に指定します。目的地がその路線内にあるときは着駅選択へ切り替えます。'
+		},
+		{
+			title: '最短経路検出',
+			viewBox: '0 0 980 150',
+			nodes: [
+				{ id: 'A', x: 40, y: 48, label: ['発駅選択', '(駅選択)'] },
+				{ id: 'B', x: 200, y: 48, label: ['経路追加'] },
+				{ id: 'C', x: 360, y: 48, label: ['路線選択'] },
+				{ id: 'D', x: 520, y: 48, label: ['着駅選択', '(駅選択)'] },
+				{ id: 'E', x: 680, y: 48, label: ['使用路線選択'] },
+				{ id: 'F', x: 840, y: 48, label: ['運賃詳細'] }
+			],
+			edges: ['M160 75 L200 75', 'M320 75 L360 75', 'M480 75 L520 75', 'M640 75 L680 75', 'M800 75 L840 75'],
+			note: '着駅を直接指定し、候補から使用路線を選ぶと最短経路を作成して詳細を表示します。'
+		}
+	];
+
 	const mainScreenParts = [
 		{
 			nameHtml: '<a class="help-inline-link" href="#terminal-selection-manual">発駅カード</a>',
@@ -219,12 +264,50 @@ function close(): void {
 	</section>
 
 	<section class="card">
-		<h2>基本の使い方</h2>
+		<h2>基本的な使い方</h2>
 		<ol>
 			{#each usageSteps as step, index}
 				<li><span>{index + 1}.</span>{@html step.html}</li>
 			{/each}
 		</ol>
+		<div class="flow-diagrams" aria-label="基本的な使い方のフロー図">
+			{#each basicUsageFlowCharts as flow, flowIndex}
+				<section class="flow-card" aria-label={flow.title}>
+					<h3>{flow.title}</h3>
+					<div class="flow-chart-wrap">
+						<svg class="flow-chart" viewBox={flow.viewBox} role="img" aria-label={`${flow.title}のフロー図`}>
+							<defs>
+								<marker
+									id={`flow-arrow-${flowIndex}`}
+									viewBox="0 0 10 10"
+									refX="8"
+									refY="5"
+									markerWidth="6"
+									markerHeight="6"
+									orient="auto-start-reverse"
+								>
+									<path d="M 0 0 L 10 5 L 0 10 z" />
+								</marker>
+							</defs>
+							{#each flow.edges as edge}
+								<path class="flow-edge" d={edge} marker-end={`url(#flow-arrow-${flowIndex})`} />
+							{/each}
+							{#each flow.nodes as node}
+								<g class="flow-node">
+									<rect x={node.x} y={node.y} width="120" height="54" rx="14" />
+									<text x={node.x + 60} y={node.y + (node.label.length === 1 ? 33 : 24)}>
+										{#each node.label as line, lineIndex}
+											<tspan x={node.x + 60} dy={lineIndex === 0 ? 0 : 17}>{line}</tspan>
+										{/each}
+									</text>
+								</g>
+							{/each}
+						</svg>
+					</div>
+					<p class="flow-note">{flow.note}</p>
+				</section>
+			{/each}
+		</div>
 	</section>
 
 	<section class="card">
@@ -499,6 +582,67 @@ function close(): void {
 		background: rgba(248, 250, 252, 0.8);
 	}
 
+	.flow-diagrams {
+		display: grid;
+		gap: 0.75rem;
+	}
+
+	.flow-card {
+		border: 1px solid rgba(100, 116, 139, 0.18);
+		border-radius: 0.75rem;
+		padding: 0.85rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		background: rgba(248, 250, 252, 0.8);
+	}
+
+	.flow-chart-wrap {
+		overflow-x: auto;
+		padding: 0.25rem 0 0.35rem;
+	}
+
+	.flow-chart {
+		display: block;
+		min-width: 42rem;
+		width: 100%;
+		height: auto;
+		border-radius: 0.75rem;
+		background: linear-gradient(180deg, #f8fafc 0%, #eef6ff 100%);
+	}
+
+	.flow-edge {
+		fill: none;
+		stroke: rgba(37, 99, 235, 0.55);
+		stroke-width: 2.4;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+	}
+
+	.flow-chart marker path {
+		fill: rgba(37, 99, 235, 0.72);
+	}
+
+	.flow-node rect {
+		fill: #ffffff;
+		stroke: rgba(37, 99, 235, 0.28);
+		stroke-width: 1.4;
+		filter: drop-shadow(0 4px 10px rgba(15, 23, 42, 0.08));
+	}
+
+	.flow-node text {
+		fill: #1e3a8a;
+		font-size: 0.9rem;
+		font-weight: 700;
+		text-anchor: middle;
+		dominant-baseline: middle;
+	}
+
+	.flow-note {
+		color: var(--text-sub, #64748b);
+		font-size: 0.9rem;
+	}
+
 	.main-screen-layout {
 		display: grid;
 		gap: 1rem;
@@ -687,6 +831,10 @@ function close(): void {
 		}
 
 		.manual-grid {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+
+		.flow-diagrams {
 			grid-template-columns: repeat(2, minmax(0, 1fr));
 		}
 	}

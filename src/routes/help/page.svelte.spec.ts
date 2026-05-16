@@ -20,6 +20,21 @@ describe('/help/+page.svelte', () => {
 
 		await expect.element(page.getByRole('heading', { name: 'ヘルプ' })).toBeInTheDocument();
 		await expect
+			.element(page.getByRole('heading', { name: '基本的な使い方' }))
+			.toBeInTheDocument();
+		await expect
+			.element(page.getByRole('heading', { name: '経路を指定して運賃額を確認' }))
+			.toBeInTheDocument();
+		await expect
+			.element(page.getByText('目的地がその路線内にあるときは着駅選択へ切り替えます。', { exact: false }))
+			.toBeInTheDocument();
+		await expect
+			.element(page.getByRole('heading', { name: '最短経路検出' }))
+			.toBeInTheDocument();
+		await expect
+			.element(page.getByText('使用路線選択'))
+			.toBeInTheDocument();
+		await expect
 			.element(page.getByRole('heading', { name: 'メイン画面の各部' }))
 			.toBeInTheDocument();
 		await expect
@@ -77,9 +92,9 @@ describe('/help/+page.svelte', () => {
 		await expect
 			.element(page.getByRole('img', { name: 'バックアップとレストア画面', exact: true }))
 			.toHaveAttribute('src', '/help/bkuprestore.png');
-	await expect
-		.element(page.getByText('現在経路、保存済み経路、きっぷホルダ、駅履歴をまとめてファイルへ保存できます。'))
-		.toBeInTheDocument();
+		await expect
+			.element(page.getByText('現在経路、保存済み経路、きっぷホルダ、駅履歴をまとめてファイルへ保存できます。'))
+			.toBeInTheDocument();
 		await expect.element(page.getByRole('button', { name: '閉じる' })).toBeInTheDocument();
 	});
 
