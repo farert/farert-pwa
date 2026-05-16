@@ -944,7 +944,7 @@ type ImportErrorDetail = {
 		right: 0;
 		bottom: 0;
 		display: grid;
-		grid-template-columns: repeat(3, 1fr);
+		grid-template-columns: repeat(4, minmax(0, 1fr));
 		background: var(--card-bg);
 		border-top: 1px solid var(--border-color);
 		padding: 0.5rem 0.75rem env(safe-area-inset-bottom, 0);
