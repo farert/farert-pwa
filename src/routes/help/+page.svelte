@@ -30,68 +30,82 @@
 	const basicUsageFlowCharts = [
 		{
 			title: '経路を指定して運賃額を確認',
-			viewBox: '0 0 980 330',
+			viewBox: '0 0 980 270',
 			nodes: [
-				{ id: 'A', x: 40, y: 62, label: ['発駅選択', '(駅選択)'] },
-				{ id: 'B', x: 200, y: 62, label: ['経路追加'] },
-				{ id: 'C', x: 360, y: 62, label: ['路線選択'] },
-				{ id: 'D', x: 520, y: 62, label: ['分岐駅選択'] },
-				{ id: 'E', x: 200, y: 210, label: ['経路追加'] },
-				{ id: 'F', x: 360, y: 210, label: ['路線選択'] },
-				{ id: 'G', x: 520, y: 210, label: ['分岐駅選択'] },
-				{ id: 'H', x: 680, y: 210, label: ['着駅選択'] },
-				{ id: 'I', x: 840, y: 210, label: ['運賃詳細'] }
+				{ id: 'begin', x: 40, y: 98, label: ['発駅選択'] },
+				{ id: 'junction', x: 230, y: 125, label: ['分岐点'], kind: 'junction' },
+				{ id: 'line1', x: 330, y: 36, label: ['路線選択'] },
+				{ id: 'branch1', x: 500, y: 36, label: ['分岐駅選択'] },
+				{ id: 'line2', x: 330, y: 186, label: ['路線選択'] },
+				{ id: 'branch2', x: 500, y: 186, label: ['分岐駅選択'] },
+				{ id: 'arrive', x: 670, y: 186, label: ['着駅選択'] },
+				{ id: 'detail', x: 840, y: 186, label: ['運賃詳細'] }
 			],
 			edges: [
-				'M160 89 L200 89',
-				'M320 89 L360 89',
-				'M480 89 L520 89',
-				'M580 62 C580 20 260 20 260 62',
-				'M580 116 C580 150 260 176 260 210',
-				'M320 237 L360 237',
-				'M480 237 L520 237',
-				'M580 264 C580 310 260 310 260 264',
-				'M640 237 L680 237',
-				'M800 237 L840 237'
+				'M160 125 L214 125',
+				'M246 118 L330 63',
+				'M450 63 L500 63',
+				'M560 90 C560 124 310 134 246 128',
+				'M246 132 L330 213',
+				'M450 213 L500 213',
+				'M620 213 L670 213',
+				'M790 213 L840 213'
 			],
-			note: '分岐駅を選ぶと経路追加へ戻り、必要な区間を順に指定します。目的地がその路線内にあるときは着駅選択へ切り替えます。'
+			edgeLabels: [
+				{ x: 255, y: 86, text: '経路追加' },
+				{ x: 255, y: 180, text: '経路追加' }
+			],
+			note: '分岐駅を選ぶと分岐点へ戻り、必要な区間を順に指定します。目的地がその路線内にあるときは着駅選択へ進みます。'
 		},
 		{
 			title: '最短経路検出',
 			viewBox: '0 0 980 150',
 			nodes: [
-				{ id: 'A', x: 40, y: 48, label: ['発駅選択', '(駅選択)'] },
-				{ id: 'B', x: 200, y: 48, label: ['経路追加'] },
-				{ id: 'C', x: 360, y: 48, label: ['路線選択'] },
-				{ id: 'D', x: 520, y: 48, label: ['着駅選択', '(駅選択)'] },
-				{ id: 'E', x: 680, y: 48, label: ['使用路線選択'] },
-				{ id: 'F', x: 840, y: 48, label: ['運賃詳細'] }
+				{ id: 'begin', x: 40, y: 48, label: ['発駅選択'] },
+				{ id: 'line', x: 200, y: 48, label: ['路線選択'] },
+				{ id: 'shortest', x: 360, y: 48, label: ['最短経路'] },
+				{ id: 'arrive', x: 520, y: 48, label: ['着駅選択'] },
+				{ id: 'route', x: 680, y: 48, label: ['使用路線選択'] },
+				{ id: 'detail', x: 840, y: 48, label: ['運賃詳細'] }
 			],
-			edges: ['M160 75 L200 75', 'M320 75 L360 75', 'M480 75 L520 75', 'M640 75 L680 75', 'M800 75 L840 75'],
-			note: '着駅を直接指定し、候補から使用路線を選ぶと最短経路を作成して詳細を表示します。'
+			edges: [
+				'M160 75 L200 75',
+				'M320 75 L360 75',
+				'M480 75 L520 75',
+				'M640 75 L680 75',
+				'M800 75 L840 75'
+			],
+			edgeLabels: [{ x: 162, y: 54, text: '経路追加' }],
+			note: '路線選択後に最短経路で着駅を指定し、候補から使用路線を選ぶと詳細を表示します。'
 		}
 	];
 
 	const mainScreenParts = [
 		{
 			nameHtml: '発駅カード',
-			description: '現在の発駅を設定・変更する入口です。経路が空のときはここから開始します。  経路を新規に入力しなおすときも、ここから発駅を指定することで上書きして開始します。<a class="help-inline-link" href="#terminal-selection-manual">発駅選択画面</a>が開きます。'
+			description:
+				'現在の発駅を設定・変更する入口です。経路が空のときはここから開始します。  経路を新規に入力しなおすときも、ここから発駅を指定することで上書きして開始します。<a class="help-inline-link" href="#terminal-selection-manual">発駅選択画面</a>が開きます。'
 		},
 		{
 			nameHtml: '区間カード',
-			description: '丸囲み数字で始まる、追加済みの区間を確認する欄です。押すとその区間までの<a class="help-inline-link" href="#detail-manual">詳細</a>を開けます。'
+			description:
+				'丸囲み数字で始まる、追加済みの区間を確認する欄です。押すとその区間までの<a class="help-inline-link" href="#detail-manual">詳細</a>を開けます。'
 		},
 		{
 			nameHtml: '運賃サマリーカード',
-			description: '経路全体の運賃結果を確認する欄です。押すと全経路の<a class="help-inline-link" href="#detail-manual">詳細画面</a>を開きます。'
+			description:
+				'経路全体の運賃結果を確認する欄です。押すと全経路の<a class="help-inline-link" href="#detail-manual">詳細画面</a>を開きます。'
 		},
 		{
 			nameHtml: '+ 経路を追加',
-			description: '次に使う路線と駅を選ぶ入口です。経路が終端に達すると追加できません。<a class="help-inline-link" href="#line-selection-manual">路線選択画面</a>が開きます。'
+			description:
+				'次に使う路線と駅を選ぶ入口です。経路が終端に達すると追加できません。<a class="help-inline-link" href="#line-selection-manual">路線選択画面</a>が開きます。'
 		},
 		{
-			nameHtml: '<span class="inline-icon-label"><span class="material-symbols-rounded inline-symbol" aria-hidden="true">more_vert</span>メニュー</span>',
-			description: 'バージョン情報、ヘルプ（今見ている画面）、経路オプションを開きます。経路オプションは、大阪環状線を通った際に大回りする指定ができます。'
+			nameHtml:
+				'<span class="inline-icon-label"><span class="material-symbols-rounded inline-symbol" aria-hidden="true">more_vert</span>メニュー</span>',
+			description:
+				'バージョン情報、ヘルプ（今見ている画面）、経路オプションを開きます。経路オプションは、大阪環状線を通った際に大回りする指定ができます。'
 		}
 	];
 
@@ -99,17 +113,20 @@
 		{
 			icon: 'undo',
 			label: '戻る',
-			description: '直前の操作を取り消します。区間カードを一番下から消していきます。区間がないときは発駅（経路全体）をクリアします。'
+			description:
+				'直前の操作を取り消します。区間カードを一番下から消していきます。区間がないときは発駅（経路全体）をクリアします。'
 		},
 		{
 			icon: 'swap_horiz',
 			label: '反転',
-			description: '発駅と着駅の向きを入れ替えて、現在の経路を反転します。Pの字型の経路など反転できな経路もあります。'
+			description:
+				'発駅と着駅の向きを入れ替えて、現在の経路を反転します。Pの字型の経路など反転できな経路もあります。'
 		},
 		{
 			icon: 'save',
 			label: '保存',
-			description: ' <a class="help-inline-link" href="#archive-manual">保存画面を開き</a>、現在の経路を保存したり保存済み経路を読み込んだりします。 他の端末へ既存経路を移すときもこの機能をお使いください。'
+			description:
+				' <a class="help-inline-link" href="#archive-manual">保存画面を開き</a>、現在の経路を保存したり保存済み経路を読み込んだりします。 他の端末へ既存経路を移すときもこの機能をお使いください。'
 		},
 		{
 			icon: 'vertical_align_top',
@@ -135,8 +152,10 @@
 			image: `${base}/help/terminal-selection.png`,
 			imageAlt: '発着駅選択画面のスクリーンショット',
 			steps: [
-				{ html: '「JRグループ」「都道府県」「履歴」から探すか、検索バーで駅名を直接入力して指定します。' },
-				{ html: '候補一覧から駅を選ぶと、発駅または着駅として確定します。' },
+				{
+					html: '「JRグループ」「都道府県」「履歴」から探すか、検索バーで駅名を直接入力して指定します。'
+				},
+				{ html: '候補一覧から駅を選ぶと、発駅または着駅として確定します。' }
 			]
 		},
 		{
@@ -149,7 +168,9 @@
 				{
 					html: '路線を選ぶと、<a class="help-inline-link" href="#station-selection-manual">次の駅を選ぶ画面へ進みます</a>。'
 				},
-				{ html: 'メイン画面の「＋経路を追加」から来た場合は「最短経路」で着駅を指定し、最短経路を自動算出することができます。' }
+				{
+					html: 'メイン画面の「＋経路を追加」から来た場合は「最短経路」で着駅を指定し、最短経路を自動算出することができます。'
+				}
 			]
 		},
 		{
@@ -158,11 +179,11 @@
 			image: `${base}/help/route-station-select.png`,
 			imageAlt: '駅選択画面のスクリーンショット',
 			steps: [
-				{ html: '「発着駅指定」の場合、駅一覧が表示されますので、選んでください。'},
-                { html: '「＋経路を追加」の場合、分岐駅、つまり乗り換え駅のみしか表示されません。'},
-                { html: '乗り換え駅を選ぶ場合は、そのまま乗り換え駅を選んでください。'},
-                { html: '目的地がその路線内である場合は右上の「着駅選択」を選んでください。'},
-                { html: '一覧表示を「分岐駅選択」と「着駅選択」とで切り替えられます。' }
+				{ html: '「発着駅指定」の場合、駅一覧が表示されますので、選んでください。' },
+				{ html: '「＋経路を追加」の場合、分岐駅、つまり乗り換え駅のみしか表示されません。' },
+				{ html: '乗り換え駅を選ぶ場合は、そのまま乗り換え駅を選んでください。' },
+				{ html: '目的地がその路線内である場合は右上の「着駅選択」を選んでください。' },
+				{ html: '一覧表示を「分岐駅選択」と「着駅選択」とで切り替えられます。' }
 			]
 		},
 		{
@@ -172,10 +193,18 @@
 			imageAlt: '運賃詳細画面のスクリーンショット',
 			steps: [
 				{ html: '運賃、営業キロ、有効日数、注記、経由を表示します。' },
-				{ html: '<span class="inline-icon-label"><span class="material-symbols-rounded inline-symbol" aria-hidden="true">description</span>文字列出力し、表示テキストをクリップボードへエクスポートします。</span>'},
-                { html: '<span class="inline-icon-label"><span class="material-symbols-rounded inline-symbol" aria-hidden="true">share</span>URL 共有ができます。URL 共有を作成して他端末へ渡すこともできます。</span>' },
-				{ html: '<span class="inline-icon-label"><span class="material-symbols-rounded inline-symbol" aria-hidden="true">more_vert</span>特例非適用や最安経路計算などの再計算オプションを切り替えられます。特例非適用は指定した経路の運賃計算経路ではない営業キロを確認したいときなどに利用します。</span>'},
-                { html: '共有やコピーの方法は端末により異なり、共有シート、クリップボード、ダイアログ表示のいずれかを使います。'}
+				{
+					html: '<span class="inline-icon-label"><span class="material-symbols-rounded inline-symbol" aria-hidden="true">description</span>文字列出力し、表示テキストをクリップボードへエクスポートします。</span>'
+				},
+				{
+					html: '<span class="inline-icon-label"><span class="material-symbols-rounded inline-symbol" aria-hidden="true">share</span>URL 共有ができます。URL 共有を作成して他端末へ渡すこともできます。</span>'
+				},
+				{
+					html: '<span class="inline-icon-label"><span class="material-symbols-rounded inline-symbol" aria-hidden="true">more_vert</span>特例非適用や最安経路計算などの再計算オプションを切り替えられます。特例非適用は指定した経路の運賃計算経路ではない営業キロを確認したいときなどに利用します。</span>'
+				},
+				{
+					html: '共有やコピーの方法は端末により異なり、共有シート、クリップボード、ダイアログ表示のいずれかを使います。'
+				}
 			]
 		},
 		{
@@ -191,29 +220,32 @@
 		}
 	];
 
-		const saveScreenDetails = {
-			overviewImage: `${base}/help/save.png`,
-			overviewAlt: '保存画面全体のスクリーンショット',
-			importImage: `${base}/help/save-import-dialog.png`,
-			importAlt: '保存画面のインポートダイアログ',
-			exportImage: `${base}/help/save-export-dialog.png`,
-			exportAlt: '保存画面のエクスポートダイアログ',
-			backupImage: `${base}/help/bkuprestore.png`,
-			backupAlt: 'バックアップとレストア画面'
-		};
+	const saveScreenDetails = {
+		overviewImage: `${base}/help/save.png`,
+		overviewAlt: '保存画面全体のスクリーンショット',
+		importImage: `${base}/help/save-import-dialog.png`,
+		importAlt: '保存画面のインポートダイアログ',
+		exportImage: `${base}/help/save-export-dialog.png`,
+		exportAlt: '保存画面のエクスポートダイアログ',
+		backupImage: `${base}/help/bkuprestore.png`,
+		backupAlt: 'バックアップとレストア画面'
+	};
 
 	const saveScreenParts = [
 		{
 			name: '現在経路カード',
-			description: '編集中の経路が 2 区間以上あるときに先頭へ表示されます。保存済みか未保存かもここで確認できます。保存したい場合「保存」を選んでください。'
+			description:
+				'編集中の経路が 2 区間以上あるときに先頭へ表示されます。保存済みか未保存かもここで確認できます。保存したい場合「保存」を選んでください。'
 		},
 		{
 			name: '保存済み経路一覧',
-			description: '保存した経路を一覧で管理します。通常時は選択するメイン画面へその経路で表示します。編集モード時は削除対象になります。'
+			description:
+				'保存した経路を一覧で管理します。通常時は選択するメイン画面へその経路で表示します。編集モード時は削除対象になります。'
 		},
 		{
 			name: '編集ボタン',
-			description: '保存済み経路の削除導線を表示する切替です。編集モード中は経路カードを押しても読み込みません。'
+			description:
+				'保存済み経路の削除導線を表示する切替です。編集モード中は経路カードを押しても読み込みません。'
 		},
 		{
 			name: '下部アクションバー',
@@ -226,29 +258,29 @@
 		'',
 		'経路は 1 行 1 件で入力します。改行で複数経路を指定可能です',
 		'経路は、発駅 路線 駅 路線 駅 ... と指定します。',
-        '例えば、 "あき亀山 可部線 広島 山陽新幹線 新大阪 東海道線 大阪 大阪環状線 天王寺" などと奇数個指定します。',
-        '偶数の個数を指定すると最後の駅は自動経路で検索補完されます',
-        '例えば、 "横浜 東海道線 東神奈川 国母" などと指定すると、東神奈川から最短経路で国母までの経路が選ばれます。',
-		'区切りはカンマまたはスペースに対応します。',
+		'例えば、 "あき亀山 可部線 広島 山陽新幹線 新大阪 東海道線 大阪 大阪環状線 天王寺" などと奇数個指定します。',
+		'偶数の個数を指定すると最後の駅は自動経路で検索補完されます',
+		'例えば、 "横浜 東海道線 東神奈川 国母" などと指定すると、東神奈川から最短経路で国母までの経路が選ばれます。',
+		'区切りはカンマまたはスペースに対応します。'
 	];
 
-		const saveExportSteps = [
-			'保存済み経路をCSVテキストでエクスポートします。',
-			'ダイアログ表示時にコピーを試行し、結果はダイアログ内に表示されます。',
-			'内容はそのまま保存画面への再インポートや外部メモへの転記に使えます。'
-		];
+	const saveExportSteps = [
+		'保存済み経路をCSVテキストでエクスポートします。',
+		'ダイアログ表示時にコピーを試行し、結果はダイアログ内に表示されます。',
+		'内容はそのまま保存画面への再インポートや外部メモへの転記に使えます。'
+	];
 
-		const backupRestoreSteps = [
-			'「保存」画面の「バックアップ」から、現在経路、保存済み経路、きっぷホルダ、駅履歴をまとめてファイルへ保存できます。',
-			'「ファイル読み込み」で、保存したバックアップファイルを選んで復元します。',
-			'ファイルを扱いにくい環境では「テキスト復元」からバックアップファイルの中身のJSONを貼り付けて復元できます。'
-		];
-    /**
+	const backupRestoreSteps = [
+		'「保存」画面の「バックアップ」から、現在経路、保存済み経路、きっぷホルダ、駅履歴をまとめてファイルへ保存できます。',
+		'「ファイル読み込み」で、保存したバックアップファイルを選んで復元します。',
+		'ファイルを扱いにくい環境では「テキスト復元」からバックアップファイルの中身のJSONを貼り付けて復元できます。'
+	];
+	/**
 	 * `close` を終了または非表示にします。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function close(): void {
+	function close(): void {
 		goto(`${base}/`);
 	}
 </script>
@@ -260,7 +292,9 @@ function close(): void {
 
 	<section class="card">
 		<h2>このアプリについて</h2>
-		<p>経路を作成すると、運賃を算出して表示します。駅・路線の選択結果をもとに、JRグループの旅客営業規則に基づいた各種運賃を表示します。</p>
+		<p>
+			経路を作成すると、運賃を算出して表示します。駅・路線の選択結果をもとに、JRグループの旅客営業規則に基づいた各種運賃を表示します。
+		</p>
 	</section>
 
 	<section class="card">
@@ -275,7 +309,12 @@ function close(): void {
 				<section class="flow-card" aria-label={flow.title}>
 					<h3>{flow.title}</h3>
 					<div class="flow-chart-wrap">
-						<svg class="flow-chart" viewBox={flow.viewBox} role="img" aria-label={`${flow.title}のフロー図`}>
+						<svg
+							class="flow-chart"
+							viewBox={flow.viewBox}
+							role="img"
+							aria-label={`${flow.title}のフロー図`}
+						>
 							<defs>
 								<marker
 									id={`flow-arrow-${flowIndex}`}
@@ -292,14 +331,25 @@ function close(): void {
 							{#each flow.edges as edge}
 								<path class="flow-edge" d={edge} marker-end={`url(#flow-arrow-${flowIndex})`} />
 							{/each}
+							{#each flow.edgeLabels ?? [] as edgeLabel}
+								<text class="flow-edge-label" x={edgeLabel.x} y={edgeLabel.y}>{edgeLabel.text}</text
+								>
+							{/each}
 							{#each flow.nodes as node}
 								<g class="flow-node">
-									<rect x={node.x} y={node.y} width="120" height="54" rx="14" />
-									<text x={node.x + 60} y={node.y + (node.label.length === 1 ? 33 : 24)}>
-										{#each node.label as line, lineIndex}
-											<tspan x={node.x + 60} dy={lineIndex === 0 ? 0 : 17}>{line}</tspan>
-										{/each}
-									</text>
+									{#if node.kind === 'junction'}
+										<circle class="flow-junction" cx={node.x} cy={node.y} r="16" />
+										<text class="flow-junction-label" x={node.x} y={node.y + 39}
+											>{node.label[0]}</text
+										>
+									{:else}
+										<rect x={node.x} y={node.y} width="120" height="54" rx="14" />
+										<text x={node.x + 60} y={node.y + (node.label.length === 1 ? 33 : 24)}>
+											{#each node.label as line, lineIndex}
+												<tspan x={node.x + 60} dy={lineIndex === 0 ? 0 : 17}>{line}</tspan>
+											{/each}
+										</text>
+									{/if}
 								</g>
 							{/each}
 						</svg>
@@ -344,7 +394,9 @@ function close(): void {
 								<tr>
 									<td>
 										<div class="icon-cell">
-											<span class="material-symbols-rounded toolbar-icon" aria-hidden="true">{item.icon}</span>
+											<span class="material-symbols-rounded toolbar-icon" aria-hidden="true"
+												>{item.icon}</span
+											>
 											<span>{item.label}</span>
 										</div>
 									</td>
@@ -375,8 +427,8 @@ function close(): void {
 		</div>
 	</section>
 
-		<section class="card" id="archive-manual">
-			<h2>保存画面の使い方</h2>
+	<section class="card" id="archive-manual">
+		<h2>保存画面の使い方</h2>
 		<div class="save-help-layout">
 			<div class="save-help-visual">
 				<img
@@ -413,9 +465,9 @@ function close(): void {
 					{/each}
 				</ul>
 			</section>
-				<section class="manual-card">
-					<h3>エクスポート結果</h3>
-					<img
+			<section class="manual-card">
+				<h3>エクスポート結果</h3>
+				<img
 					class="manual-shot"
 					src={saveScreenDetails.exportImage}
 					alt={saveScreenDetails.exportAlt}
@@ -424,61 +476,59 @@ function close(): void {
 				<ul>
 					{#each saveExportSteps as step}
 						<li>{step}</li>
-						{/each}
-					</ul>
-				</section>
-				<section class="manual-card">
-					<h3>バックアップとレストア</h3>
-					<img
-						class="manual-shot"
-						src={saveScreenDetails.backupImage}
-						alt={saveScreenDetails.backupAlt}
-						loading="lazy"
-					/>
-					<ul>
-						{#each backupRestoreSteps as step}
-							<li>{step}</li>
-						{/each}
-					</ul>
-				</section>
-			</div>
+					{/each}
+				</ul>
 			</section>
+			<section class="manual-card">
+				<h3>バックアップとレストア</h3>
+				<img
+					class="manual-shot"
+					src={saveScreenDetails.backupImage}
+					alt={saveScreenDetails.backupAlt}
+					loading="lazy"
+				/>
+				<ul>
+					{#each backupRestoreSteps as step}
+						<li>{step}</li>
+					{/each}
+				</ul>
+			</section>
+		</div>
+	</section>
 
-		<section class="card" id="inquiry-manual">
-			<h2>不具合報告・問い合わせ</h2>
-			<div class="faq-list">
-				<div class="faq-item">
-					<h3>不具合や質問を送る</h3>
-					<p>
-						結果が想定と違う場合や操作で困った場合は、経路、画面、操作内容を添えて送ってください。
-						<a
-							class="external-help-link"
-							href={inquiryUrl}
-							target="_blank"
-							rel="noopener noreferrer"
-						>
-							不具合報告・問い合わせフォームを開く
-						</a>
-					</p>
-				</div>
+	<section class="card" id="inquiry-manual">
+		<h2>不具合報告・問い合わせ</h2>
+		<div class="faq-list">
+			<div class="faq-item">
+				<h3>不具合や質問を送る</h3>
+				<p>
+					結果が想定と違う場合や操作で困った場合は、経路、画面、操作内容を添えて送ってください。
+					<a class="external-help-link" href={inquiryUrl} target="_blank" rel="noopener noreferrer">
+						不具合報告・問い合わせフォームを開く
+					</a>
+				</p>
 			</div>
-		</section>
+		</div>
+	</section>
 
-		<section class="card">
-			<h2>その他詳しい使い方は</h2>
-			<p>
+	<section class="card">
+		<h2>その他詳しい使い方は</h2>
+		<p>
 			<a
 				class="external-help-link"
 				href="https://farert.blogspot.com/2017/03/blog-post_54.html"
 				target="_blank"
-				rel="noopener noreferrer"
-				>経路運賃キロ計算アプリの使い方〜目次</a
+				rel="noopener noreferrer">経路運賃キロ計算アプリの使い方〜目次</a
 			>
 		</p>
 	</section>
 
 	<section class="link-row">
-		<button type="button" class="link-button" onclick={() => window.open(blogUrl, '_blank', 'noopener')}>
+		<button
+			type="button"
+			class="link-button"
+			onclick={() => window.open(blogUrl, '_blank', 'noopener')}
+		>
 			運営ブログを開く
 		</button>
 	</section>
@@ -637,6 +687,27 @@ function close(): void {
 		dominant-baseline: middle;
 	}
 
+	.flow-edge-label {
+		fill: #1d4ed8;
+		font-size: 0.82rem;
+		font-weight: 700;
+		text-anchor: middle;
+	}
+
+	.flow-junction {
+		fill: #1d4ed8;
+		stroke: #ffffff;
+		stroke-width: 4;
+		filter: drop-shadow(0 4px 10px rgba(15, 23, 42, 0.12));
+	}
+
+	.flow-junction-label {
+		fill: #475569;
+		font-size: 0.78rem;
+		font-weight: 700;
+		text-anchor: middle;
+	}
+
 	.flow-note {
 		color: var(--text-sub, #64748b);
 		font-size: 0.9rem;
@@ -743,11 +814,6 @@ function close(): void {
 		background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
 	}
 
-	.warning p {
-		margin: 0;
-		line-height: 1.6;
-	}
-
 	.link-row {
 		display: flex;
 		justify-content: center;
@@ -833,6 +899,5 @@ function close(): void {
 		.manual-grid {
 			grid-template-columns: repeat(2, minmax(0, 1fr));
 		}
-
 	}
 </style>

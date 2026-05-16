@@ -19,34 +19,33 @@ describe('/help/+page.svelte', () => {
 		render(HelpPage);
 
 		await expect.element(page.getByRole('heading', { name: 'ヘルプ' })).toBeInTheDocument();
-		await expect
-			.element(page.getByRole('heading', { name: '基本的な使い方' }))
-			.toBeInTheDocument();
+		await expect.element(page.getByRole('heading', { name: '基本的な使い方' })).toBeInTheDocument();
 		await expect
 			.element(page.getByRole('heading', { name: '経路を指定して運賃額を確認' }))
 			.toBeInTheDocument();
 		await expect
-			.element(page.getByText('目的地がその路線内にあるときは着駅選択へ切り替えます。', { exact: false }))
+			.element(
+				page.getByText('分岐駅を選ぶと分岐点へ戻り、必要な区間を順に指定します。', { exact: false })
+			)
 			.toBeInTheDocument();
-		await expect
-			.element(page.getByRole('heading', { name: '最短経路検出' }))
-			.toBeInTheDocument();
-		await expect
-			.element(page.getByText('使用路線選択'))
-			.toBeInTheDocument();
+		await expect.element(page.getByRole('heading', { name: '最短経路検出' })).toBeInTheDocument();
+		await expect.element(page.getByText('使用路線選択')).toBeInTheDocument();
+		await expect.element(page.getByText('最短経路', { exact: true })).toBeInTheDocument();
 		await expect
 			.element(page.getByRole('heading', { name: 'メイン画面の各部' }))
 			.toBeInTheDocument();
 		await expect.element(page.getByText('more_vert').first()).toBeInTheDocument();
 		await expect
-			.element(page.getByText('バージョン情報、ヘルプ（今見ている画面）、経路オプションを開きます。', { exact: false }))
+			.element(
+				page.getByText('バージョン情報、ヘルプ（今見ている画面）、経路オプションを開きます。', {
+					exact: false
+				})
+			)
 			.toBeInTheDocument();
 		await expect
 			.element(page.getByRole('img', { name: 'メイン画面のスクリーンショット', exact: true }))
 			.toHaveAttribute('src', '/help/main-screen.png');
-		await expect
-			.element(page.getByRole('heading', { name: '下部ツールバー' }))
-			.toBeInTheDocument();
+		await expect.element(page.getByRole('heading', { name: '下部ツールバー' })).toBeInTheDocument();
 		await expect.element(page.getByRole('columnheader', { name: 'アイコン' })).toBeInTheDocument();
 		await expect.element(page.getByRole('columnheader', { name: '説明' })).toBeInTheDocument();
 		await expect.element(page.getByText('戻る', { exact: true })).toBeInTheDocument();
@@ -77,10 +76,16 @@ describe('/help/+page.svelte', () => {
 			.toHaveAttribute('src', '/help/detail.png');
 		await expect.element(page.getByText('description')).toBeInTheDocument();
 		await expect
-			.element(page.getByText('文字列出力し、表示テキストをクリップボードへエクスポートします。', { exact: false }))
+			.element(
+				page.getByText('文字列出力し、表示テキストをクリップボードへエクスポートします。', {
+					exact: false
+				})
+			)
 			.toBeInTheDocument();
 		await expect.element(page.getByText('share')).toBeInTheDocument();
-		await expect.element(page.getByText('URL 共有ができます。', { exact: false })).toBeInTheDocument();
+		await expect
+			.element(page.getByText('URL 共有ができます。', { exact: false }))
+			.toBeInTheDocument();
 		await expect
 			.element(page.getByRole('img', { name: '保存画面のスクリーンショット', exact: true }))
 			.toHaveAttribute('src', '/help/save.png');
@@ -103,7 +108,11 @@ describe('/help/+page.svelte', () => {
 			.element(page.getByRole('img', { name: 'バックアップとレストア画面', exact: true }))
 			.toHaveAttribute('src', '/help/bkuprestore.png');
 		await expect
-			.element(page.getByText('現在経路、保存済み経路、きっぷホルダ、駅履歴をまとめてファイルへ保存できます。'))
+			.element(
+				page.getByText(
+					'現在経路、保存済み経路、きっぷホルダ、駅履歴をまとめてファイルへ保存できます。'
+				)
+			)
 			.toBeInTheDocument();
 		await expect.element(page.getByRole('button', { name: '閉じる' })).toBeInTheDocument();
 	});
@@ -111,10 +120,10 @@ describe('/help/+page.svelte', () => {
 	it('不具合報告・問い合わせと外部サイト導線を表示する', async () => {
 		render(HelpPage);
 
-		await expect.element(page.getByRole('heading', { name: '不具合報告・問い合わせ' })).toBeInTheDocument();
 		await expect
-			.element(page.getByText('不具合や質問を送る'))
+			.element(page.getByRole('heading', { name: '不具合報告・問い合わせ' }))
 			.toBeInTheDocument();
+		await expect.element(page.getByText('不具合や質問を送る')).toBeInTheDocument();
 		await expect
 			.element(page.getByRole('link', { name: '不具合報告・問い合わせフォームを開く' }))
 			.toHaveAttribute(
