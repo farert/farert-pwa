@@ -716,6 +716,7 @@ type ImportErrorDetail = {
 			</button>
 			{#if backupMenuOpen}
 				<section class="backup-popover" aria-label="全体バックアップ">
+					<p class="backup-popover-title">バックアップ</p>
 					<button
 						type="button"
 						class="backup-button"
@@ -1006,19 +1007,41 @@ type ImportErrorDetail = {
 		box-shadow: 0 14px 32px rgba(15, 23, 42, 0.18);
 	}
 
+	.backup-popover-title {
+		margin: 0;
+		padding: 0 0.25rem 0.2rem;
+		color: var(--subtitle-color);
+		font-size: 0.78rem;
+		font-weight: 700;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+	}
+
 	.backup-button {
 		border: none;
-		border-radius: 0.75rem;
-		padding: 0.8rem 0.9rem;
+		border-radius: 0;
+		padding: 0.8rem 0.25rem;
 		display: flex;
 		align-items: center;
 		justify-content: flex-start;
-		gap: 0.5rem;
+		gap: 0.75rem;
 		background: var(--surface-bg, var(--card-bg));
 		color: var(--text-main);
 		box-shadow: none;
 		text-align: left;
 		font-weight: 600;
+		border-top: 1px solid var(--border-color);
+		width: 100%;
+	}
+
+	.backup-button:first-of-type {
+		border-top: none;
+	}
+
+	.backup-button .material-symbols-rounded {
+		font-size: 1.45rem;
+		line-height: 1;
+		flex: 0 0 auto;
 	}
 
 	.modal-backdrop {
