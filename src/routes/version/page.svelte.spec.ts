@@ -1,3 +1,7 @@
+/**
+ * バージョン情報画面の表示内容を検証するテストです。
+ * 版数、DB 情報、外部リンクが表示されることを固定します。
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';

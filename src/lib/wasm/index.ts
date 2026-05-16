@@ -251,59 +251,141 @@ export class Farert {
 }
 
 // データベース操作
+/**
+ * `openDatabase` を開始または表示します。
+ *
+ * @returns 文字列結果を返します。
+ */
 export function openDatabase(): string {
 	return getModule().openDatabase();
 }
 
+/**
+ * `closeDatabase` を終了または非表示にします。
+ *
+ * @returns この処理は戻り値を持ちません。
+ */
 export function closeDatabase(): void {
 	getModule().closeDatabase();
 }
 
+/**
+ * `databaseInfo` を処理します。
+ *
+ * @returns 文字列結果を返します。
+ */
 export function databaseInfo(): string {
 	return getModule().databaseInfo();
 }
 
 // UI Helper関数
+/**
+ * `getPrefects` を取得します。
+ *
+ * @returns 文字列結果を返します。
+ */
 export function getPrefects(): string {
 	return getModule().getPrefects();
 }
 
+/**
+ * `getCompanys` を取得します。
+ *
+ * @returns 文字列結果を返します。
+ */
 export function getCompanys(): string {
 	return getModule().getCompanys();
 }
 
+/**
+ * `getLinesByPrefect` を取得します。
+ *
+ * @param prefecture 処理に必要な入力値です。
+ * @returns 文字列結果を返します。
+ */
 export function getLinesByPrefect(prefecture: string): string {
 	return getModule().getLinesByPrefect(prefecture);
 }
 
+/**
+ * `getLinesByCompany` を取得します。
+ *
+ * @param company 処理に必要な入力値です。
+ * @returns 文字列結果を返します。
+ */
 export function getLinesByCompany(company: string): string {
 	return getModule().getLinesByCompany(company);
 }
 
+/**
+ * `getLinesByStation` を取得します。
+ *
+ * @param station 対象の駅名です。
+ * @returns 文字列結果を返します。
+ */
 export function getLinesByStation(station: string): string {
 	return getModule().getLinesByStation(station);
 }
 
+/**
+ * `getStationsByCompanyAndLine` を取得します。
+ *
+ * @param jrgroup 処理に必要な入力値です。
+ * @param lineName 対象の路線名です。
+ * @returns 文字列結果を返します。
+ */
 export function getStationsByCompanyAndLine(jrgroup: string, lineName: string): string {
 	return getModule().getStationsByCompanyAndLine(jrgroup, lineName);
 }
 
+/**
+ * `getStationsByPrefectureAndLine` を取得します。
+ *
+ * @param prefecture 処理に必要な入力値です。
+ * @param lineName 対象の路線名です。
+ * @returns 文字列結果を返します。
+ */
 export function getStationsByPrefectureAndLine(prefecture: string, lineName: string): string {
 	return getModule().getStationsByPrefectureAndLine(prefecture, lineName);
 }
 
+/**
+ * `getPrefectureByStation` を取得します。
+ *
+ * @param stationName 対象の駅名です。
+ * @returns 文字列結果を返します。
+ */
 export function getPrefectureByStation(stationName: string): string {
 	return getModule().getPrefectureByStation(stationName);
 }
 
+/**
+ * `getKanaByStation` を取得します。
+ *
+ * @param stationName 対象の駅名です。
+ * @returns 文字列結果を返します。
+ */
 export function getKanaByStation(stationName: string): string {
 	return getModule().getKanaByStation(stationName);
 }
 
+/**
+ * `searchStationByKeyword` を処理します。
+ *
+ * @param keyword 処理に必要な入力値です。
+ * @returns 文字列結果を返します。
+ */
 export function searchStationByKeyword(keyword: string): string {
 	return getModule().searchStationByKeyword(keyword);
 }
 
+/**
+ * `searchStationFuzzy` を処理します。
+ *
+ * @param keyword 処理に必要な入力値です。
+ * @param limit 処理に必要な入力値です。
+ * @returns 文字列結果を返します。
+ */
 export function searchStationFuzzy(keyword: string, limit = 50): string {
 	const module = getModule();
 	if (typeof module.searchStationFuzzy === 'function') {
@@ -312,15 +394,34 @@ export function searchStationFuzzy(keyword: string, limit = 50): string {
 	return module.searchStationByKeyword(keyword);
 }
 
+/**
+ * `getBranchStationsByLine` を取得します。
+ *
+ * @param lineName 対象の路線名です。
+ * @param includeStationName 対象の駅名です。
+ * @returns 文字列結果を返します。
+ */
 export function getBranchStationsByLine(lineName: string, includeStationName: string): string {
 	return getModule().getBranchStationsByLine(lineName, includeStationName);
 }
 
+/**
+ * `getStationsByLine` を取得します。
+ *
+ * @param lineName 対象の路線名です。
+ * @returns 文字列結果を返します。
+ */
 export function getStationsByLine(lineName: string): string {
 	return getModule().getStationsByLine(lineName);
 }
 
 // 開発者ツール
+/**
+ * `executeSql` を処理します。
+ *
+ * @param sql 処理対象の文字列です。
+ * @returns 文字列結果を返します。
+ */
 export function executeSql(sql: string): string {
 	return getModule().executeSql(sql);
 }

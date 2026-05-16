@@ -1,3 +1,7 @@
+<!--
+全画面共通のレイアウトと更新通知 UI を提供します。
+Service Worker 更新検知と遷移アニメーションの受け皿を担います。
+-->
 <script lang="ts">
 	import { afterNavigate, beforeNavigate } from '$app/navigation';
 	import { base } from '$app/paths';
@@ -30,12 +34,23 @@
 	});
 
 	onMount(() => {
-		const isUpdatePreview = () => {
+				/**
+		 * `isUpdatePreview` の判定結果を返します。
+		 *
+		 * @returns この処理は戻り値を持ちません。
+		 */
+const isUpdatePreview = () => {
 			if (typeof window === 'undefined') return false;
 			return new URLSearchParams(window.location.search).get('sw-update-preview') === '1';
 		};
 
-		const registerWaitingWorker = (worker: ServiceWorker | null): void => {
+				/**
+		 * `registerWaitingWorker` を処理します。
+		 *
+		 * @param worker 処理に必要な入力値です。
+		 * @returns この処理は戻り値を持ちません。
+		 */
+const registerWaitingWorker = (worker: ServiceWorker | null): void => {
 			if (!worker) return;
 			updateWorker = worker;
 			updateAvailable = true;
@@ -78,13 +93,23 @@
 		};
 	});
 
-	function applyUpdate(): void {
+		/**
+	 * `applyUpdate` を適用します。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+function applyUpdate(): void {
 		if (!updateAvailable || !updateWorker) return;
 		if (isApplyingUpdate) return;
 		isApplyingUpdate = true;
 
 		let hasReloaded = false;
-		const onControllerChange = () => {
+				/**
+		 * `onControllerChange` を処理します。
+		 *
+		 * @returns この処理は戻り値を持ちません。
+		 */
+const onControllerChange = () => {
 			hasReloaded = true;
 			window.removeEventListener('controllerchange', onControllerChange);
 			window.location.reload();
@@ -109,12 +134,23 @@
 		}
 	}
 
-	function closeUpdatePrompt(): void {
+		/**
+	 * `closeUpdatePrompt` を終了または非表示にします。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+function closeUpdatePrompt(): void {
 		dismissUpdate = true;
 		updateAvailable = false;
 	}
 
-	function resolvePageFlyParams(stage: 'in' | 'out') {
+		/**
+	 * `resolvePageFlyParams` の解決結果を返します。
+	 *
+	 * @param stage 処理に必要な入力値です。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+function resolvePageFlyParams(stage: 'in' | 'out') {
 		if (!transitionReady) {
 			return { x: 0, duration: 0 };
 		}

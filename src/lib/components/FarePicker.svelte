@@ -1,3 +1,7 @@
+<!--
+運賃種別を切り替えるための小さな入力コンポーネントです。
+表示中の運賃種別を示し、変更イベントだけを親へ通知します。
+-->
 <script lang="ts">
 	import { FareType, FareTypeLabels } from '$lib/types';
 
@@ -18,17 +22,35 @@
 		onChange?: (fareType: FareType) => void;
 	}>();
 
-	function handleChange(event: Event): void {
+		/**
+	 * `handleChange` のイベント処理を行います。
+	 *
+	 * @param event 発生したイベントです。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+function handleChange(event: Event): void {
 		const target = event.target as HTMLSelectElement;
 		const next = target.value as FareType;
 		onChange?.(next);
 	}
 
-	function stopInteractionPropagation(event: Event): void {
+		/**
+	 * `stopInteractionPropagation` を処理します。
+	 *
+	 * @param event 発生したイベントです。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+function stopInteractionPropagation(event: Event): void {
 		event.stopPropagation();
 	}
 
-	function labelFor(type: FareType): string {
+		/**
+	 * `labelFor` を処理します。
+	 *
+	 * @param type 処理対象の値です。
+	 * @returns 文字列結果を返します。
+	 */
+function labelFor(type: FareType): string {
 		return FareTypeLabels[type];
 	}
 

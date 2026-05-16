@@ -1,3 +1,7 @@
+<!--
+分岐駅または着駅を確定して経路へ反映する画面です。
+駅一覧の表示順、切替、追加実行とスクロール操作を扱います。
+-->
 <script lang="ts">
 import { goto } from '$app/navigation';
 import { base } from '$app/paths';
@@ -71,6 +75,11 @@ onMount(() => {
 	};
 });
 
+/**
+ * `resolveParams` の解決結果を返します。
+ *
+ * @returns 処理結果を返します。
+ */
 function resolveParams(): StationSelectionParams {
 	if (presetParams) {
 		return {
@@ -99,6 +108,12 @@ function resolveParams(): StationSelectionParams {
 	};
 }
 
+/**
+ * `loadStations` の読み込み処理を行います。
+ *
+ * @param context 処理対象の文字列です。
+ * @returns この処理は戻り値を持ちません。
+ */
 function loadStations(context: StationSelectionParams): void {
 	try {
 		if (!context.line) {
@@ -137,6 +152,12 @@ function loadStations(context: StationSelectionParams): void {
 	}
 }
 
+/**
+ * `parseList` の解析結果を返します。
+ *
+ * @param raw 処理対象の文字列です。
+ * @returns 文字列結果を返します。
+ */
 function parseList(raw: string): string[] {
 	try {
 		if (!raw) return [];
@@ -159,6 +180,13 @@ function parseList(raw: string): string[] {
 	return [];
 }
 
+/**
+ * `sortStationsByLineOrder` を処理します。
+ *
+ * @param stations 対象の駅名です。
+ * @param lineStations 対象の駅名です。
+ * @returns 文字列結果を返します。
+ */
 function sortStationsByLineOrder(stations: string[], lineStations: string[]): string[] {
 	const uniqueStations = [...new Set(stations.filter((station) => station.trim().length > 0))];
 	const orderMap = new Map<string, number>();
@@ -180,6 +208,13 @@ function sortStationsByLineOrder(stations: string[], lineStations: string[]): st
 	});
 }
 
+/**
+ * `buildStationDetails` を組み立てます。
+ *
+ * @param stations 対象の駅名です。
+ * @param lineName 対象の路線名です。
+ * @returns 文字列結果を返します。
+ */
 function buildStationDetails(stations: string[], lineName: string): Record<string, StationMetaInfo> {
 	return buildStationDisplayMeta(stations, lineName, {
 		executeSql,
@@ -190,6 +225,13 @@ function buildStationDetails(stations: string[], lineName: string): Record<strin
 	});
 }
 
+/**
+ * `stationPrefecture` を処理します。
+ *
+ * @param name 処理に必要な入力値です。
+ * @param index 対象位置を表す数値です。
+ * @returns 文字列結果を返します。
+ */
 function stationPrefecture(name: string, index: number): string {
 	const prefecture = stationDetails[name]?.prefecture ?? '';
 	if (!prefecture) return '';
@@ -199,10 +241,20 @@ function stationPrefecture(name: string, index: number): string {
 	return previousPrefecture === prefecture ? '' : prefecture;
 }
 
+/**
+ * `toggleMode` の切替処理を行います。
+ *
+ * @returns この処理は戻り値を持ちません。
+ */
 function toggleMode(): void {
 	mode = mode === 'branch' ? 'destination' : 'branch';
 }
 
+/**
+ * `goBack` を処理します。
+ *
+ * @returns この処理は戻り値を持ちません。
+ */
 function goBack(): void {
 	if (typeof window !== 'undefined' && window.history.length > 1) {
 		window.history.back();
@@ -211,11 +263,23 @@ function goBack(): void {
 	goto(`${base}/`);
 }
 
+/**
+ * `isDisabledStation` の判定結果を返します。
+ *
+ * @param name 処理に必要な入力値です。
+ * @returns 判定結果を返します。
+ */
 function isDisabledStation(name: string): boolean {
 	if (!params.station) return false;
 	return normalizeStationName(params.station) === normalizeStationName(name);
 }
 
+/**
+ * `handleSelectStation` のイベント処理を行います。
+ *
+ * @param name 処理に必要な入力値です。
+ * @returns この処理は戻り値を持ちません。
+ */
 function handleSelectStation(name: string): void {
 	const selected = stationDetails[name]?.name ?? name;
 	if (!params.line) {
@@ -270,11 +334,23 @@ const headerTitle = $derived(
 			: '着駅指定'
 );
 
+/**
+ * `isStartStation` の判定結果を返します。
+ *
+ * @param name 処理に必要な入力値です。
+ * @returns 判定結果を返します。
+ */
 function isStartStation(name: string): boolean {
 	const departure = routeRef?.departureStationName?.().trim() ?? '';
 	return Boolean(departure) && normalizeStationName(departure) === normalizeStationName(name);
 }
 
+/**
+ * `stationMeta` を処理します。
+ *
+ * @param name 処理に必要な入力値です。
+ * @returns 文字列結果を返します。
+ */
 function stationMeta(name: string): string {
 	const kana = stationDetails[name]?.kana ?? '';
 	const lines = stationDetails[name]?.lines ?? [];
@@ -288,10 +364,20 @@ function stationMeta(name: string): string {
 	return metaParts.join('/');
 }
 
+/**
+ * `scrollToTop` を処理します。
+ *
+ * @returns この処理は戻り値を持ちません。
+ */
 function scrollToTop(): void {
 	scrollPageToTop();
 }
 
+/**
+ * `scrollToBottom` を処理します。
+ *
+ * @returns この処理は戻り値を持ちません。
+ */
 function scrollToBottom(): void {
 	scrollPageToBottom();
 }

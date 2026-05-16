@@ -1,3 +1,7 @@
+/**
+ * 路線選択画面の表示と遷移を検証するテストです。
+ * 路線一覧の読み込み、無効化、分割表示の挙動を固定します。
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';

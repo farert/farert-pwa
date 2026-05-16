@@ -1,3 +1,7 @@
+/**
+ * 運賃詳細画面の表示と操作を検証するテストです。
+ * 指標表示、共有、運賃オプション、エクスポート挙動を固定します。
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';

@@ -1,3 +1,7 @@
+/**
+ * ページ遷移アニメーション判定のユーティリティを検証するテストです。
+ * パス差分から期待どおりの遷移方向が選ばれることを固定します。
+ */
 import { describe, expect, it } from 'vitest';
 import { resolvePageTransition } from './pageTransition';
 

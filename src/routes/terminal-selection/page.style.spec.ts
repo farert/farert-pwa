@@ -1,3 +1,7 @@
+/**
+ * 発着駅選択画面のスタイル条件を検証するテストです。
+ * 画面幅や主要 UI クラスの前提が崩れないことを確認します。
+ */
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';

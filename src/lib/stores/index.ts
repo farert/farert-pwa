@@ -60,6 +60,12 @@ export const mainScreenErrorMessage: Writable<string> = writable('');
  */
 let persistenceReady = false;
 
+/**
+ * `persistSnapshot` を処理します。
+ *
+ * @param force 処理に必要な入力値です。
+ * @returns この処理は戻り値を持ちません。
+ */
 function persistSnapshot(force = false): void {
 	if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
 	if (!persistenceReady && !force) return;

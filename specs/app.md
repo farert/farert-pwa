@@ -79,6 +79,7 @@
 
 ## PWA 要件
 - Service Worker は `src/lib/service-worker.js` で提供する。
+- manifest は `/manifest.webmanifest` で取得でき、開発時も 404 にしない。
 - アプリシェルと `farert.js` / `farert.wasm` / `farert.data` を再利用可能にし、オフライン時も既存キャッシュから復元できるようにする。
 - 初回起動またはキャッシュ未作成時を除き、起動後の画面遷移と主要操作はオフラインで継続利用できるようにする。
 - 深い URL への直接遷移でも復旧できるよう、shell fallback を考慮する。

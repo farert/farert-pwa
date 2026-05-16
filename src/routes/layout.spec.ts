@@ -1,3 +1,7 @@
+/**
+ * レイアウト設定の基本挙動を検証するテストです。
+ * アプリ共通レイアウトの前提条件が保たれることを確認します。
+ */
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';

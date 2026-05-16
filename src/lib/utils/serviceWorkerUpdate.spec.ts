@@ -1,6 +1,16 @@
+/**
+ * Service Worker 更新検知のユーティリティを検証するテストです。
+ * 登録取得、待機 worker 監視、更新通知の流れを固定します。
+ */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as serviceWorkerUpdate from './serviceWorkerUpdate';
 
+/**
+ * `createWorker` を生成します。
+ *
+ * @param initialState 処理に必要な入力値です。
+ * @returns この処理は戻り値を持ちません。
+ */
 function createWorker(initialState: ServiceWorkerState) {
 	let state = initialState;
 	const listeners = new Set<() => void>();
@@ -26,6 +36,11 @@ function createWorker(initialState: ServiceWorkerState) {
 	};
 }
 
+/**
+ * `createRegistration` を生成します。
+ *
+ * @returns この処理は戻り値を持ちません。
+ */
 function createRegistration() {
 	let waiting: ServiceWorker | null = null;
 	let installing: ServiceWorker | null = null;

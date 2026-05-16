@@ -1,3 +1,7 @@
+/**
+ * ビルド時に埋め込まれるバージョン関連定数を公開します。
+ * アプリ表示用のバージョン文字列とコミット情報をまとめます。
+ */
 export const APP_VERSION: string =
 	typeof __APP_VERSION__ === 'string' && __APP_VERSION__ ? __APP_VERSION__ : 'dev';
 

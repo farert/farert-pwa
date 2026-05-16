@@ -1,37 +1,200 @@
+<!--
+アプリの使い方と注意事項をまとめるヘルプ画面です。
+各画面説明、FAQ、外部導線を静的コンテンツとして提供します。
+-->
 <script lang="ts">
 	import { goto } from '$app/navigation';
-import { base } from '$app/paths';
+	import { base } from '$app/paths';
 
 	const blogUrl = 'https://farert.blogspot.jp/';
 
 	const usageSteps = [
-		'まず発駅を1つ目のカードから選択します。',
-		'「区間を追加」で到達駅と路線を順に選び、経路を作成します。',
-		'入力が完了すると、一覧に運賃結果が表示されます。',
-		'必要に応じて「きっぷホルダ」を開き、経路内を追加してください。'
-	];
-
-	const options = [
-		'大阪環状線遠回り（大坂～天王寺周辺）',
-		'小倉〜博多新幹線在来線別線扱い（経路条件に応じた補助的な最適化）'
-	];
-
-	const faqs = [
 		{
-			q: '結果が想定と違う場合はどうすればよいですか？',
-			a: '運賃制度の更新タイミングや地域運行条件により、表示結果に差異が出ることがあります。実利用前に、公式窓口で再確認してください。'
+			html: '「<a class="help-inline-link" href="#terminal-selection-manual">発駅</a>」で、発駅を選びます。'
 		},
 		{
-			q: '保存機能はどこ？',
-			a: '画面下部の保存系操作（環境設定により）から経路を保存できます。'
+			html: '「<a class="help-inline-link" href="#line-selection-manual">+ 経路を追加</a>」から路線を選び、次の駅を確定して経路を伸ばします。'
 		},
 		{
-			q: 'ブラウザ版・モバイルで表示が違う？',
-			a: '端末幅でレイアウトが変わるため見え方は変わります。機能自体は同一です。'
+			html: '運賃サマリーが表示されたら、押して詳細画面を開きます。'
+		},
+		{
+			html: '必要に応じて<a class="help-inline-link" href="#archive-manual">保存画面を開き</a>、保存し、詳細画面から共有します。'
+		},
+		{
+			html: '<span class="inline-icon-label"><span class="material-symbols-rounded inline-symbol" aria-hidden="true">menu</span></span> メニューから開くきっぷホルダでも「保存画面」と同様に経路を保存できます。こちらは運賃額の集計に利用します。'
 		}
 	];
 
-	function close(): void {
+	const mainScreenParts = [
+		{
+			nameHtml: '<a class="help-inline-link" href="#terminal-selection-manual">発駅カード</a>',
+			description: '現在の発駅を設定・変更する入口です。経路が空のときはここから開始します。  経路を新規に入力しなおすときも、ここから発駅を指定することで上書きして開始します'
+		},
+		{
+			nameHtml: '区間カード',
+			description: '丸囲み数字で始まる、追加済みの区間を確認する欄です。押すとその区間までの詳細を開けます。'
+		},
+		{
+			nameHtml: '<a class="help-inline-link" href="#detail-manual">運賃サマリーカード</a>',
+			description: '経路全体の運賃結果を確認する欄です。押すと全経路の詳細画面を開きます。'
+		},
+		{
+			nameHtml: '<a class="help-inline-link" href="#line-selection-manual">+ 経路を追加</a>',
+			description: '次に使う路線と駅を選ぶ入口です。経路が終端に達すると追加できません。'
+		},
+		{
+			nameHtml: '右上メニュー',
+			description: 'バージョン情報、ヘルプ（今見ている画面）、経路オプションを開きます。経路オプションは、大阪環状線を通った際に大回りする指定ができます。'
+		}
+	];
+
+	const bottomToolbarItems = [
+		{
+			icon: 'undo',
+			label: '戻る',
+			description: '直前の操作を取り消します。区間カードを一番下から消していきます。区間がないときは発駅（経路全体）をクリアします。'
+		},
+		{
+			icon: 'swap_horiz',
+			label: '反転',
+			description: '発駅と着駅の向きを入れ替えて、現在の経路を反転します。Pの字型の経路など反転できな経路もあります。'
+		},
+		{
+			icon: 'save',
+			label: '保存',
+			description: ' <a class="help-inline-link" href="#archive-manual">保存画面を開き</a>、現在の経路を保存したり保存済み経路を読み込んだりします。 他の端末へ既存経路を移すときもこの機能をお使いください。'
+		},
+		{
+			icon: 'vertical_align_top',
+			label: '上へ',
+			description: 'ページ先頭までスクロールします。'
+		},
+		{
+			icon: 'vertical_align_bottom',
+			label: '下へ',
+			description: 'ページ末尾までスクロールします。'
+		}
+	];
+
+	const mainScreenImage = {
+		src: `${base}/help/main-screen.png`,
+		alt: 'メイン画面のスクリーンショット'
+	};
+
+	const screenManuals = [
+		{
+			id: 'terminal-selection-manual',
+			title: '発着駅選択',
+			image: `${base}/help/terminal-selection.png`,
+			imageAlt: '発着駅選択画面のスクリーンショット',
+			steps: [
+				{ html: '「JRグループ」「都道府県」「履歴」から探すか、検索バーで駅名を直接入力して指定します。' },
+				{ html: '候補一覧から駅を選ぶと、発駅または着駅として確定します。' },
+			]
+		},
+		{
+			id: 'line-selection-manual',
+			title: '路線選択',
+			image: `${base}/help/line-selection.png`,
+			imageAlt: '路線選択画面のスクリーンショット',
+			steps: [
+				{ html: '発着駅選択画面や、経路（区間）指定時に、路線候補が表示されます。' },
+				{
+					html: '路線を選ぶと、<a class="help-inline-link" href="#station-selection-manual">次の駅を選ぶ画面へ進みます</a>。'
+				},
+				{ html: 'メイン画面の「＋経路を追加」から来た場合は「最短経路」で着駅を指定し、最短経路を自動算出することができます。' }
+			]
+		},
+		{
+			id: 'station-selection-manual',
+			title: '駅選択',
+			image: `${base}/help/route-station-select.png`,
+			imageAlt: '駅選択画面のスクリーンショット',
+			steps: [
+				{ html: '「発着駅指定」の場合、駅一覧が表示されますので、選んでください。'},
+                { html: '「＋経路を追加」の場合、分岐駅、つまり乗り換え駅のみしか表示されません。'},
+                { html: '乗り換え駅を選ぶ場合は、そのまま乗り換え駅を選んでください。'},
+                { html: '目的地がその路線内である場合は右上の「着駅選択」を選んでください。'},
+                { html: '一覧表示を「分岐駅選択」と「着駅選択」とで切り替えられます。' }
+			]
+		},
+		{
+			id: 'detail-manual',
+			title: '運賃詳細',
+			image: `${base}/help/detail.png`,
+			imageAlt: '運賃詳細画面のスクリーンショット',
+			steps: [
+				{ html: '運賃、営業キロ、有効日数、注記、経由を表示します。' },
+				{ html: '共有ボタンで URL 共有、結果エクスポートで文字列出力ができます。' },
+                { html: 'URL 共有を作成して他端末へ渡すこともできます。'},
+				{ html: '右上メニューでは、特例適用や最安経路計算などの再計算オプションを切り替えられます。' },
+                { html: '共有やコピーの方法は端末により異なり、共有シート、クリップボード、ダイアログ表示のいずれかを使います。'}
+			]
+		},
+		{
+			id: 'archive-manual',
+			title: '保存',
+			image: `${base}/help/save.png`,
+			imageAlt: '保存画面のスクリーンショット',
+			steps: [
+				{ html: '現在の経路を保存し、保存済み経路を一覧で管理します。' },
+				{ html: '保存済み経路を押すと読み込み、編集モードでは削除ができます。' },
+				{ html: 'インポートとエクスポートでは、経路文字列をまとめて扱えます。' }
+			]
+		}
+	];
+
+	const saveScreenDetails = {
+		overviewImage: `${base}/help/save.png`,
+		overviewAlt: '保存画面全体のスクリーンショット',
+		importImage: `${base}/help/save-import-dialog.png`,
+		importAlt: '保存画面のインポートダイアログ',
+		exportImage: `${base}/help/save-export-dialog.png`,
+		exportAlt: '保存画面のエクスポートダイアログ'
+	};
+
+	const saveScreenParts = [
+		{
+			name: '現在経路カード',
+			description: '編集中の経路が 2 区間以上あるときに先頭へ表示されます。保存済みか未保存かもここで確認できます。保存したい場合「保存」を選んでください。'
+		},
+		{
+			name: '保存済み経路一覧',
+			description: '保存した経路を一覧で管理します。通常時は選択するメイン画面へその経路で表示します。編集モード時は削除対象になります。'
+		},
+		{
+			name: '編集ボタン',
+			description: '保存済み経路の削除導線を表示する切替です。編集モード中は経路カードを押しても読み込みません。'
+		},
+		{
+			name: '下部アクションバー',
+			description: 'インポート、エクスポート、保存の 3 操作を固定表示します。'
+		}
+	];
+
+	const saveImportSteps = [
+		'「インポート実行」すると、保存済み一覧へ追加されます。',
+		'',
+		'経路は 1 行 1 件で入力します。改行で複数経路を指定可能です',
+		'経路は、発駅 路線 駅 路線 駅 ... と指定します。',
+        '例えば、 "あき亀山 可部線 広島 山陽新幹線 新大阪 東海道線 大阪 大阪環状線 天王寺" などと奇数個指定します。',
+        '偶数の個数を指定すると最後の駅は自動経路で検索補完されます',
+        '例えば、 "横浜 東海道線 東神奈川 国母" などと指定すると、東神奈川から最短経路で国母までの経路が選ばれます。',
+		'区切りはカンマまたはスペースに対応します。',
+	];
+
+	const saveExportSteps = [
+		'保存済み経路をCSVテキストでエクスポートします。',
+		'ダイアログ表示時にコピーを試行し、結果はダイアログ内に表示されます。',
+		'内容はそのまま保存画面への再インポートや外部メモへの転記に使えます。'
+	];
+    /**
+	 * `close` を終了または非表示にします。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+function close(): void {
 		goto(`${base}/`);
 	}
 </script>
@@ -43,41 +206,148 @@ import { base } from '$app/paths';
 
 	<section class="card">
 		<h2>このアプリについて</h2>
-		<p>経路を作成すると、運賃を算出して表示します。駅・路線の選択結果をもとに、各種条件付き運賃の適用有無を判定します。</p>
+		<p>経路を作成すると、運賃を算出して表示します。駅・路線の選択結果をもとに、JRグループの旅客営業規則に基づいた各種運賃を表示します。</p>
 	</section>
 
 	<section class="card">
 		<h2>基本の使い方</h2>
 		<ol>
 			{#each usageSteps as step, index}
-				<li><span>{index + 1}.</span>{step}</li>
+				<li><span>{index + 1}.</span>{@html step.html}</li>
 			{/each}
 		</ol>
 	</section>
 
 	<section class="card">
-		<h2>主な設定・オプション</h2>
-		<ul>
-			{#each options as option}
-				<li>{option}</li>
-			{/each}
-		</ul>
+		<h2>メイン画面の各部</h2>
+		<div class="main-screen-layout">
+			<div class="main-screen-visual">
+				<img
+					class="main-screen-shot"
+					src={mainScreenImage.src}
+					alt={mainScreenImage.alt}
+					loading="lazy"
+				/>
+			</div>
+			<div class="main-screen-details">
+				<ul class="plain-list">
+					{#each mainScreenParts as part}
+						<li>
+							<strong>{@html part.nameHtml}</strong>
+							<p>{part.description}</p>
+						</li>
+					{/each}
+				</ul>
+				<div class="toolbar-guide">
+					<h3>下部ツールバー</h3>
+					<table class="icon-table">
+						<thead>
+							<tr>
+								<th scope="col">アイコン</th>
+								<th scope="col">説明</th>
+							</tr>
+						</thead>
+						<tbody>
+							{#each bottomToolbarItems as item}
+								<tr>
+									<td>
+										<div class="icon-cell">
+											<span class="material-symbols-rounded toolbar-icon" aria-hidden="true">{item.icon}</span>
+											<span>{item.label}</span>
+										</div>
+									</td>
+									<td>{@html item.description}</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</div>
 	</section>
 
 	<section class="card">
-		<h2>外部サイト</h2>
-		<p>
-			<a href="https://farert.blogspot.com/2017/03/blog-post_54.html" target="_blank" rel="noopener noreferrer"
-				>経路運賃キロ計算アプリの使い方〜目次</a
-			>
-		</p>
+		<h2>画面別の操作マニュアル</h2>
+		<div class="manual-grid">
+			{#each screenManuals as manual}
+				<section class="manual-card" id={manual.id}>
+					<h3>{manual.title}</h3>
+					<img class="manual-shot" src={manual.image} alt={manual.imageAlt} loading="lazy" />
+					<ul>
+						{#each manual.steps as step}
+							<li>{@html step.html}</li>
+						{/each}
+					</ul>
+				</section>
+			{/each}
+		</div>
 	</section>
 
-	<section class="card warning">
-		<h2>注意・免責</h2>
+	<section class="card" id="archive-manual">
+		<h2>保存画面の使い方</h2>
+		<div class="save-help-layout">
+			<div class="save-help-visual">
+				<img
+					class="main-screen-shot"
+					src={saveScreenDetails.overviewImage}
+					alt={saveScreenDetails.overviewAlt}
+					loading="lazy"
+				/>
+			</div>
+			<div class="save-help-details">
+				<ul class="plain-list">
+					{#each saveScreenParts as part}
+						<li>
+							<strong>{part.name}</strong>
+							<p>{part.description}</p>
+						</li>
+					{/each}
+				</ul>
+			</div>
+		</div>
+
+		<div class="manual-grid save-detail-grid">
+			<section class="manual-card">
+				<h3>インポート実行</h3>
+				<img
+					class="manual-shot"
+					src={saveScreenDetails.importImage}
+					alt={saveScreenDetails.importAlt}
+					loading="lazy"
+				/>
+				<ul>
+					{#each saveImportSteps as step}
+						<li>{step}</li>
+					{/each}
+				</ul>
+			</section>
+			<section class="manual-card">
+				<h3>エクスポート結果</h3>
+				<img
+					class="manual-shot"
+					src={saveScreenDetails.exportImage}
+					alt={saveScreenDetails.exportAlt}
+					loading="lazy"
+				/>
+				<ul>
+					{#each saveExportSteps as step}
+						<li>{step}</li>
+					{/each}
+				</ul>
+			</section>
+		</div>
+	</section>
+
+	<section class="card">
+		<h2>その他詳しい使い方は</h2>
 		<p>
-			本アプリの表示結果は、時刻表・運賃制度の更新、地域ごとの運用条件、データ反映のタイミング等により実際の運賃と異なる場合があります。<br />
-			実利用前に、公式窓口でご確認ください。
+			<a
+				class="external-help-link"
+				href="https://farert.blogspot.com/2017/03/blog-post_54.html"
+				target="_blank"
+				rel="noopener noreferrer"
+				>経路運賃キロ計算アプリの使い方〜目次</a
+			>
 		</p>
 	</section>
 
@@ -133,7 +403,13 @@ import { base } from '$app/paths';
 	h2 {
 		margin: 0;
 		font-size: 1.05rem;
-        font-weight: bold;
+		font-weight: 700;
+	}
+
+	h3 {
+		margin: 0;
+		font-size: 0.98rem;
+		font-weight: 700;
 	}
 
 	ol,
@@ -149,9 +425,135 @@ import { base } from '$app/paths';
 		line-height: 1.6;
 	}
 
+	p {
+		margin: 0;
+		line-height: 1.6;
+	}
+
 	li span {
 		font-weight: 700;
 		margin-right: 0.35rem;
+	}
+
+	.plain-list,
+	.faq-list {
+		list-style: none;
+		padding-left: 0;
+	}
+
+	.manual-grid {
+		display: grid;
+		gap: 0.75rem;
+	}
+
+	.manual-card {
+		border: 1px solid rgba(100, 116, 139, 0.18);
+		border-radius: 0.75rem;
+		padding: 0.85rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		background: rgba(248, 250, 252, 0.8);
+	}
+
+	.main-screen-layout {
+		display: grid;
+		gap: 1rem;
+	}
+
+	.main-screen-visual,
+	.main-screen-details {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+
+	.main-screen-shot {
+		width: 100%;
+		max-height: 32rem;
+		object-fit: contain;
+		object-position: center top;
+		padding: 0.35rem;
+		box-sizing: border-box;
+		border-radius: 0.85rem;
+		border: 1px solid rgba(100, 116, 139, 0.18);
+		background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
+		box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+	}
+
+	.save-help-layout {
+		display: grid;
+		gap: 1rem;
+	}
+
+	.save-help-visual,
+	.save-help-details {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+
+	.toolbar-guide {
+		display: flex;
+		flex-direction: column;
+		gap: 0.65rem;
+	}
+
+	.icon-table {
+		width: 100%;
+		border-collapse: collapse;
+		font-size: 0.95rem;
+	}
+
+	.icon-table th,
+	.icon-table td {
+		padding: 0.7rem 0.65rem;
+		border-top: 1px solid rgba(148, 163, 184, 0.28);
+		vertical-align: top;
+		text-align: left;
+	}
+
+	.icon-table thead th {
+		font-size: 0.85rem;
+		color: var(--text-sub, #64748b);
+		font-weight: 700;
+	}
+
+	.icon-cell {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.45rem;
+		font-weight: 700;
+		white-space: nowrap;
+	}
+
+	.toolbar-icon {
+		font-size: 1.3rem;
+		line-height: 1;
+	}
+
+	.inline-icon-label {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		vertical-align: text-bottom;
+	}
+
+	.inline-symbol {
+		font-size: 1.2rem;
+		line-height: 1;
+	}
+
+	.manual-shot {
+		width: 100%;
+		max-height: 28rem;
+		object-fit: contain;
+		object-position: center top;
+		padding: 0.35rem;
+		box-sizing: border-box;
+		border-radius: 0.65rem;
+		border: 1px solid rgba(100, 116, 139, 0.18);
+		background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
 	}
 
 	.warning p {
@@ -173,6 +575,48 @@ import { base } from '$app/paths';
 		cursor: pointer;
 	}
 
+	.help-page :global(a.help-inline-link) {
+		display: inline-block;
+		padding: 0.05rem 0.35rem;
+		border-radius: 999px;
+		color: #1d4ed8;
+		background: rgba(59, 130, 246, 0.12);
+		text-decoration: underline;
+		text-underline-offset: 0.14em;
+		font-weight: 700;
+	}
+
+	.help-page :global(a.help-inline-link:hover),
+	.help-page :global(a.help-inline-link:focus-visible) {
+		background: rgba(59, 130, 246, 0.2);
+		outline: none;
+	}
+
+	.external-help-link {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+		padding: 0.16rem 0.45rem;
+		border-radius: 0.5rem;
+		color: #1d4ed8;
+		background: rgba(59, 130, 246, 0.1);
+		text-decoration: underline;
+		text-underline-offset: 0.16em;
+		font-weight: 700;
+	}
+
+	.external-help-link::after {
+		content: '↗';
+		font-size: 0.9em;
+		line-height: 1;
+	}
+
+	.external-help-link:hover,
+	.external-help-link:focus-visible {
+		background: rgba(59, 130, 246, 0.18);
+		outline: none;
+	}
+
 	.close-button {
 		border: none;
 		background: var(--primary);
@@ -182,5 +626,25 @@ import { base } from '$app/paths';
 		font-size: 1rem;
 		font-weight: 700;
 		cursor: pointer;
+	}
+
+	@media (min-width: 720px) {
+		.help-page {
+			padding: 2rem;
+		}
+
+		.main-screen-layout {
+			grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.1fr);
+			align-items: start;
+		}
+
+		.save-help-layout {
+			grid-template-columns: minmax(280px, 0.95fr) minmax(0, 1.05fr);
+			align-items: start;
+		}
+
+		.manual-grid {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
 	}
 </style>

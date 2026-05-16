@@ -1,3 +1,7 @@
+<!--
+きっぷホルダ 1 件分の表示と操作を担うカードコンポーネントです。
+運賃種別変更、削除、並べ替え操作の UI を提供します。
+-->
 <script lang="ts">
 	import { base } from '$app/paths';
 	import FarePicker from '$lib/components/FarePicker.svelte';
@@ -44,50 +48,108 @@
 		showDelete?: boolean;
 	}>();
 
-	function handleDelete(event: Event): void {
+		/**
+	 * `handleDelete` のイベント処理を行います。
+	 *
+	 * @param event 発生したイベントです。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+function handleDelete(event: Event): void {
 		event.stopPropagation();
 		onDelete?.();
 	}
 
-	function handleSelect(): void {
+		/**
+	 * `handleSelect` のイベント処理を行います。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+function handleSelect(): void {
 		onSelect?.();
 	}
 
-	function handleDragStart(event: DragEvent): void {
+		/**
+	 * `handleDragStart` のイベント処理を行います。
+	 *
+	 * @param event 発生したイベントです。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+function handleDragStart(event: DragEvent): void {
 		event.stopPropagation();
 		onMoveDragStart?.(event);
 	}
 
-	function handleDragOver(event: DragEvent): void {
+		/**
+	 * `handleDragOver` のイベント処理を行います。
+	 *
+	 * @param event 発生したイベントです。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+function handleDragOver(event: DragEvent): void {
 		onMoveDragOver?.(event);
 	}
 
-	function handleDragEnter(event: DragEvent): void {
+		/**
+	 * `handleDragEnter` のイベント処理を行います。
+	 *
+	 * @param event 発生したイベントです。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+function handleDragEnter(event: DragEvent): void {
 		onMoveDragEnter?.(event);
 	}
 
-	function handleDragLeave(event: DragEvent): void {
+		/**
+	 * `handleDragLeave` のイベント処理を行います。
+	 *
+	 * @param event 発生したイベントです。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+function handleDragLeave(event: DragEvent): void {
 		onMoveDragLeave?.(event);
 	}
 
-	function handleDrop(event: DragEvent): void {
+		/**
+	 * `handleDrop` のイベント処理を行います。
+	 *
+	 * @param event 発生したイベントです。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+function handleDrop(event: DragEvent): void {
 		event.preventDefault();
 		event.stopPropagation();
 		onMoveDrop?.(event);
 	}
 
-	function handleDragEnd(): void {
+		/**
+	 * `handleDragEnd` のイベント処理を行います。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+function handleDragEnd(): void {
 		onMoveDragEnd?.();
 	}
 
-	function handleKeydown(event: KeyboardEvent): void {
+		/**
+	 * `handleKeydown` のイベント処理を行います。
+	 *
+	 * @param event 発生したイベントです。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+function handleKeydown(event: KeyboardEvent): void {
 		if (event.key === 'Enter' || event.key === ' ') {
 			event.preventDefault();
 			handleSelect();
 		}
 	}
 
-	function handleDragHandleClick(event: Event): void {
+		/**
+	 * `handleDragHandleClick` のイベント処理を行います。
+	 *
+	 * @param event 発生したイベントです。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+function handleDragHandleClick(event: Event): void {
 		event.stopPropagation();
 	}
 </script>

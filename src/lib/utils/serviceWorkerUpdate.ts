@@ -1,3 +1,7 @@
+/**
+ * Service Worker 更新確認と適用待機を扱うユーティリティです。
+ * 起動時チェックと pending worker の検知ロジックをまとめます。
+ */
 export interface PendingWorkerResult {
 	registration: ServiceWorkerRegistration;
 	worker: ServiceWorker | null;
@@ -11,6 +15,12 @@ export interface StartupServiceWorkerUpdateCheckOptions {
 
 const READY_REGISTRATION_TIMEOUT_MS = 1500;
 
+/**
+ * `normalizeBasePath` を正規化します。
+ *
+ * @param basePath 処理に必要な入力値です。
+ * @returns 文字列結果を返します。
+ */
 function normalizeBasePath(basePath = ''): string {
 	if (!basePath || basePath === '/') {
 		return '';
@@ -20,6 +30,12 @@ function normalizeBasePath(basePath = ''): string {
 	return prefixed.endsWith('/') ? prefixed.slice(0, -1) : prefixed;
 }
 
+/**
+ * `getReadyServiceWorkerRegistration` を取得します。
+ *
+ * @param basePath 処理に必要な入力値です。
+ * @returns 非同期処理の結果を返します。
+ */
 export async function getReadyServiceWorkerRegistration(
 	basePath = ''
 ): Promise<ServiceWorkerRegistration | null> {
@@ -61,6 +77,13 @@ export async function getReadyServiceWorkerRegistration(
 	}
 }
 
+/**
+ * `waitForPendingWorker` の完了を待機します。
+ *
+ * @param registration 処理に必要な入力値です。
+ * @param timeoutMs 処理に必要な入力値です。
+ * @returns 非同期処理の結果を返します。
+ */
 export async function waitForPendingWorker(
 	registration: ServiceWorkerRegistration,
 	timeoutMs = 3000
@@ -78,7 +101,13 @@ export async function waitForPendingWorker(
 		let resolved = false;
 		let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-		const finish = (worker: ServiceWorker | null) => {
+				/**
+		 * `finish` を処理します。
+		 *
+		 * @param worker 処理に必要な入力値です。
+		 * @returns この処理は戻り値を持ちません。
+		 */
+const finish = (worker: ServiceWorker | null) => {
 			if (resolved) return;
 			resolved = true;
 			if (timeoutId) clearTimeout(timeoutId);
@@ -86,7 +115,12 @@ export async function waitForPendingWorker(
 			resolve(worker);
 		};
 
-		const onUpdateFound = () => {
+				/**
+		 * `onUpdateFound` を処理します。
+		 *
+		 * @returns この処理は戻り値を持ちません。
+		 */
+const onUpdateFound = () => {
 			const nextInstalling = registration.installing;
 			if (!nextInstalling) {
 				finish(registration.waiting ?? null);
@@ -102,6 +136,13 @@ export async function waitForPendingWorker(
 	});
 }
 
+/**
+ * `detectPendingServiceWorkerUpdate` を処理します。
+ *
+ * @param registration 処理に必要な入力値です。
+ * @param timeoutMs 処理に必要な入力値です。
+ * @returns 非同期処理の結果を返します。
+ */
 export async function detectPendingServiceWorkerUpdate(
 	registration: ServiceWorkerRegistration,
 	timeoutMs = 4000
@@ -121,6 +162,12 @@ export async function detectPendingServiceWorkerUpdate(
 	return (await pendingWorkerPromise) ?? registration.waiting ?? null;
 }
 
+/**
+ * `startStartupServiceWorkerUpdateCheck` を処理します。
+ *
+ * @param options 受け取り値のまとまりです。
+ * @returns 処理結果を返します。
+ */
 export function startStartupServiceWorkerUpdateCheck({
 	basePath = '',
 	timeoutMs = 4000,
@@ -137,7 +184,12 @@ export function startStartupServiceWorkerUpdateCheck({
 	let disposed = false;
 	let checking = false;
 
-	const runCheck = async () => {
+		/**
+	 * `runCheck` を処理します。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+const runCheck = async () => {
 		if (checking || disposed) return;
 		checking = true;
 
@@ -156,7 +208,12 @@ export function startStartupServiceWorkerUpdateCheck({
 		}
 	};
 
-	const onOnline = () => {
+		/**
+	 * `onOnline` を処理します。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+const onOnline = () => {
 		void runCheck();
 	};
 
@@ -169,6 +226,14 @@ export function startStartupServiceWorkerUpdateCheck({
 	};
 }
 
+/**
+ * `waitForInstalledWorker` の完了を待機します。
+ *
+ * @param registration 処理に必要な入力値です。
+ * @param worker 処理に必要な入力値です。
+ * @param timeoutMs 処理に必要な入力値です。
+ * @returns 非同期処理の結果を返します。
+ */
 async function waitForInstalledWorker(
 	registration: ServiceWorkerRegistration,
 	worker: ServiceWorker,
@@ -187,7 +252,12 @@ async function waitForInstalledWorker(
 			resolve(registration.waiting ?? null);
 		}, timeoutMs);
 
-		const onStateChange = () => {
+				/**
+		 * `onStateChange` を処理します。
+		 *
+		 * @returns この処理は戻り値を持ちません。
+		 */
+const onStateChange = () => {
 			if (resolved) return;
 			if (worker.state === 'installed') {
 				resolved = true;
