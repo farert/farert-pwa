@@ -1,3 +1,7 @@
+<!--
+メイン画面で運賃サマリーを表示するカードコンポーネントです。
+普通運賃、営業キロ、有効日数と詳細導線をまとめて表示します。
+-->
 <script lang="ts">
 import type { FareInfo } from '$lib/types';
 
@@ -5,17 +9,35 @@ export let fareInfo: FareInfo | null = null;
 export let onDetailClick: (() => void) | undefined;
 export let detailEnabled = false;
 
+/**
+ * `formatCurrency` の整形結果を返します。
+ *
+ * @param value 処理対象の値です。
+ * @returns 文字列結果を返します。
+ */
 function formatCurrency(value: number | undefined): string {
 	if (typeof value !== 'number' || Number.isNaN(value)) return '¥—';
 	return `¥${value.toLocaleString()}`;
 }
 
+/**
+ * `resolveDistance` の解決結果を返します。
+ *
+ * @param info 処理に必要な入力値です。
+ * @returns 文字列結果を返します。
+ */
 function resolveDistance(info: FareInfo | null): string {
 	const raw = (info?.totalSalesKm as number | undefined) ?? (info?.distance as number | undefined);
 	if (typeof raw !== 'number' || Number.isNaN(raw)) return '— km';
 	return `${raw} km`;
 }
 
+/**
+ * `resolveValidDays` の解決結果を返します。
+ *
+ * @param info 処理に必要な入力値です。
+ * @returns 文字列結果を返します。
+ */
 function resolveValidDays(info: FareInfo | null): string {
 	const raw = (info?.ticketAvailDays as number | undefined) ?? (info?.validDays as number | undefined);
 	if (typeof raw !== 'number' || Number.isNaN(raw)) return '— 日';
@@ -26,6 +48,11 @@ $: fareAmount = formatCurrency((fareInfo?.fare as number | undefined) ?? undefin
 $: distanceText = resolveDistance(fareInfo);
 $: validDaysText = resolveValidDays(fareInfo);
 
+/**
+ * `handleDetailClick` のイベント処理を行います。
+ *
+ * @returns この処理は戻り値を持ちません。
+ */
 function handleDetailClick(): void {
 	const showDetail = detailEnabled && onDetailClick;
 	if (!showDetail) return;

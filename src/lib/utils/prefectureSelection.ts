@@ -1,13 +1,29 @@
+/**
+ * 都道府県ラベルと路線一覧の対応付けを補助するユーティリティです。
+ * WASM 由来の揺れを吸収し、都道府県ベースの絞り込みを支えます。
+ */
 type PrefectureLookup = {
 	aliases: Set<string>;
 };
 
+/**
+ * `normalizePrefectureToken` を正規化します。
+ *
+ * @param label 処理に必要な入力値です。
+ * @returns 文字列結果を返します。
+ */
 export function normalizePrefectureToken(label: string): string {
 	const trimmed = label?.trim() ?? '';
 	if (!trimmed) return '';
 	return trimmed.replace(/[都府県]$/u, '');
 }
 
+/**
+ * `toWasmPrefecture` を処理します。
+ *
+ * @param prefecture 処理に必要な入力値です。
+ * @returns 文字列結果を返します。
+ */
 export function toWasmPrefecture(prefecture: string): string {
 	const trimmed = prefecture?.trim() ?? '';
 	if (!trimmed) return '';
@@ -15,6 +31,12 @@ export function toWasmPrefecture(prefecture: string): string {
 	return normalized || trimmed;
 }
 
+/**
+ * `createPrefectureLookup` を生成します。
+ *
+ * @param prefecture 処理に必要な入力値です。
+ * @returns 処理結果を返します。
+ */
 export function createPrefectureLookup(prefecture: string): PrefectureLookup {
 	const aliases = new Set<string>();
 	const trimmed = prefecture?.trim() ?? '';
@@ -28,6 +50,13 @@ export function createPrefectureLookup(prefecture: string): PrefectureLookup {
 	return { aliases };
 }
 
+/**
+ * `matchesPrefectureLabel` を処理します。
+ *
+ * @param label 処理に必要な入力値です。
+ * @param lookup 処理に必要な入力値です。
+ * @returns 判定結果を返します。
+ */
 export function matchesPrefectureLabel(label: string, lookup: PrefectureLookup): boolean {
 	const trimmed = label?.trim() ?? '';
 	if (!trimmed) return false;
@@ -36,6 +65,12 @@ export function matchesPrefectureLabel(label: string, lookup: PrefectureLookup):
 	return normalized ? lookup.aliases.has(normalized) : false;
 }
 
+/**
+ * `coerceLineList` を処理します。
+ *
+ * @param value 処理対象の値です。
+ * @returns 文字列結果を返します。
+ */
 function coerceLineList(value: unknown): string[] {
 	if (!Array.isArray(value)) return [];
 	const seen = new Set<string>();
@@ -50,6 +85,12 @@ function coerceLineList(value: unknown): string[] {
 	return result;
 }
 
+/**
+ * `extractPrefectureLabel` を処理します。
+ *
+ * @param record 処理に必要な入力値です。
+ * @returns 文字列結果を返します。
+ */
 function extractPrefectureLabel(record: Record<string, unknown>): string {
 	const candidates = ['prefecture', 'pref', 'prefName', 'name', 'title', 'label'];
 	for (const key of candidates) {
@@ -61,6 +102,12 @@ function extractPrefectureLabel(record: Record<string, unknown>): string {
 	return '';
 }
 
+/**
+ * `extractLinesFromRecord` を処理します。
+ *
+ * @param record 処理に必要な入力値です。
+ * @returns 文字列結果を返します。
+ */
 function extractLinesFromRecord(record: Record<string, unknown>): string[] {
 	const keys = ['lines', 'list', 'routes', 'items', 'values'];
 	for (const key of keys) {
@@ -70,6 +117,14 @@ function extractLinesFromRecord(record: Record<string, unknown>): string[] {
 	return [];
 }
 
+/**
+ * `findLinesForPrefecture` を処理します。
+ *
+ * @param node 処理に必要な入力値です。
+ * @param lookup 処理に必要な入力値です。
+ * @param allowDirect 処理に必要な入力値です。
+ * @returns 文字列結果を返します。
+ */
 function findLinesForPrefecture(
 	node: unknown,
 	lookup: PrefectureLookup,
@@ -135,6 +190,13 @@ function findLinesForPrefecture(
 	return [];
 }
 
+/**
+ * `extractLinesFromPrefecturePayload` を処理します。
+ *
+ * @param payload 処理対象の文字列です。
+ * @param prefecture 処理に必要な入力値です。
+ * @returns 文字列結果を返します。
+ */
 export function extractLinesFromPrefecturePayload(payload: string, prefecture: string): string[] {
 	try {
 		if (!payload) return [];

@@ -1,3 +1,7 @@
+/**
+ * 保存画面の表示と保存管理フローを検証するテストです。
+ * 保存、削除、読込、import/export の契約を固定します。
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';
@@ -611,7 +615,7 @@ x戸畑,鹿児島線,小倉,山陽新幹線,厚狭,美祢線,長門市,山陰線
 		await expect.element(page.getByText('7 行目、x戸畑（1番目のワード）')).toBeInTheDocument();
 	});
 
-	it('Clipboard API が失敗してもフォールバックでエクスポートできる', async () => {
+	it('Clipboard API が失敗してもフォールバックでエクスポートダイアログを表示できる', async () => {
 		savedRoutesStore.set(['東京,東海道線,熱海', '仙台,東北線,盛岡']);
 		const writeTextMock = vi.fn().mockRejectedValue(new Error('denied'));
 		const execCommandMock = vi.fn().mockReturnValue(true);
@@ -636,7 +640,11 @@ x戸畑,鹿児島線,小倉,山陽新幹線,厚狭,美祢線,長門市,山陰線
 		expect(appendChildSpy).toHaveBeenCalled();
 		expect(removeChildSpy).toHaveBeenCalled();
 		execCommandSpy.mockRestore();
+		await expect.element(page.getByRole('dialog', { name: '経路エクスポート' })).toBeInTheDocument();
 		await expect.element(page.getByText('クリップボードへコピーしました。')).toBeInTheDocument();
+		await expect
+			.element(page.getByRole('textbox', { name: 'エクスポート結果' }))
+			.toHaveValue('東京,東海道線,熱海\n仙台,東北線,盛岡');
 	});
 
 	it('バックアップをファイルとして保存できる', async () => {

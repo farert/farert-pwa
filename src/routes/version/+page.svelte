@@ -1,3 +1,7 @@
+<!--
+バージョン情報と更新状態を表示する画面です。
+アプリ版数、DB 情報、Service Worker 更新適用を扱います。
+-->
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { base } from '$app/paths';
@@ -57,7 +61,13 @@
 		})();
 	});
 
-	function parseDatabaseInfo(raw: unknown): DbMeta {
+		/**
+	 * `parseDatabaseInfo` の解析結果を返します。
+	 *
+	 * @param raw 処理対象の文字列です。
+	 * @returns 処理結果を返します。
+	 */
+function parseDatabaseInfo(raw: unknown): DbMeta {
 		if (typeof raw !== 'string') return { name: '', createDate: '', tax: null };
 		try {
 			const parsed = JSON.parse(raw) as DatabaseInfoPayload;
@@ -92,31 +102,57 @@
 		}
 	}
 
-	function openSupport(): void {
+		/**
+	 * `openSupport` を開始または表示します。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+function openSupport(): void {
 		if (typeof window !== 'undefined') {
 			window.open('http://farert.blogspot.jp/', '_blank', 'noopener');
 		}
 	}
 
-	function close(): void {
+		/**
+	 * `close` を終了または非表示にします。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+function close(): void {
 		goto(`${base}/`);
 	}
 
-	function registerPendingWorker(worker: ServiceWorker | null): boolean {
+		/**
+	 * `registerPendingWorker` を処理します。
+	 *
+	 * @param worker 処理に必要な入力値です。
+	 * @returns 判定結果を返します。
+	 */
+function registerPendingWorker(worker: ServiceWorker | null): boolean {
 		if (!worker) return false;
 		updateWorker = worker;
 		updateMessage = '更新候補が見つかりました。反映して最新版を使えます。';
 		return true;
 	}
 
-	async function applyUpdate(): Promise<void> {
+		/**
+	 * `applyUpdate` を適用します。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+async function applyUpdate(): Promise<void> {
 		if (!('serviceWorker' in navigator) || !updateWorker) {
 			updateMessage = '更新対象が見つかりません。';
 			return;
 		}
 
 		let hasReloaded = false;
-		const onControllerChange = () => {
+				/**
+		 * `onControllerChange` を処理します。
+		 *
+		 * @returns この処理は戻り値を持ちません。
+		 */
+const onControllerChange = () => {
 			hasReloaded = true;
 			window.removeEventListener('controllerchange', onControllerChange);
 			window.location.reload();
@@ -139,7 +175,12 @@
 		}
 	}
 
-	async function checkAndApplyUpdate(): Promise<void> {
+		/**
+	 * `checkAndApplyUpdate` を処理します。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+async function checkAndApplyUpdate(): Promise<void> {
 		if (!('serviceWorker' in navigator)) {
 			updateMessage = 'この環境ではService Workerを更新できません。';
 			return;
@@ -180,7 +221,13 @@
 		dbMeta.tax === null || Number.isNaN(dbMeta.tax) ? '—%' : `${dbMeta.tax}%`
 	);
 
-	function formatDateTime(value: string): string {
+		/**
+	 * `formatDateTime` の整形結果を返します。
+	 *
+	 * @param value 処理対象の値です。
+	 * @returns 文字列結果を返します。
+	 */
+function formatDateTime(value: string): string {
 		if (!value) return '—';
 		const date = new Date(value);
 		if (Number.isNaN(date.getTime())) return value;

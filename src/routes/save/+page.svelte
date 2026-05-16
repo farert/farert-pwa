@@ -1,3 +1,7 @@
+<!--
+保存済み経路の管理と import/export を行う画面です。
+現在経路保存、一覧読込、削除、クリップボード連携を扱います。
+-->
 <script lang="ts">
 import { goto } from '$app/navigation';
 import { base } from '$app/paths';
@@ -59,7 +63,9 @@ type ImportErrorDetail = {
 	let backupImportDialogResolver: ((result: string | null) => void) | null = null;
 	let backupFileInput: HTMLInputElement | null = null;
 	let statusTimer: ReturnType<typeof setTimeout> | null = null;
-
+	let exportDialogOpen = $state(false);
+	let exportDialogText = $state('');
+	let exportDialogStatus = $state('');
 	let unsubscribeRoute: (() => void) | null = null;
 	let unsubscribeSaved: (() => void) | null = null;
 	let unsubscribeHolder: (() => void) | null = null;
@@ -118,7 +124,13 @@ type ImportErrorDetail = {
 	const floatingStatusTone = $derived(infoMessage ? 'info' : 'error');
 	const showFloatingScrollButtons = $derived(savedList.length >= 20);
 
-	function safeRouteScript(route: FaretClass | null): string {
+		/**
+	 * `safeRouteScript` を処理します。
+	 *
+	 * @param route 対象の経路または経路文字列です。
+	 * @returns 文字列結果を返します。
+	 */
+function safeRouteScript(route: FaretClass | null): string {
 		try {
 			if (!route) return '';
 			return normalizeRouteScript(getSerializedRouteScript(route));
@@ -128,7 +140,13 @@ type ImportErrorDetail = {
 		}
 	}
 
-	function uniqueRouteScripts(routes: string[]): string[] {
+		/**
+	 * `uniqueRouteScripts` を処理します。
+	 *
+	 * @param routes 対象の経路または経路文字列です。
+	 * @returns 文字列結果を返します。
+	 */
+function uniqueRouteScripts(routes: string[]): string[] {
 		const seen = new Set<string>();
 		const normalized: string[] = [];
 		for (const route of routes) {
@@ -140,7 +158,14 @@ type ImportErrorDetail = {
 		return normalized;
 	}
 
-	function isSameRoutes(left: string[], right: string[]): boolean {
+		/**
+	 * `isSameRoutes` の判定結果を返します。
+	 *
+	 * @param left 処理に必要な入力値です。
+	 * @param right 処理に必要な入力値です。
+	 * @returns 判定結果を返します。
+	 */
+function isSameRoutes(left: string[], right: string[]): boolean {
 		if (left.length !== right.length) return false;
 		for (let i = 0; i < left.length; i += 1) {
 			if (left[i] !== right[i]) return false;
@@ -148,19 +173,39 @@ type ImportErrorDetail = {
 		return true;
 	}
 
-	function moveRouteToFront(routes: string[], routeScript: string): string[] {
+		/**
+	 * `moveRouteToFront` を処理します。
+	 *
+	 * @param routes 対象の経路または経路文字列です。
+	 * @param routeScript 対象の経路または経路文字列です。
+	 * @returns 文字列結果を返します。
+	 */
+function moveRouteToFront(routes: string[], routeScript: string): string[] {
 		const normalizedTarget = normalizeRouteScript(routeScript);
 		if (!normalizedTarget) return uniqueRouteScripts(routes);
 		const remaining = routes.filter((item) => normalizeRouteScript(item) !== normalizedTarget);
 		return uniqueRouteScripts([normalizedTarget, ...remaining]);
 	}
 
-	function showInfo(message: string): void {
+		/**
+	 * `showInfo` を処理します。
+	 *
+	 * @param message 表示または処理に使うメッセージです。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+function showInfo(message: string): void {
 		infoMessage = message;
 		scheduleStatusClear();
 	}
 
-	function showError(message: string, details: ImportErrorDetail[] = []): void {
+		/**
+	 * `showError` を処理します。
+	 *
+	 * @param message 表示または処理に使うメッセージです。
+	 * @param details 処理に必要な入力値です。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+function showError(message: string, details: ImportErrorDetail[] = []): void {
 		errorMessage = message;
 		importErrorDetails = details;
 		if (details.length === 0) {
@@ -170,7 +215,12 @@ type ImportErrorDetail = {
 		clearStatusTimer();
 	}
 
-	function clearMessages(): void {
+		/**
+	 * `clearMessages` を処理します。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+function clearMessages(): void {
 		errorMessage = '';
 		importErrorDetails = [];
 		infoMessage = '';
@@ -195,7 +245,12 @@ type ImportErrorDetail = {
 		}, delay);
 	}
 
-	function handleBack(): void {
+		/**
+	 * `handleBack` のイベント処理を行います。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+function handleBack(): void {
 		goto(`${base}/`);
 	}
 
@@ -220,6 +275,12 @@ type ImportErrorDetail = {
 	}
 
 	function handleSaveCurrent(): void {
+		/**
+	 * `handleSaveCurrent` のイベント処理を行います。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+function handleSaveCurrent(): void {
 		clearMessages();
 		const normalizedCurrent = normalizeRouteScript(currentRouteScript);
 		if (!normalizedCurrent) {
@@ -239,7 +300,12 @@ type ImportErrorDetail = {
 		showInfo('保存しました。');
 	}
 
-	function getCurrentRouteCount(): number {
+		/**
+	 * `getCurrentRouteCount` を取得します。
+	 *
+	 * @returns 数値結果を返します。
+	 */
+function getCurrentRouteCount(): number {
 		try {
 			if (currentRoute?.getRouteCount) return currentRoute.getRouteCount();
 			const tokens = currentRouteScript ? currentRouteScript.split(',') : [];
@@ -250,18 +316,35 @@ type ImportErrorDetail = {
 		}
 	}
 
-	function handleDeleteRoute(routeScript: string): void {
+		/**
+	 * `handleDeleteRoute` のイベント処理を行います。
+	 *
+	 * @param routeScript 対象の経路または経路文字列です。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+function handleDeleteRoute(routeScript: string): void {
 		const normalized = normalizeRouteScript(routeScript);
 		if (!normalized) return;
 		savedRoutes.update((list) => list.filter((item) => normalizeRouteScript(item) !== normalized));
 	}
 
-	function handleDeleteCurrent(): void {
+		/**
+	 * `handleDeleteCurrent` のイベント処理を行います。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+function handleDeleteCurrent(): void {
 		if (!currentRouteScript) return;
 		handleDeleteRoute(currentRouteScript);
 	}
 
-	function shouldConfirmRouteOverwrite(targetScript: string): boolean {
+		/**
+	 * `shouldConfirmRouteOverwrite` の判定結果を返します。
+	 *
+	 * @param targetScript 処理対象の文字列です。
+	 * @returns 判定結果を返します。
+	 */
+function shouldConfirmRouteOverwrite(targetScript: string): boolean {
 		if (!currentRouteScript || currentRouteScript === targetScript) return false;
 		const isCurrentInSaved = savedList.some((item) => item === currentRouteScript);
 		const isCurrentInHolder = holderItems.some(
@@ -270,7 +353,13 @@ type ImportErrorDetail = {
 		return !isCurrentInSaved && !isCurrentInHolder;
 	}
 
-	function resolveConfirmDialog(result: boolean): void {
+		/**
+	 * `resolveConfirmDialog` の解決結果を返します。
+	 *
+	 * @param result 処理対象の値です。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+function resolveConfirmDialog(result: boolean): void {
 		confirmDialogOpen = false;
 		confirmDialogMessage = '';
 		const resolver = confirmResolver;
@@ -278,7 +367,13 @@ type ImportErrorDetail = {
 		resolver?.(result);
 	}
 
-	function requestConfirm(message: string): Promise<boolean> {
+		/**
+	 * `requestConfirm` を処理します。
+	 *
+	 * @param message 表示または処理に使うメッセージです。
+	 * @returns 非同期処理の成否を返します。
+	 */
+function requestConfirm(message: string): Promise<boolean> {
 		if (confirmResolver) {
 			confirmResolver(false);
 			confirmResolver = null;
@@ -290,7 +385,13 @@ type ImportErrorDetail = {
 		});
 	}
 
-	function openImportDialog(defaultText = ''): Promise<string | null> {
+		/**
+	 * `openImportDialog` を開始または表示します。
+	 *
+	 * @param defaultText 処理対象の文字列です。
+	 * @returns 非同期処理で得た文字列または `null` を返します。
+	 */
+function openImportDialog(defaultText = ''): Promise<string | null> {
 		if (importDialogResolver) {
 			importDialogResolver(null);
 		}
@@ -301,7 +402,13 @@ type ImportErrorDetail = {
 		});
 	}
 
-	function resolveImportDialog(result: string | null): void {
+		/**
+	 * `resolveImportDialog` の解決結果を返します。
+	 *
+	 * @param result 処理対象の値です。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+function resolveImportDialog(result: string | null): void {
 		importDialogOpen = false;
 		const resolver = importDialogResolver;
 		importDialogResolver = null;
@@ -396,7 +503,13 @@ type ImportErrorDetail = {
 		}
 	}
 
-	function parseImportCandidates(rawText: string): ImportCandidate[] {
+		/**
+	 * `parseImportCandidates` の解析結果を返します。
+	 *
+	 * @param rawText 処理対象の文字列です。
+	 * @returns 配列結果を返します。
+	 */
+function parseImportCandidates(rawText: string): ImportCandidate[] {
 		return rawText
 			.split(/\r?\n/u)
 			.map((line) => ({
@@ -406,7 +519,14 @@ type ImportErrorDetail = {
 			.filter((line) => line.normalized.length > 0);
 	}
 
-	function tryImportRoute(candidate: ImportCandidate, lineNumber: number): ImportRouteResult {
+		/**
+	 * `tryImportRoute` を処理します。
+	 *
+	 * @param candidate 処理に必要な入力値です。
+	 * @param lineNumber 対象の路線名です。
+	 * @returns 処理結果を返します。
+	 */
+function tryImportRoute(candidate: ImportCandidate, lineNumber: number): ImportRouteResult {
 		const route = new Farert();
 		try {
 			const restored = restoreRouteFromScript(route, candidate.normalized);
@@ -441,7 +561,13 @@ type ImportErrorDetail = {
 		}
 	}
 
-	function parseBuildRouteResult(result: unknown): BuildRouteResult | null {
+		/**
+	 * `parseBuildRouteResult` の解析結果を返します。
+	 *
+	 * @param result 処理対象の値です。
+	 * @returns 解決結果を返します。
+	 */
+function parseBuildRouteResult(result: unknown): BuildRouteResult | null {
 		if (typeof result === 'number') {
 			return { rc: result };
 		}
@@ -470,7 +596,14 @@ type ImportErrorDetail = {
 		return null;
 	}
 
-	function formatImportError(result: BuildRouteResult | null, lineNumber: number): string {
+		/**
+	 * `formatImportError` の整形結果を返します。
+	 *
+	 * @param result 処理対象の値です。
+	 * @param lineNumber 対象の路線名です。
+	 * @returns 文字列結果を返します。
+	 */
+function formatImportError(result: BuildRouteResult | null, lineNumber: number): string {
 		let message = `${lineNumber} 行目`;
 		if (!result?.failItem) {
 			return message;
@@ -483,7 +616,13 @@ type ImportErrorDetail = {
 		return message;
 	}
 
-	async function applyRoute(routeScript: string): Promise<void> {
+		/**
+	 * `applyRoute` を適用します。
+	 *
+	 * @param routeScript 対象の経路または経路文字列です。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+async function applyRoute(routeScript: string): Promise<void> {
 		if (isEditing) {
 			return;
 		}
@@ -516,7 +655,12 @@ type ImportErrorDetail = {
 		}
 	}
 
-	async function handleImport(): Promise<void> {
+		/**
+	 * `handleImport` のイベント処理を行います。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+async function handleImport(): Promise<void> {
 		clearMessages();
 		const input = await openImportDialog('');
 		if (input === null) {
@@ -531,28 +675,27 @@ type ImportErrorDetail = {
 		await importRoutesFromText(input);
 	}
 
-	async function handleExport(): Promise<void> {
+		/**
+	 * `handleExport` のイベント処理を行います。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+async function handleExport(): Promise<void> {
 		clearMessages();
 		if (!savedList.length) {
 			showError('エクスポートする経路がありません。');
 			return;
 		}
 		const text = savedList.join('\n');
-		try {
-			if (navigator.share) {
-				await navigator.share({ text });
-				showInfo('共有しました。');
-				return;
-			}
-		} catch (err) {
-			console.warn('共有に失敗しました', err);
-		}
+		exportDialogText = text;
+		exportDialogStatus = '';
+		exportDialogOpen = true;
 		try {
 			await copyExportText(text);
-			showInfo('クリップボードへコピーしました。');
+			exportDialogStatus = 'クリップボードへコピーしました。';
 		} catch (err) {
 			console.error('エクスポートに失敗しました', err);
-			showError('エクスポートに失敗しました。');
+			exportDialogStatus = 'エクスポートに失敗しました。';
 		}
 	}
 
@@ -641,7 +784,13 @@ type ImportErrorDetail = {
 		copyTextWithExecCommand(text);
 	}
 
-	function copyTextWithExecCommand(text: string): void {
+		/**
+	 * `copyTextWithExecCommand` を処理します。
+	 *
+	 * @param text 処理対象の文字列です。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+function copyTextWithExecCommand(text: string): void {
 		if (typeof document === 'undefined') {
 			throw new Error('document is not available');
 		}

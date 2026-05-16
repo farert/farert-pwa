@@ -1,3 +1,7 @@
+/**
+ * 発着駅選択画面の表示と操作を検証するテストです。
+ * 検索、履歴、都道府県導線、確認ダイアログの契約を固定します。
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';

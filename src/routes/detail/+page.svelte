@@ -1,3 +1,7 @@
+<!--
+選択中経路の運賃詳細を表示する画面です。
+指標表示、共有、結果エクスポート、運賃オプション再計算を担います。
+-->
 <script lang="ts">
 import { goto } from '$app/navigation';
 import { base } from '$app/paths';
@@ -57,6 +61,13 @@ const icRouteText = $derived(resolveIcRouteString(fareInfo, routeText));
 const fareResultHint = $derived(resolveFareResultMessage(fareInfo?.fareResultCode));
 const shareEnabled = $derived(Boolean(shareUrl));
 
+/**
+ * `toBoolean` を処理します。
+ *
+ * @param value 処理対象の値です。
+ * @param fallback 処理に必要な入力値です。
+ * @returns 判定結果を返します。
+ */
 function toBoolean(value: unknown, fallback: boolean = false): boolean {
 	if (value === undefined || value === null) {
 		return fallback;
@@ -75,6 +86,14 @@ function toBoolean(value: unknown, fallback: boolean = false): boolean {
 	return Boolean(value);
 }
 
+/**
+ * `pickBoolean` を処理します。
+ *
+ * @param obj 処理に必要な入力値です。
+ * @param keys 処理に必要な入力値です。
+ * @param fallback 処理に必要な入力値です。
+ * @returns 判定結果を返します。
+ */
 function pickBoolean(
 	obj: unknown,
 	keys: string[],
@@ -100,6 +119,13 @@ type FareOptionMenuItem = {
 };
 let fareOptionMenus = $state<FareOptionMenuItem[]>([]);
 
+/**
+ * `buildFareOptionMenus` を組み立てます。
+ *
+ * @param info 処理に必要な入力値です。
+ * @param route 対象の経路または経路文字列です。
+ * @returns 配列結果を返します。
+ */
 function buildFareOptionMenus(info: FareInfo | null, route: FaretClass | null): FareOptionMenuItem[] {
 	if (!route || !info) return [];
 
@@ -230,6 +256,11 @@ onDestroy(() => {
 	}
 });
 
+/**
+ * `resolveCompressedRoute` の解決結果を返します。
+ *
+ * @returns 文字列結果を返します。
+ */
 function resolveCompressedRoute(): string | null {
 	if (initialCompressedRoute?.trim()) {
 		return initialCompressedRoute.trim();
@@ -242,6 +273,12 @@ function resolveCompressedRoute(): string | null {
 	return param?.trim() || null;
 }
 
+/**
+ * `parseRouteSegments` の解析結果を返します。
+ *
+ * @param route 対象の経路または経路文字列です。
+ * @returns 配列結果を返します。
+ */
 function parseRouteSegments(route: FaretClass): RouteSegment[] {
 	try {
 		const raw = route.getRoutesJson ? route.getRoutesJson() : '';
@@ -260,13 +297,25 @@ function parseRouteSegments(route: FaretClass): RouteSegment[] {
 	}
 }
 
+/**
+ * `parseFareInfo` の解析結果を返します。
+ *
+ * @param route 対象の経路または経路文字列です。
+ * @returns 解決結果を返します。
+ */
 function parseFareInfo(route: FaretClass): FareInfo | null {
 	const raw = route.getFareInfoObjectJson ? route.getFareInfoObjectJson() : '';
 	if (!raw) return null;
 	const cleaned = raw.replace(/\u0000/g, '').trim();
 	if (!cleaned) return null;
 
-	const normalizeKilometers = (info: FareInfo): FareInfo => {
+		/**
+	 * `normalizeKilometers` を正規化します。
+	 *
+	 * @param info 処理に必要な入力値です。
+	 * @returns 処理結果を返します。
+	 */
+const normalizeKilometers = (info: FareInfo): FareInfo => {
 		const kmKeys: Array<keyof FareInfo> = [
 			'totalSalesKm',
 			'jrSalesKm',
@@ -298,7 +347,13 @@ function parseFareInfo(route: FaretClass): FareInfo | null {
 		}
 		return normalized;
 	};
-	const collapseCommas = (input: string): string => {
+		/**
+	 * `collapseCommas` を処理します。
+	 *
+	 * @param input 処理に必要な入力値です。
+	 * @returns 文字列結果を返します。
+	 */
+const collapseCommas = (input: string): string => {
 		let output = input.replace(/,\s*([}\]])/g, '$1').replace(/([\[{])\s*,/g, '$1');
 		while (/,(\s*,)+/.test(output)) {
 			output = output.replace(/,\s*,+/g, ',');
@@ -325,6 +380,12 @@ function parseFareInfo(route: FaretClass): FareInfo | null {
 	return null;
 }
 
+/**
+ * `buildFareExportString` を組み立てます。
+ *
+ * @param route 対象の経路または経路文字列です。
+ * @returns 文字列結果を返します。
+ */
 function buildFareExportString(route: FaretClass): string {
 	try {
 		const fareText = route.showFare ? route.showFare() : '';
@@ -337,6 +398,12 @@ function buildFareExportString(route: FaretClass): string {
 	}
 }
 
+/**
+ * `refreshResult` を処理します。
+ *
+ * @param route 対象の経路または経路文字列です。
+ * @returns この処理は戻り値を持ちません。
+ */
 function refreshResult(route: FaretClass): void {
 	startStation = safeStationName(() => route.departureStationName());
 	endStation = safeStationName(() => route.arrivevalStationName());
@@ -351,6 +418,12 @@ function refreshResult(route: FaretClass): void {
 	}
 }
 
+/**
+ * `buildShareUrl` を組み立てます。
+ *
+ * @param token 処理に必要な入力値です。
+ * @returns 文字列結果を返します。
+ */
 function buildShareUrl(token: string): string {
 	if (!token) return '';
 	const origin =
@@ -360,6 +433,12 @@ function buildShareUrl(token: string): string {
 	return `${normalizedOrigin}${normalizedBase}/detail?r=${token}`;
 }
 
+/**
+ * `normalizeBasePath` を正規化します。
+ *
+ * @param path 処理に必要な入力値です。
+ * @returns 文字列結果を返します。
+ */
 function normalizeBasePath(path: string): string {
 	if (!path) return '';
 	const prefixed = path.startsWith('/') ? path : `/${path}`;
@@ -367,6 +446,12 @@ function normalizeBasePath(path: string): string {
 	return prefixed.endsWith('/') ? prefixed.slice(0, -1) : prefixed;
 }
 
+/**
+ * `safeStationName` を処理します。
+ *
+ * @param resolver 処理に必要な入力値です。
+ * @returns 文字列結果を返します。
+ */
 function safeStationName(resolver: () => string): string {
 	try {
 		return resolver()?.trim() ?? '';
@@ -376,6 +461,11 @@ function safeStationName(resolver: () => string): string {
 	}
 }
 
+/**
+ * `resolveRouteTitle` の解決結果を返します。
+ *
+ * @returns 文字列結果を返します。
+ */
 function resolveRouteTitle(): string {
 	const begin = (fareInfo?.beginStation ?? '').trim();
 	const end = (fareInfo?.endStation ?? '').trim();
@@ -390,11 +480,23 @@ function resolveRouteTitle(): string {
 	return '経路詳細';
 }
 
+/**
+ * `formatCurrency` の整形結果を返します。
+ *
+ * @param value 処理対象の値です。
+ * @returns 文字列結果を返します。
+ */
 function formatCurrency(value?: number | null): string {
 	if (typeof value !== 'number' || Number.isNaN(value)) return '¥—';
 	return `¥${value.toLocaleString('ja-JP')}`;
 }
 
+/**
+ * `formatKilometer` の整形結果を返します。
+ *
+ * @param value 処理対象の値です。
+ * @returns 文字列結果を返します。
+ */
 function formatKilometer(value?: number | null): string {
 	if (typeof value !== 'number' || Number.isNaN(value)) return '— km';
 	return `${value.toLocaleString('ja-JP', {
@@ -403,14 +505,34 @@ function formatKilometer(value?: number | null): string {
 	})}km`;
 }
 
+/**
+ * `hasPositiveKilometer` の判定結果を返します。
+ *
+ * @param value 処理対象の値です。
+ * @returns 判定結果を返します。
+ */
 function hasPositiveKilometer(value?: number | null): boolean {
 	return typeof value === 'number' && Number.isFinite(value) && value > 0;
 }
 
+/**
+ * `kilometersMatch` を処理します。
+ *
+ * @param left 処理に必要な入力値です。
+ * @param right 処理に必要な入力値です。
+ * @returns 判定結果を返します。
+ */
 function kilometersMatch(left?: number | null, right?: number | null): boolean {
 	return hasPositiveKilometer(left) && hasPositiveKilometer(right) && left === right;
 }
 
+/**
+ * `buildKilometerPairValue` を組み立てます。
+ *
+ * @param primary 処理に必要な入力値です。
+ * @param secondary 処理に必要な入力値です。
+ * @returns 文字列結果を返します。
+ */
 function buildKilometerPairValue(primary?: number | null, secondary?: number | null): string {
 	if (kilometersMatch(primary, secondary)) {
 		return formatKilometer(primary);
@@ -418,6 +540,14 @@ function buildKilometerPairValue(primary?: number | null, secondary?: number | n
 	return `${formatKilometer(primary)} / ${formatKilometer(secondary)}`;
 }
 
+/**
+ * `buildRegionKilometerRow` を組み立てます。
+ *
+ * @param regionName 処理に必要な入力値です。
+ * @param salesKm 処理に必要な入力値です。
+ * @param calcKm 処理に必要な入力値です。
+ * @returns 解決結果を返します。
+ */
 function buildRegionKilometerRow(
 	regionName: string,
 	salesKm?: number | null,
@@ -438,16 +568,40 @@ function buildRegionKilometerRow(
 	};
 }
 
+/**
+ * `formatRoundtripCompanyFare` の整形結果を返します。
+ *
+ * @param info 処理に必要な入力値です。
+ * @returns 文字列結果を返します。
+ */
 function formatRoundtripCompanyFare(info: FareInfo): string {
 	return formatCurrency((info.fareForCompanyline ?? 0) * 2);
 }
 
+/**
+ * `formatFareWithICFare` の整形結果を返します。
+ *
+ * @param fare 処理に必要な入力値です。
+ * @param icFare 処理に必要な入力値です。
+ * @returns 文字列結果を返します。
+ */
 function formatFareWithICFare(fare?: number | null, icFare?: number | null): string {
 	const baseFare = formatCurrency(fare);
 	if ((icFare ?? 0) <= 0) return baseFare;
 	return `${baseFare} (${formatCurrency(icFare)})`;
 }
 
+/**
+ * `buildInlineFareRow` を組み立てます。
+ *
+ * @param label 処理に必要な入力値です。
+ * @param value 処理対象の値です。
+ * @param secondaryLabel 処理に必要な入力値です。
+ * @param secondaryValue 処理対象の値です。
+ * @param layout 処理に必要な入力値です。
+ * @param hideSecondaryLabel 処理に必要な入力値です。
+ * @returns 処理結果を返します。
+ */
 function buildInlineFareRow(
 	label: string,
 	value: string,
@@ -466,11 +620,23 @@ function buildInlineFareRow(
 	};
 }
 
+/**
+ * `formatValidDays` の整形結果を返します。
+ *
+ * @param value 処理対象の値です。
+ * @returns 文字列結果を返します。
+ */
 function formatValidDays(value?: number | null): string {
 	if (typeof value !== 'number' || Number.isNaN(value)) return '— 日';
 	return `${value}日間`;
 }
 
+/**
+ * `buildKilometerRows` を組み立てます。
+ *
+ * @param info 処理に必要な入力値です。
+ * @returns 配列結果を返します。
+ */
 function buildKilometerRows(info: FareInfo | null): MetricRow[] {
 	if (!info) return [];
 	const rows: MetricRow[] = [];
@@ -522,6 +688,12 @@ function buildKilometerRows(info: FareInfo | null): MetricRow[] {
 	return rows;
 }
 
+/**
+ * `buildFareRows` を組み立てます。
+ *
+ * @param info 処理に必要な入力値です。
+ * @returns 配列結果を返します。
+ */
 function buildFareRows(info: FareInfo | null): MetricRow[] {
 	if (!info) return [];
 	const rows: MetricRow[] = [];
@@ -611,6 +783,12 @@ function buildFareRows(info: FareInfo | null): MetricRow[] {
 	return rows;
 }
 
+/**
+ * `buildValidityMessage` を組み立てます。
+ *
+ * @param info 処理に必要な入力値です。
+ * @returns 文字列結果を返します。
+ */
 function buildValidityMessage(info: FareInfo | null): string {
 	if (!info) return '';
 	if (info.isSpecificFare) {
@@ -626,6 +804,12 @@ function buildValidityMessage(info: FareInfo | null): string {
 	return '途中下車できます';
 }
 
+/**
+ * `extractMessages` を処理します。
+ *
+ * @param info 処理に必要な入力値です。
+ * @returns 文字列結果を返します。
+ */
 function extractMessages(info: FareInfo | null): string[] {
 	if (!info) return [];
 	return info.messages
@@ -633,6 +817,13 @@ function extractMessages(info: FareInfo | null): string[] {
 		.filter((message): message is string => message.length > 0);
 }
 
+/**
+ * `resolveRouteString` の解決結果を返します。
+ *
+ * @param info 処理に必要な入力値です。
+ * @param segments 処理に必要な入力値です。
+ * @returns 文字列結果を返します。
+ */
 function resolveRouteString(info: FareInfo | null, segments: RouteSegment[]): string {
 	const fromInfo = info?.routeList?.trim();
 	if (fromInfo) return fromInfo;
@@ -640,6 +831,13 @@ function resolveRouteString(info: FareInfo | null, segments: RouteSegment[]): st
 	return segments.map((segment) => `[${segment.line}]${segment.station}`).join('');
 }
 
+/**
+ * `resolveIcRouteString` の解決結果を返します。
+ *
+ * @param info 処理に必要な入力値です。
+ * @param base 処理に必要な入力値です。
+ * @returns 文字列結果を返します。
+ */
 function resolveIcRouteString(info: FareInfo | null, base: string): string {
 	const icRoute = info?.routeListForTOICA?.trim();
 	if (!icRoute) return '';
@@ -647,6 +845,12 @@ function resolveIcRouteString(info: FareInfo | null, base: string): string {
 	return icRoute === normalizedBase ? '' : icRoute;
 }
 
+/**
+ * `resolveFareResultMessage` の解決結果を返します。
+ *
+ * @param code 処理に必要な入力値です。
+ * @returns 文字列結果を返します。
+ */
 function resolveFareResultMessage(code?: number | null): string {
 	if (code === 0 || code === undefined || code === null) return '';
 	if (code === 1) return '経路が不完全です。続けて指定してください。';
@@ -654,6 +858,11 @@ function resolveFareResultMessage(code?: number | null): string {
 	return '運賃計算でエラーが発生しました。';
 }
 
+/**
+ * `handleBack` のイベント処理を行います。
+ *
+ * @returns この処理は戻り値を持ちません。
+ */
 function handleBack(): void {
 	if (typeof window !== 'undefined' && window.history.length > 1) {
 		window.history.back();
@@ -662,6 +871,11 @@ function handleBack(): void {
 	goto(`${base}/`);
 }
 
+/**
+ * `handleShare` のイベント処理を行います。
+ *
+ * @returns この処理は戻り値を持ちません。
+ */
 async function handleShare(): Promise<void> {
 	if (!shareEnabled || !shareUrl) return;
 	try {
@@ -685,6 +899,12 @@ async function handleShare(): Promise<void> {
 	showShareMessage('このブラウザでは共有に対応していません');
 }
 
+/**
+ * `showShareMessage` を処理します。
+ *
+ * @param message 表示または処理に使うメッセージです。
+ * @returns この処理は戻り値を持ちません。
+ */
 function showShareMessage(message: string): void {
 	shareFeedback = message;
 	if (shareFeedbackTimer) {
@@ -695,6 +915,12 @@ function showShareMessage(message: string): void {
 	}, 4000);
 }
 
+/**
+ * `showExportMessage` を処理します。
+ *
+ * @param message 表示または処理に使うメッセージです。
+ * @returns この処理は戻り値を持ちません。
+ */
 function showExportMessage(message: string): void {
 	exportFeedback = message;
 	if (exportFeedbackTimer) {
@@ -705,19 +931,40 @@ function showExportMessage(message: string): void {
 	}, 4000);
 }
 
+/**
+ * `toggleMenu` の切替処理を行います。
+ *
+ * @returns この処理は戻り値を持ちません。
+ */
 function toggleMenu(): void {
 	menuOpen = !menuOpen;
 }
 
+/**
+ * `closeMenu` を終了または非表示にします。
+ *
+ * @returns この処理は戻り値を持ちません。
+ */
 function closeMenu(): void {
 	menuOpen = false;
 }
 
+/**
+ * `openVersionInfo` を開始または表示します。
+ *
+ * @returns この処理は戻り値を持ちません。
+ */
 function openVersionInfo(): void {
 	closeMenu();
 	goto(`${base}/version`);
 }
 
+/**
+ * `applyFareOption` を適用します。
+ *
+ * @param option 処理に必要な入力値です。
+ * @returns この処理は戻り値を持ちません。
+ */
 function applyFareOption(option: FareOptionMenuItem): void {
 	const route = routeRef;
 	if (!route) return;
@@ -736,6 +983,11 @@ function applyFareOption(option: FareOptionMenuItem): void {
 	closeMenu();
 }
 
+/**
+ * `copyFareExport` を処理します。
+ *
+ * @returns この処理は戻り値を持ちません。
+ */
 async function copyFareExport(): Promise<void> {
 	if (!fareExportText) return;
 	try {
@@ -750,12 +1002,22 @@ async function copyFareExport(): Promise<void> {
 	showExportMessage('このブラウザではコピーに対応していません');
 }
 
+/**
+ * `openExportDialog` を開始または表示します。
+ *
+ * @returns この処理は戻り値を持ちません。
+ */
 async function openExportDialog(): Promise<void> {
 	exportDialogOpen = Boolean(fareExportText);
 	if (!exportDialogOpen) return;
 	await copyFareExport();
 }
 
+/**
+ * `closeExportDialog` を終了または非表示にします。
+ *
+ * @returns この処理は戻り値を持ちません。
+ */
 function closeExportDialog(): void {
 	exportDialogOpen = false;
 }

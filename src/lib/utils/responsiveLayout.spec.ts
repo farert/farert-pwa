@@ -1,3 +1,7 @@
+/**
+ * レスポンシブ判定とスクロール補助のユーティリティを検証するテストです。
+ * 画面幅とページスクロール操作の期待動作を固定します。
+ */
 import { describe, expect, it, vi } from 'vitest';
 import {
 	WIDE_SCREEN_MIN_WIDTH,

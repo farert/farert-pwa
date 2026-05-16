@@ -1,3 +1,7 @@
+/**
+ * 駅選択画面の表示と選択操作を検証するテストです。
+ * 分岐駅・着駅切替、追加処理、エラーハンドリングを固定します。
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';

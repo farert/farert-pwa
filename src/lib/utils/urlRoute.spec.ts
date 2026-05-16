@@ -1,3 +1,7 @@
+/**
+ * URL 圧縮共有まわりのユーティリティを検証するテストです。
+ * 圧縮、伸長、復元、共有 URL 生成の契約を固定します。
+ */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import LZString from 'lz-string';
 import {

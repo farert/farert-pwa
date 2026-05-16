@@ -1,3 +1,7 @@
+<!--
+保存画面で経路 1 件を表示するカードコンポーネントです。
+選択、削除、編集時の操作状態を視覚化する責務を持ちます。
+-->
 <script lang="ts">
 	let {
 		route = '',
@@ -20,19 +24,37 @@
 	let revealDelete = $state(false);
 	let startX: number | null = null;
 
-	function handleKeydown(event: KeyboardEvent): void {
+		/**
+	 * `handleKeydown` のイベント処理を行います。
+	 *
+	 * @param event 発生したイベントです。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+function handleKeydown(event: KeyboardEvent): void {
 		if (event.key === 'Enter' || event.key === ' ') {
 			event.preventDefault();
 			handleSelect();
 		}
 	}
 
-	function handlePointerStart(event: PointerEvent | TouchEvent): void {
+		/**
+	 * `handlePointerStart` のイベント処理を行います。
+	 *
+	 * @param event 発生したイベントです。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+function handlePointerStart(event: PointerEvent | TouchEvent): void {
 		const point = 'touches' in event ? event.touches[0] : event;
 		startX = point.clientX;
 	}
 
-	function handlePointerMove(event: PointerEvent | TouchEvent): void {
+		/**
+	 * `handlePointerMove` のイベント処理を行います。
+	 *
+	 * @param event 発生したイベントです。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+function handlePointerMove(event: PointerEvent | TouchEvent): void {
 		if (startX === null) return;
 		const point = 'touches' in event ? event.touches[0] : event;
 		const delta = point.clientX - startX;
@@ -43,16 +65,32 @@
 		}
 	}
 
-	function handlePointerEnd(): void {
+		/**
+	 * `handlePointerEnd` のイベント処理を行います。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+function handlePointerEnd(): void {
 		startX = null;
 	}
 
-	function handleDelete(event: Event): void {
+		/**
+	 * `handleDelete` のイベント処理を行います。
+	 *
+	 * @param event 発生したイベントです。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+function handleDelete(event: Event): void {
 		event.stopPropagation();
 		onDelete?.();
 	}
 
-	function handleSelect(): void {
+		/**
+	 * `handleSelect` のイベント処理を行います。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+function handleSelect(): void {
 		onSelect?.();
 	}
 

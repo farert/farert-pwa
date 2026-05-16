@@ -1,3 +1,7 @@
+/**
+ * 駅名表示ユーティリティを検証するテストです。
+ * 同名駅や接尾辞を含む駅名の表示整形ルールを固定します。
+ */
 import { describe, expect, it, vi } from 'vitest';
 import {
 	buildStationDisplayMeta,
