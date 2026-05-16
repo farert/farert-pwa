@@ -71,6 +71,15 @@ describe('/help/+page.svelte', () => {
 		await expect
 			.element(page.getByRole('img', { name: '保存画面のエクスポートダイアログ', exact: true }))
 			.toHaveAttribute('src', '/help/save-export-dialog.png');
+		await expect
+			.element(page.getByRole('heading', { name: 'バックアップとレストア' }))
+			.toBeInTheDocument();
+		await expect
+			.element(page.getByRole('img', { name: 'バックアップとレストア画面', exact: true }))
+			.toHaveAttribute('src', '/help/bkuprestore.png');
+		await expect
+			.element(page.getByText('現在経路、保存済み経路、きっぷホルダ、駅履歴をまとめてJSONファイルへ保存できます。'))
+			.toBeInTheDocument();
 		await expect.element(page.getByRole('button', { name: '閉じる' })).toBeInTheDocument();
 	});
 

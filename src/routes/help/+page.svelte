@@ -145,14 +145,16 @@
 		}
 	];
 
-	const saveScreenDetails = {
-		overviewImage: `${base}/help/save.png`,
-		overviewAlt: '保存画面全体のスクリーンショット',
-		importImage: `${base}/help/save-import-dialog.png`,
-		importAlt: '保存画面のインポートダイアログ',
-		exportImage: `${base}/help/save-export-dialog.png`,
-		exportAlt: '保存画面のエクスポートダイアログ'
-	};
+		const saveScreenDetails = {
+			overviewImage: `${base}/help/save.png`,
+			overviewAlt: '保存画面全体のスクリーンショット',
+			importImage: `${base}/help/save-import-dialog.png`,
+			importAlt: '保存画面のインポートダイアログ',
+			exportImage: `${base}/help/save-export-dialog.png`,
+			exportAlt: '保存画面のエクスポートダイアログ',
+			backupImage: `${base}/help/bkuprestore.png`,
+			backupAlt: 'バックアップとレストア画面'
+		};
 
 	const saveScreenParts = [
 		{
@@ -184,11 +186,17 @@
 		'区切りはカンマまたはスペースに対応します。',
 	];
 
-	const saveExportSteps = [
-		'保存済み経路をCSVテキストでエクスポートします。',
-		'ダイアログ表示時にコピーを試行し、結果はダイアログ内に表示されます。',
-		'内容はそのまま保存画面への再インポートや外部メモへの転記に使えます。'
-	];
+		const saveExportSteps = [
+			'保存済み経路をCSVテキストでエクスポートします。',
+			'ダイアログ表示時にコピーを試行し、結果はダイアログ内に表示されます。',
+			'内容はそのまま保存画面への再インポートや外部メモへの転記に使えます。'
+		];
+
+		const backupRestoreSteps = [
+			'「保存」画面の「バックアップ」から、現在経路、保存済み経路、きっぷホルダ、駅履歴をまとめてファイルへ保存できます。',
+			'「ファイル読み込み」で、保存したバックアップファイルを選んで復元します。',
+			'ファイルを扱いにくい環境では「テキスト復元」からバックアップファイルの中身のJSONを貼り付けて復元できます。'
+		];
     /**
 	 * `close` を終了または非表示にします。
 	 *
@@ -321,9 +329,9 @@ function close(): void {
 					{/each}
 				</ul>
 			</section>
-			<section class="manual-card">
-				<h3>エクスポート結果</h3>
-				<img
+				<section class="manual-card">
+					<h3>エクスポート結果</h3>
+					<img
 					class="manual-shot"
 					src={saveScreenDetails.exportImage}
 					alt={saveScreenDetails.exportAlt}
@@ -332,11 +340,25 @@ function close(): void {
 				<ul>
 					{#each saveExportSteps as step}
 						<li>{step}</li>
-					{/each}
-				</ul>
-			</section>
+						{/each}
+					</ul>
+				</section>
+				<section class="manual-card">
+					<h3>バックアップとレストア</h3>
+					<img
+						class="manual-shot"
+						src={saveScreenDetails.backupImage}
+						alt={saveScreenDetails.backupAlt}
+						loading="lazy"
+					/>
+					<ul>
+						{#each backupRestoreSteps as step}
+							<li>{step}</li>
+						{/each}
+					</ul>
+				</section>
 			</div>
-		</section>
+			</section>
 
 		<section class="card" id="faq-manual">
 			<h2>よくある質問</h2>
