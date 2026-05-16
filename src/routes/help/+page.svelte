@@ -283,8 +283,8 @@ function close(): void {
 		</div>
 	</section>
 
-	<section class="card" id="archive-manual">
-		<h2>保存画面の使い方</h2>
+		<section class="card" id="archive-manual">
+			<h2>保存画面の使い方</h2>
 		<div class="save-help-layout">
 			<div class="save-help-visual">
 				<img
@@ -335,12 +335,34 @@ function close(): void {
 					{/each}
 				</ul>
 			</section>
-		</div>
-	</section>
+			</div>
+		</section>
 
-	<section class="card">
-		<h2>その他詳しい使い方は</h2>
-		<p>
+		<section class="card" id="faq-manual">
+			<h2>よくある質問</h2>
+			<div class="faq-list">
+				<div class="faq-item">
+					<h3>結果が想定と違う場合はどうすればよいですか？</h3>
+					<p>
+						右上メニューの経路オプションや、保存画面のバックアップから現在の経路を見直してください。
+						必要なら
+						<a
+							class="external-help-link"
+							href="https://farert.blogspot.com/2017/03/blog-post_54.html"
+							target="_blank"
+							rel="noopener noreferrer"
+						>
+							使い方〜目次を開く
+						</a>
+						も参照できます。
+					</p>
+				</div>
+			</div>
+		</section>
+
+		<section class="card">
+			<h2>その他詳しい使い方は</h2>
+			<p>
 			<a
 				class="external-help-link"
 				href="https://farert.blogspot.com/2017/03/blog-post_54.html"

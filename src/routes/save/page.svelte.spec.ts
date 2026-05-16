@@ -228,23 +228,19 @@ describe('/save/+page.svelte', () => {
 	});
 
 	it('保存通知は数秒後に自動で消える', async () => {
-		vi.useFakeTimers();
-		try {
-			const current = new MockFarert();
-			current.buildRoute('東京,東海道線,熱海,伊東線,伊東');
-			mainRouteStore.set(current);
-			savedRoutesStore.set(['東京,東海道線,熱海,伊東線,伊東']);
+		const current = new MockFarert();
+		current.buildRoute('東京,東海道線,熱海,伊東線,伊東');
+		mainRouteStore.set(current);
+		savedRoutesStore.set(['東京,東海道線,熱海,伊東線,伊東']);
 
-			render(SavePage);
+		render(SavePage);
 
-			await page.getByRole('button', { name: '保存', exact: true }).click();
-			await expect.element(page.getByText('すでに保存済みです。')).toBeInTheDocument();
+		await expect.element(page.getByText('保存済み 1件')).toBeInTheDocument();
+		await page.getByRole('button', { name: '保存', exact: true }).click();
+		await expect.element(page.getByText('すでに保存済みです。')).toBeInTheDocument();
 
-			await vi.advanceTimersByTimeAsync(3000);
-			await expect.element(page.getByText('すでに保存済みです。')).not.toBeInTheDocument();
-		} finally {
-			vi.useRealTimers();
-		}
+		await new Promise((resolve) => setTimeout(resolve, 3200));
+		await expect.element(page.getByText('すでに保存済みです。')).not.toBeInTheDocument();
 	});
 
 	it('保存済み経路が30件以上あると上下スクロールボタンを表示する', async () => {

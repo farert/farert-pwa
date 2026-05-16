@@ -93,14 +93,14 @@ type ImportErrorDetail = {
 				unsubscribeStationHistory = stationHistory.subscribe((value) => {
 					stationHistoryList = [...value];
 				});
-				} catch (err) {
-					console.error('保存画面初期化エラー', err);
-					errorMessage = '保存画面の初期化に失敗しました。';
-				} finally {
-					loading = false;
-				}
-			})();
-		});
+			} catch (err) {
+				console.error('保存画面初期化エラー', err);
+				errorMessage = '保存画面の初期化に失敗しました。';
+			} finally {
+				loading = false;
+			}
+		})();
+	});
 
 	onDestroy(() => {
 		clearStatusTimer();
@@ -122,15 +122,15 @@ type ImportErrorDetail = {
 	);
 	const floatingStatusMessage = $derived(infoMessage || simpleErrorMessage);
 	const floatingStatusTone = $derived(infoMessage ? 'info' : 'error');
-	const showFloatingScrollButtons = $derived(savedList.length >= 20);
+	const showFloatingScrollButtons = $derived(savedList.length >= 30);
 
-		/**
+	/**
 	 * `safeRouteScript` を処理します。
 	 *
 	 * @param route 対象の経路または経路文字列です。
 	 * @returns 文字列結果を返します。
 	 */
-function safeRouteScript(route: FaretClass | null): string {
+	function safeRouteScript(route: FaretClass | null): string {
 		try {
 			if (!route) return '';
 			return normalizeRouteScript(getSerializedRouteScript(route));
@@ -140,13 +140,13 @@ function safeRouteScript(route: FaretClass | null): string {
 		}
 	}
 
-		/**
+	/**
 	 * `uniqueRouteScripts` を処理します。
 	 *
 	 * @param routes 対象の経路または経路文字列です。
 	 * @returns 文字列結果を返します。
 	 */
-function uniqueRouteScripts(routes: string[]): string[] {
+	function uniqueRouteScripts(routes: string[]): string[] {
 		const seen = new Set<string>();
 		const normalized: string[] = [];
 		for (const route of routes) {
@@ -158,14 +158,14 @@ function uniqueRouteScripts(routes: string[]): string[] {
 		return normalized;
 	}
 
-		/**
+	/**
 	 * `isSameRoutes` の判定結果を返します。
 	 *
 	 * @param left 処理に必要な入力値です。
 	 * @param right 処理に必要な入力値です。
 	 * @returns 判定結果を返します。
 	 */
-function isSameRoutes(left: string[], right: string[]): boolean {
+	function isSameRoutes(left: string[], right: string[]): boolean {
 		if (left.length !== right.length) return false;
 		for (let i = 0; i < left.length; i += 1) {
 			if (left[i] !== right[i]) return false;
@@ -173,27 +173,27 @@ function isSameRoutes(left: string[], right: string[]): boolean {
 		return true;
 	}
 
-		/**
+	/**
 	 * `moveRouteToFront` を処理します。
 	 *
 	 * @param routes 対象の経路または経路文字列です。
 	 * @param routeScript 対象の経路または経路文字列です。
 	 * @returns 文字列結果を返します。
 	 */
-function moveRouteToFront(routes: string[], routeScript: string): string[] {
+	function moveRouteToFront(routes: string[], routeScript: string): string[] {
 		const normalizedTarget = normalizeRouteScript(routeScript);
 		if (!normalizedTarget) return uniqueRouteScripts(routes);
 		const remaining = routes.filter((item) => normalizeRouteScript(item) !== normalizedTarget);
 		return uniqueRouteScripts([normalizedTarget, ...remaining]);
 	}
 
-		/**
+	/**
 	 * `showInfo` を処理します。
 	 *
 	 * @param message 表示または処理に使うメッセージです。
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function showInfo(message: string): void {
+	function showInfo(message: string): void {
 		infoMessage = message;
 		scheduleStatusClear();
 	}
@@ -274,13 +274,12 @@ function handleBack(): void {
 		backupMenuOpen = false;
 	}
 
-	function handleSaveCurrent(): void {
-		/**
+	/**
 	 * `handleSaveCurrent` のイベント処理を行います。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function handleSaveCurrent(): void {
+	function handleSaveCurrent(): void {
 		clearMessages();
 		const normalizedCurrent = normalizeRouteScript(currentRouteScript);
 		if (!normalizedCurrent) {
@@ -943,11 +942,32 @@ function copyTextWithExecCommand(text: string): void {
 			<span class="material-symbols-rounded" aria-hidden="true">save</span>
 			<span>保存</span>
 		</button>
-	</footer>
+		</footer>
 
-	{#if floatingStatusMessage}
-		<div
-			class={`floating-status ${floatingStatusTone}`}
+		{#if exportDialogOpen}
+			<div class="modal-backdrop" role="dialog" aria-modal="true" aria-label="経路エクスポート">
+				<section class="modal">
+					<h3>経路エクスポート</h3>
+					<p class="placeholder small">{exportDialogStatus}</p>
+					<textarea
+						class="route-textarea"
+						aria-label="エクスポート結果"
+						rows="10"
+						readonly
+						bind:value={exportDialogText}
+					></textarea>
+					<div class="confirm-actions">
+						<button type="button" class="confirm-primary" onclick={() => (exportDialogOpen = false)}>
+							閉じる
+						</button>
+					</div>
+				</section>
+			</div>
+		{/if}
+
+		{#if floatingStatusMessage}
+			<div
+				class={`floating-status ${floatingStatusTone}`}
 			role="status"
 			aria-live="polite"
 		>
