@@ -57,6 +57,7 @@ type ImportErrorDetail = {
 	let backupImportDialogText = $state('');
 	let backupImportDialogResolver: ((result: string | null) => void) | null = null;
 	let backupFileInput: HTMLInputElement | null = null;
+	let statusTimer: ReturnType<typeof setTimeout> | null = null;
 
 	let unsubscribeRoute: (() => void) | null = null;
 	let unsubscribeSaved: (() => void) | null = null;
@@ -95,6 +96,7 @@ type ImportErrorDetail = {
 		});
 
 	onDestroy(() => {
+		clearStatusTimer();
 		unsubscribeRoute?.();
 		unsubscribeSaved?.();
 		unsubscribeHolder?.();
@@ -108,6 +110,11 @@ type ImportErrorDetail = {
 	const visibleSavedList = $derived(
 		savedList.filter((route) => !(currentRouteCount > 1 && route === currentRouteScript))
 	);
+	const simpleErrorMessage = $derived(
+		errorMessage && importErrorDetails.length === 0 ? errorMessage : ''
+	);
+	const floatingStatusMessage = $derived(infoMessage || simpleErrorMessage);
+	const floatingStatusTone = $derived(infoMessage ? 'info' : 'error');
 
 	function safeRouteScript(route: FaretClass | null): string {
 		try {
@@ -148,11 +155,17 @@ type ImportErrorDetail = {
 
 	function showInfo(message: string): void {
 		infoMessage = message;
+		scheduleStatusClear();
 	}
 
 	function showError(message: string, details: ImportErrorDetail[] = []): void {
 		errorMessage = message;
 		importErrorDetails = details;
+		if (details.length === 0) {
+			scheduleStatusClear();
+			return;
+		}
+		clearStatusTimer();
 	}
 
 	function clearMessages(): void {
@@ -160,6 +173,24 @@ type ImportErrorDetail = {
 		importErrorDetails = [];
 		infoMessage = '';
 		warnDialog = '';
+		clearStatusTimer();
+	}
+
+	function clearStatusTimer(): void {
+		if (statusTimer === null) return;
+		clearTimeout(statusTimer);
+		statusTimer = null;
+	}
+
+	function scheduleStatusClear(delay = 3000): void {
+		clearStatusTimer();
+		statusTimer = setTimeout(() => {
+			infoMessage = '';
+			if (importErrorDetails.length === 0) {
+				errorMessage = '';
+			}
+			statusTimer = null;
+		}, delay);
 	}
 
 	function handleBack(): void {
@@ -660,9 +691,6 @@ type ImportErrorDetail = {
 				{/each}
 			</div>
 		{/if}
-		{#if infoMessage}
-			<p class="banner info" role="status">{infoMessage}</p>
-		{/if}
 
 		<section class="list">
 			{#if currentRouteScript}
@@ -754,6 +782,16 @@ type ImportErrorDetail = {
 			<span>保存</span>
 		</button>
 	</footer>
+
+	{#if floatingStatusMessage}
+		<div
+			class={`floating-status ${floatingStatusTone}`}
+			role="status"
+			aria-live="polite"
+		>
+			<p>{floatingStatusMessage}</p>
+		</div>
+	{/if}
 
 	<input
 		bind:this={backupFileInput}
@@ -937,6 +975,33 @@ type ImportErrorDetail = {
 	.banner.info {
 		background: var(--success-bg);
 		color: var(--success-text);
+	}
+
+	.floating-status {
+		position: fixed;
+		left: 50%;
+		transform: translateX(-50%);
+		top: calc(4.75rem + env(safe-area-inset-top, 0));
+		z-index: 30;
+		width: min(720px, calc(100vw - 1.5rem));
+		padding: 0.85rem 1rem;
+		border-radius: 0.85rem;
+		box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
+	}
+
+	.floating-status p {
+		margin: 0;
+		font-weight: 700;
+	}
+
+	.floating-status.info {
+		background: var(--success-bg);
+		color: var(--success-text);
+	}
+
+	.floating-status.error {
+		background: var(--error-bg);
+		color: var(--error-text);
 	}
 
 	.list {

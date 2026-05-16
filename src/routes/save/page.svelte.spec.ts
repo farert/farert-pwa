@@ -215,6 +215,26 @@ describe('/save/+page.svelte', () => {
 		expect(get(savedRoutesStore)).toContain('東京,東海道線,熱海,伊東線,伊東,伊豆急行,伊豆急下田');
 	});
 
+	it('保存通知は数秒後に自動で消える', async () => {
+		vi.useFakeTimers();
+		try {
+			const current = new MockFarert();
+			current.buildRoute('東京,東海道線,熱海,伊東線,伊東');
+			mainRouteStore.set(current);
+			savedRoutesStore.set(['東京,東海道線,熱海,伊東線,伊東']);
+
+			render(SavePage);
+
+			await page.getByRole('button', { name: '保存', exact: true }).click();
+			await expect.element(page.getByText('すでに保存済みです。')).toBeInTheDocument();
+
+			await vi.advanceTimersByTimeAsync(3000);
+			await expect.element(page.getByText('すでに保存済みです。')).not.toBeInTheDocument();
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
 	it('既存の保存経路重複を初期表示時に解消する', async () => {
 		savedRoutesStore.set(['東京,東海道線,熱海', ' 東京,東海道線,熱海 ', '', '仙台,東北線,盛岡']);
 		render(SavePage);
