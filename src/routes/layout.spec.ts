@@ -22,6 +22,14 @@ describe('/+layout.svelte', () => {
 		expect(source).toContain('<link rel="icon" href={`${base}/favicon.png`} />');
 	});
 
+	it('uses a dedicated iOS home screen icon', () => {
+		const source = readFileSync(new URL('../../src/app.html', import.meta.url), 'utf-8');
+
+		expect(source).toContain(
+			'<link rel="apple-touch-icon" href="%sveltekit.assets%/apple-touch-icon.png" />'
+		);
+	});
+
 	it('does not require an active controller before showing the update notification', () => {
 		const layoutPath = fileURLToPath(new URL('./+layout.svelte', import.meta.url));
 		const source = readFileSync(layoutPath, 'utf-8');
