@@ -702,6 +702,36 @@ x戸畑,鹿児島線,小倉,山陽新幹線,厚狭,美祢線,長門市,山陰線
 		clickSpy.mockRestore();
 	});
 
+	it('バックアップメニューから OS 共有メニューでバックアップ JSON を共有できる', async () => {
+		const current = new MockFarert();
+		current.buildRoute('東京,東海道線,熱海,伊東線,伊東');
+		mainRouteStore.set(current);
+		savedRoutesStore.set(['東京,東海道線,熱海']);
+		ticketHolderStore.set([
+			{ order: 1, routeScript: '東京,東海道線,熱海', fareType: FareType.NORMAL }
+		]);
+		stationHistoryStore.set(['東京', '新大阪']);
+		const shareMock = vi.fn().mockResolvedValue(undefined);
+
+		vi.stubGlobal('navigator', {
+			share: shareMock
+		});
+
+		render(SavePage);
+
+		await page.getByRole('button', { name: 'バックアップメニュー' }).click();
+		await expect
+			.element(page.getByRole('button', { name: 'バックアップを共有する' }))
+			.toBeInTheDocument();
+		await page.getByRole('button', { name: 'バックアップを共有する' }).click();
+
+		const payload = shareMock.mock.calls[0]?.[0] as ShareData | undefined;
+		const backup = JSON.parse(String(payload?.text)) as { storage: { savedRoutes: string[] } };
+		expect(payload?.title).toBe('Farert - バックアップ');
+		expect(backup.storage.savedRoutes).toEqual(['東京,東海道線,熱海']);
+		await expect.element(page.getByText('バックアップ共有メニューを開きました。')).toBeInTheDocument();
+	});
+
 	it('バックアップファイルを読み込んで全体状態を復元できる', async () => {
 		const current = new MockFarert();
 		current.buildRoute('旧,旧線,旧終点');

@@ -11,6 +11,7 @@ import { initFarert, Farert } from '$lib/wasm';
 import { initStores, mainRoute, savedRoutes, stationHistory, ticketHolder } from '$lib/stores';
 import {
 	downloadAppBackupAsFile,
+	exportAppBackup,
 	importAppBackup,
 	importAppBackupFromFile
 } from '$lib/storage/backup';
@@ -749,6 +750,48 @@ async function handleImport(): Promise<void> {
 		}
 	}
 
+	/**
+	 * 全体バックアップ JSON を OS 共有メニューへ渡します。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	async function handleShareBackup(): Promise<void> {
+		clearMessages();
+		closeBackupMenu();
+		if (typeof navigator === 'undefined' || !navigator.share) {
+			showError('この環境ではバックアップを共有できません。');
+			return;
+		}
+
+		try {
+			const backupText = exportAppBackup(getCurrentStorageSnapshot());
+			const backupFile = new File([backupText], 'farert-backup.json', {
+				type: 'application/json'
+			});
+			const fileShareData: ShareData = {
+				title: 'Farert - バックアップ',
+				text: 'Farert の全体バックアップ JSON です。',
+				files: [backupFile]
+			};
+			if (navigator.canShare?.(fileShareData)) {
+				await navigator.share(fileShareData);
+			} else {
+				await navigator.share({
+					title: 'Farert - バックアップ',
+					text: backupText
+				});
+			}
+			showInfo('バックアップ共有メニューを開きました。');
+		} catch (err) {
+			if ((err as Error).name === 'AbortError') {
+				showInfo('バックアップ共有をキャンセルしました。');
+				return;
+			}
+			console.error('バックアップ共有に失敗しました', err);
+			showError('バックアップを共有できませんでした。');
+		}
+	}
+
 	async function handleImportBackupFromText(): Promise<void> {
 		clearMessages();
 		closeBackupMenu();
@@ -944,6 +987,16 @@ function copyTextWithExecCommand(text: string): void {
 					>
 						<span class="material-symbols-rounded" aria-hidden="true">backup</span>
 						<span>バックアップ保存</span>
+					</button>
+					<div class="backup-divider" aria-hidden="true"></div>
+					<button
+						type="button"
+						class="backup-button"
+						aria-label="バックアップを共有する"
+						onclick={handleShareBackup}
+					>
+						<span class="material-symbols-rounded" aria-hidden="true">share</span>
+						<span>共有</span>
 					</button>
 					<div class="backup-divider" aria-hidden="true"></div>
 					<button

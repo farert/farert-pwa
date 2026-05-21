@@ -104,6 +104,7 @@
 ## 全体バックアップ
 - `mainRoute`, `savedRoutes`, `ticketHolder`, `stationHistory` を JSON にまとめた `AppBackup` を、`.json` ファイルとして保存する。
 - バックアップの主導線はファイル保存 / ファイル読込とする。
+- バックアップメニューには OS 共有メニューでバックアップ JSON を共有する補助導線を置く。
 - テキスト貼り付け復元は補助導線として残してよい。
 - JSON インポート時は既存データを置き換える。
 - `currentRoute` は `buildRoute()` 成功時のみ反映する。
