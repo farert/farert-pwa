@@ -643,6 +643,35 @@ x戸畑,鹿児島線,小倉,山陽新幹線,厚狭,美祢線,長門市,山陰線
 			.toHaveValue('東京,東海道線,熱海\n仙台,東北線,盛岡');
 	});
 
+	it('エクスポートダイアログの閉じるボタン左から OS 共有メニューを開ける', async () => {
+		savedRoutesStore.set(['東京,東海道線,熱海', '仙台,東北線,盛岡']);
+		const writeTextMock = vi.fn().mockResolvedValue(undefined);
+		const shareMock = vi.fn().mockResolvedValue(undefined);
+
+		vi.stubGlobal('navigator', {
+			clipboard: { writeText: writeTextMock },
+			share: shareMock
+		});
+
+		render(SavePage);
+
+		await page.getByRole('button', { name: 'エクスポート' }).click();
+		const dialog = page.getByRole('dialog', { name: '経路エクスポート' });
+		await expect.element(dialog).toBeInTheDocument();
+
+		const actionButtons = document.querySelectorAll('.confirm-actions button');
+		expect(actionButtons[0]).toHaveAttribute('aria-label', '共有');
+		expect(actionButtons[1]).toHaveTextContent('閉じる');
+
+		await page.getByRole('button', { name: '共有' }).click();
+
+		expect(shareMock).toHaveBeenCalledWith({
+			title: 'Farert - 経路エクスポート',
+			text: '東京,東海道線,熱海\n仙台,東北線,盛岡'
+		});
+		await expect.element(page.getByText('共有メニューを開きました。')).toBeInTheDocument();
+	});
+
 	it('バックアップをファイルとして保存できる', async () => {
 		const current = new MockFarert();
 		current.buildRoute('東京,東海道線,熱海,伊東線,伊東');

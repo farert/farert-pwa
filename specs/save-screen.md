@@ -99,6 +99,7 @@
 - `navigator.clipboard.writeText()` が失敗する環境では、選択可能な一時テキストエリアと `execCommand('copy')` へフォールバックする。
 - コピー可否にかかわらず、ダイアログ自体は閉じずに表示を維持する。
 - ダイアログ内のテキストは選択・再コピーできる。
+- ダイアログの閉じるボタン左に共有アイコンを置き、Web Share API 対応環境では OS 共有メニューでエクスポート本文を共有できる。
 
 ## 全体バックアップ
 - `mainRoute`, `savedRoutes`, `ticketHolder`, `stationHistory` を JSON にまとめた `AppBackup` を、`.json` ファイルとして保存する。

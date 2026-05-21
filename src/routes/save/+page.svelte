@@ -674,12 +674,12 @@ async function handleImport(): Promise<void> {
 		await importRoutesFromText(input);
 	}
 
-		/**
+	/**
 	 * `handleExport` のイベント処理を行います。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-async function handleExport(): Promise<void> {
+	async function handleExport(): Promise<void> {
 		clearMessages();
 		if (!savedList.length) {
 			showError('エクスポートする経路がありません。');
@@ -695,6 +695,36 @@ async function handleExport(): Promise<void> {
 		} catch (err) {
 			console.error('エクスポートに失敗しました', err);
 			exportDialogStatus = 'エクスポートに失敗しました。';
+		}
+	}
+
+	/**
+	 * エクスポート本文を OS 共有メニューへ渡します。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	async function handleShareExport(): Promise<void> {
+		if (!exportDialogText) {
+			exportDialogStatus = '共有する経路がありません。';
+			return;
+		}
+		if (typeof navigator === 'undefined' || !navigator.share) {
+			exportDialogStatus = 'この環境では共有できません。';
+			return;
+		}
+		try {
+			await navigator.share({
+				title: 'Farert - 経路エクスポート',
+				text: exportDialogText
+			});
+			exportDialogStatus = '共有メニューを開きました。';
+		} catch (err) {
+			if ((err as Error).name === 'AbortError') {
+				exportDialogStatus = '共有をキャンセルしました。';
+				return;
+			}
+			console.error('エクスポート共有に失敗しました', err);
+			exportDialogStatus = '共有できませんでした。';
 		}
 	}
 
@@ -957,6 +987,14 @@ function copyTextWithExecCommand(text: string): void {
 						bind:value={exportDialogText}
 					></textarea>
 					<div class="confirm-actions">
+						<button
+							type="button"
+							class="confirm-secondary icon-action"
+							aria-label="共有"
+							onclick={handleShareExport}
+						>
+							<span class="material-symbols-rounded" aria-hidden="true">share</span>
+						</button>
 						<button type="button" class="confirm-primary" onclick={() => (exportDialogOpen = false)}>
 							閉じる
 						</button>
@@ -1434,6 +1472,15 @@ function copyTextWithExecCommand(text: string): void {
 		border-radius: 0.6rem;
 		padding: 0.5rem 1rem;
 		font-weight: 700;
+	}
+
+	.confirm-actions .icon-action {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 2.5rem;
+		height: 2.5rem;
+		padding: 0;
 	}
 
 	.confirm-primary {
