@@ -31,7 +31,7 @@ Farert PWA 開発時の最小運用ルール。
   - 3 行目以降は変更理由や要点を簡潔に書く `body`
 
 ## コーディング規約
-- KISS, DRY, YAGNI を守る
+- SOLID, KISS, YAGNI, DRY を守る
 - コロケーションを重視すること
 - TSDoc を書くこと（ts, tsx, svelte ともに必須。@param, @returnsなど）
 - すべての ソースコード ファイルの冒頭に、そのファイルの役割・責務を2行程度で記述
