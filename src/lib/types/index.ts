@@ -67,9 +67,12 @@ export type SavedRoute = string;
 /**
  * 駅選択履歴
  * 発駅選択画面の履歴タブで表示される駅名リスト
- * 最大100件まで保持
+ * 最大50件まで保持
  */
 export type StationHistory = string[];
+
+/** 発駅・着駅で共有する駅選択履歴の最大保持件数 */
+export const STATION_HISTORY_LIMIT = 50;
 
 /**
  * localStorageキー定数
@@ -91,7 +94,7 @@ export interface AppStorage {
 	savedRoutes: SavedRoute[];
 	/** きっぷホルダリスト */
 	ticketHolder: TicketHolderItem[];
-	/** 駅選択履歴（駅名文字列配列、最大100件） */
+	/** 駅選択履歴（駅名文字列配列、最大50件） */
 	stationHistory: StationHistory;
 }
 

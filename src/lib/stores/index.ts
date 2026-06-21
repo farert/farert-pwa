@@ -10,7 +10,7 @@
 import { get, writable, type Writable } from 'svelte/store';
 import type { FaretClass } from '$lib/wasm/types';
 import type { TicketHolderItem, SavedRoute, StationHistory } from '$lib/types';
-import { STORAGE_KEYS } from '$lib/types';
+import { STATION_HISTORY_LIMIT, STORAGE_KEYS } from '$lib/types';
 import { getSerializedRouteScript } from '$lib/utils/routeScriptPersistence';
 
 /**
@@ -41,9 +41,26 @@ export const ticketHolder: Writable<TicketHolderItem[]> = writable([]);
  * 駅選択履歴（駅名文字列配列）
  *
  * 発駅選択画面の履歴タブで表示される駅名リストです。
- * 最大100件まで保持されます。
+ * 発駅・着駅で共有し、最大50件まで保持されます。
  */
-export const stationHistory: Writable<StationHistory> = writable([]);
+export const stationHistory: Writable<StationHistory> = createStationHistoryStore();
+
+/**
+ * 件数上限を常に適用する駅選択履歴ストアを作成します。
+ *
+ * @returns 最大保持件数を超える古い履歴を除外するストア
+ */
+function createStationHistoryStore(): Writable<StationHistory> {
+	const store = writable<StationHistory>([]);
+
+	return {
+		subscribe: store.subscribe,
+		set: (history) => store.set(history.slice(0, STATION_HISTORY_LIMIT)),
+		update: (updater) => {
+			store.update((history) => updater(history).slice(0, STATION_HISTORY_LIMIT));
+		}
+	};
+}
 
 /**
  * 画面遷移後にメイン画面へ表示する一時メッセージ
@@ -176,7 +193,7 @@ export function initStores(Farert: new () => FaretClass): void {
  * 駅選択履歴に駅を追加
  *
  * - 既に存在する場合は先頭に移動
- * - 最大100件まで保持（古いものから削除）
+ * - 最大50件まで保持（古いものから削除）
  *
  * @param stationName - 追加する駅名
  */
@@ -185,9 +202,7 @@ export function addToStationHistory(stationName: string): void {
 		// 既存の同じ駅名を削除
 		const filtered = history.filter((name) => name !== stationName);
 		// 先頭に追加
-		const updated = [stationName, ...filtered];
-		// 最大100件まで保持
-		return updated.slice(0, 100);
+		return [stationName, ...filtered];
 	});
 }
 
