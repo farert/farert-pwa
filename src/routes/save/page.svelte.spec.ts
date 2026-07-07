@@ -11,8 +11,8 @@ import { FareType } from '$lib/types';
 
 class MockFarert implements FaretClass {
 	script = '';
-	static buildRouteMock = vi.fn<[string], number | string>(() => 0);
-	static addRouteMock = vi.fn<[string, string], number>(() => 0);
+	static buildRouteMock = vi.fn<(value: string) => number | string>(() => 0);
+	static addRouteMock = vi.fn<(first: string, second: string) => number>(() => 0);
 
 	addStartRoute(station: string): number {
 		this.script = station;
@@ -329,9 +329,7 @@ describe('/save/+page.svelte', () => {
 
 		expect(gotoMock).not.toHaveBeenCalled();
 		expect(get(mainRouteStore)?.routeScript()).toBe('東京,東海道線,熱海,伊東線,伊東');
-		await expect
-			.element(page.getByRole('button', { name: '削除' }).first())
-			.toBeInTheDocument();
+		await expect.element(page.getByRole('button', { name: '削除' }).first()).toBeInTheDocument();
 	});
 
 	it('経路が2区間以上あるとき保存経路選択で確認し、Noなら何もしない', async () => {
@@ -561,7 +559,9 @@ describe('/save/+page.svelte', () => {
 		await textArea.fill('東京,東海道線,？？');
 		await page.getByRole('button', { name: 'インポート実行', exact: true }).click();
 
-		await expect.element(page.getByText('以下の経路はインポートに失敗しました。')).toBeInTheDocument();
+		await expect
+			.element(page.getByText('以下の経路はインポートに失敗しました。'))
+			.toBeInTheDocument();
 		await expect.element(page.getByText('東京,東海道線,？？')).toBeInTheDocument();
 		await expect.element(page.getByText('1 行目、？？（3番目のワード）')).toBeInTheDocument();
 		expect(get(savedRoutesStore)).toEqual([]);
@@ -596,7 +596,9 @@ x戸畑,鹿児島線,小倉,山陽新幹線,厚狭,美祢線,長門市,山陰線
 
 		expect(get(savedRoutesStore)).toEqual(['東京,東海道線,熱海']);
 		await expect.element(page.getByText('4件インポートしました。')).toBeInTheDocument();
-		await expect.element(page.getByText('以下の経路はインポートに失敗しました。')).toBeInTheDocument();
+		await expect
+			.element(page.getByText('以下の経路はインポートに失敗しました。'))
+			.toBeInTheDocument();
 		await expect
 			.element(page.getByText('戸畑,鹿児島線,小倉,山陽新幹線,x厚狭,美祢線,長門市,山陰線,三保三隅'))
 			.toBeInTheDocument();
@@ -636,7 +638,9 @@ x戸畑,鹿児島線,小倉,山陽新幹線,厚狭,美祢線,長門市,山陰線
 		expect(appendChildSpy).toHaveBeenCalled();
 		expect(removeChildSpy).toHaveBeenCalled();
 		execCommandSpy.mockRestore();
-		await expect.element(page.getByRole('dialog', { name: '経路エクスポート' })).toBeInTheDocument();
+		await expect
+			.element(page.getByRole('dialog', { name: '経路エクスポート' }))
+			.toBeInTheDocument();
 		await expect.element(page.getByText('クリップボードへコピーしました。')).toBeInTheDocument();
 		await expect
 			.element(page.getByRole('textbox', { name: 'エクスポート結果' }))
@@ -686,16 +690,22 @@ x戸畑,鹿児島線,小倉,山陽新幹線,厚狭,美祢線,長門市,山陰線
 
 		const createObjectURLSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:backup');
 		const revokeObjectURLSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
-		const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+		const clickSpy = vi
+			.spyOn(HTMLAnchorElement.prototype, 'click')
+			.mockImplementation(() => undefined);
 
 		await page.getByRole('button', { name: 'バックアップメニュー' }).click();
-		await expect.element(page.getByRole('button', { name: 'バックアップを書き出す' })).toBeInTheDocument();
+		await expect
+			.element(page.getByRole('button', { name: 'バックアップを書き出す' }))
+			.toBeInTheDocument();
 		await page.getByRole('button', { name: 'バックアップを書き出す' }).click();
 
 		expect(createObjectURLSpy).toHaveBeenCalled();
 		expect(clickSpy).toHaveBeenCalledTimes(1);
 		expect(revokeObjectURLSpy).toHaveBeenCalledWith('blob:backup');
-		await expect.element(page.getByText('バックアップファイルを保存しました。')).toBeInTheDocument();
+		await expect
+			.element(page.getByText('バックアップファイルを保存しました。'))
+			.toBeInTheDocument();
 
 		createObjectURLSpy.mockRestore();
 		revokeObjectURLSpy.mockRestore();
@@ -729,7 +739,9 @@ x戸畑,鹿児島線,小倉,山陽新幹線,厚狭,美祢線,長門市,山陰線
 		const backup = JSON.parse(String(payload?.text)) as { storage: { savedRoutes: string[] } };
 		expect(payload?.title).toBe('Farert - バックアップ');
 		expect(backup.storage.savedRoutes).toEqual(['東京,東海道線,熱海']);
-		await expect.element(page.getByText('バックアップ共有メニューを開きました。')).toBeInTheDocument();
+		await expect
+			.element(page.getByText('バックアップ共有メニューを開きました。'))
+			.toBeInTheDocument();
 	});
 
 	it('バックアップファイルを読み込んで全体状態を復元できる', async () => {
@@ -737,9 +749,7 @@ x戸畑,鹿児島線,小倉,山陽新幹線,厚狭,美祢線,長門市,山陰線
 		current.buildRoute('旧,旧線,旧終点');
 		mainRouteStore.set(current);
 		savedRoutesStore.set(['旧,旧線,旧終点']);
-		ticketHolderStore.set([
-			{ order: 9, routeScript: '旧,旧線,旧終点', fareType: FareType.CHILD }
-		]);
+		ticketHolderStore.set([{ order: 9, routeScript: '旧,旧線,旧終点', fareType: FareType.CHILD }]);
 		stationHistoryStore.set(['旧']);
 		render(SavePage);
 

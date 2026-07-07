@@ -40,7 +40,9 @@ describe('/version/+page.svelte', () => {
 		await expect
 			.element(page.getByText('コミット: 2024/03/01 21:34:56 (abc1234)'))
 			.toBeInTheDocument();
-		await expect.element(page.getByText('DB Rev. [2023年10月改正] (2023-10-01)')).toBeInTheDocument();
+		await expect
+			.element(page.getByText('DB Rev. [2023年10月改正] (2023-10-01)'))
+			.toBeInTheDocument();
 		await expect.element(page.getByText('消費税: 10%')).toBeInTheDocument();
 		await expect
 			.element(page.getByRole('link', { name: '変更履歴' }))

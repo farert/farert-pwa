@@ -80,6 +80,20 @@ export interface FaretModule {
 }
 
 /**
+ * Emscripten モジュールファクトリへ渡す初期化オプション
+ */
+export interface FaretModuleFactoryOptions {
+	locateFile?: (path: string) => string;
+	print?: (text: string) => void;
+	printErr?: (text: string) => void;
+}
+
+/**
+ * app.html で読み込まれる WASM モジュールファクトリの型
+ */
+export type FaretModuleFactory = (options?: FaretModuleFactoryOptions) => Promise<FaretModule>;
+
+/**
  * SQL実行結果の型
  */
 export interface SqlResult {

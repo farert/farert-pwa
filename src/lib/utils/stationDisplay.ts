@@ -92,8 +92,8 @@ function unwrapSamenameLabel(raw: string): string {
 	if (!trimmed) return '';
 	let value = trimmed;
 	while (
-		(value.startsWith('(') || value.startsWith('（'))
-		&& (value.endsWith(')') || value.endsWith('）'))
+		(value.startsWith('(') || value.startsWith('（')) &&
+		(value.endsWith(')') || value.endsWith('）'))
 	) {
 		value = value.slice(1, -1).trim();
 	}
@@ -171,34 +171,34 @@ function resolveSameNameSuffix(
 		return result;
 	}
 
-		/**
+	/**
 	 * `query` を処理します。
 	 *
 	 * @param name 処理に必要な入力値です。
 	 * @param useLineFilter 対象の路線名です。
 	 * @returns 文字列結果を返します。
 	 */
-const query = (name: string, useLineFilter: boolean): string => {
+	const query = (name: string, useLineFilter: boolean): string => {
 		const escapedName = name.replace(/'/g, "''");
 		const escapedLine = lineName.replace(/'/g, "''");
 		const lineClause = useLineFilter ? ` and ln.name='${escapedLine}'` : '';
 		return (
-			`select distinct t.samename from t_station t`
-			+ ` left join t_lines l on t.rowid=l.station_id`
-			+ ` left join t_line ln on ln.rowid=l.line_id`
-			+ ` where t.name='${escapedName}'${lineClause}`
-			+ ` and t.samename<>'' and (t.sflg&(1<<18))=0`
+			`select distinct t.samename from t_station t` +
+			` left join t_lines l on t.rowid=l.station_id` +
+			` left join t_line ln on ln.rowid=l.line_id` +
+			` where t.name='${escapedName}'${lineClause}` +
+			` and t.samename<>'' and (t.sflg&(1<<18))=0`
 		);
 	};
 
-		/**
+	/**
 	 * `lookupSuffix` を処理します。
 	 *
 	 * @param station 対象の駅名です。
 	 * @param useLineFilter 対象の路線名です。
 	 * @returns 文字列結果を返します。
 	 */
-const lookupSuffix = (station: string, useLineFilter: boolean): string => {
+	const lookupSuffix = (station: string, useLineFilter: boolean): string => {
 		const response = executeSql(query(station, useLineFilter));
 		const values = parseSqlRows(response).filter((value) => value.length > 0);
 		const suffix = values[0] ?? '';

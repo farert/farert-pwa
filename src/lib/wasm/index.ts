@@ -3,12 +3,12 @@
  * JR運賃計算WASMモジュールのTypeScriptラッパー
  */
 
-import type { FaretModule, FaretClass, SqlResult, DatabaseInfo } from './types';
+import type { FaretModule, FaretModuleFactory, FaretClass } from './types';
 
 // グローバル型定義
 declare global {
 	interface Window {
-		__createFaretModule?: any;
+		__createFaretModule?: FaretModuleFactory;
 	}
 }
 
@@ -35,7 +35,7 @@ export async function initFarert(): Promise<void> {
 			console.log('[FARERT] 初期化開始...');
 
 			// app.htmlで読み込まれたモジュールファクトリを取得
-			const createFaretModule = await new Promise<any>((resolve, reject) => {
+			const createFaretModule = await new Promise<FaretModuleFactory>((resolve, reject) => {
 				console.log('[FARERT] モジュールファクトリを取得中...');
 
 				// すでにロード済みかチェック
@@ -47,21 +47,22 @@ export async function initFarert(): Promise<void> {
 
 				console.log('[FARERT] モジュールファクトリ待機中...');
 
-				// ロードされるまで待つ
+				// ロードされるまで待つ（タイムアウト10秒）
 				let attempts = 0;
+				let timeoutId: ReturnType<typeof setTimeout> | null = null;
 				const checkModule = setInterval(() => {
 					attempts++;
 					if (window.__createFaretModule) {
 						console.log(`[FARERT] モジュールファクトリ取得成功 (${attempts * 50}ms後)`);
 						clearInterval(checkModule);
+						if (timeoutId) clearTimeout(timeoutId);
 						resolve(window.__createFaretModule);
 					} else if (attempts % 20 === 0) {
 						console.log(`[FARERT] まだ待機中... (${attempts * 50}ms)`);
 					}
 				}, 50);
 
-				// タイムアウト設定（10秒）
-				setTimeout(() => {
+				timeoutId = setTimeout(() => {
 					clearInterval(checkModule);
 					console.error('[FARERT] タイムアウト: farert.jsがロードされませんでした');
 					reject(new Error('Timeout: farert.js not loaded. Check app.html script tag.'));
@@ -75,7 +76,8 @@ export async function initFarert(): Promise<void> {
 				locateFile: (path: string) => {
 					// Github Pagesなどのbase pathに対応
 					const base = import.meta.env.BASE_URL || '/';
-					const fullPath = path.endsWith('.wasm') || path.endsWith('.data') ? `${base}${path}` : path;
+					const fullPath =
+						path.endsWith('.wasm') || path.endsWith('.data') ? `${base}${path}` : path;
 					console.log(`[FARERT] ファイル位置: ${path} -> ${fullPath}`);
 					return fullPath;
 				},
@@ -151,7 +153,7 @@ export class Farert {
 		return this.instance.arrivevalStationName();
 	}
 
-	buildRoute(routeStr: string): number {
+	buildRoute(routeStr: string): number | string {
 		return this.instance.buildRoute(routeStr);
 	}
 

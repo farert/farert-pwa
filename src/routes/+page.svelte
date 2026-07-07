@@ -3,17 +3,25 @@
 発駅、区間、運賃サマリー、ドロワー、保存導線を統合して扱います。
 -->
 <script lang="ts">
-import { goto } from '$app/navigation';
-import { base } from '$app/paths';
-import { onMount } from 'svelte';
-import type { FarePickerOption } from '$lib/components/FarePicker.svelte';
-import FareSummaryCard from '$lib/components/FareSummaryCard.svelte';
-import DrawerNavigation from '$lib/components/DrawerNavigation.svelte';
-import { initFarert, Farert } from '$lib/wasm';
-import type { FaretClass } from '$lib/wasm/types';
-import { FareType, FareTypeLabels, type FareInfo, type TicketHolderItem } from '$lib/types';
+	import { goto } from '$app/navigation';
+	import { base, resolve } from '$app/paths';
+	import { onMount } from 'svelte';
+	import type { FarePickerOption } from '$lib/components/FarePicker.svelte';
+	import FareSummaryCard from '$lib/components/FareSummaryCard.svelte';
+	import DrawerNavigation from '$lib/components/DrawerNavigation.svelte';
+	import { initFarert, Farert } from '$lib/wasm';
+	import type { FaretClass } from '$lib/wasm/types';
+	import { FareType, FareTypeLabels, type FareInfo, type TicketHolderItem } from '$lib/types';
 	import { initStores, mainRoute, mainScreenErrorMessage, ticketHolder } from '$lib/stores';
 	import { generateShareUrl, compressRouteForUrl } from '$lib/utils/urlRoute';
+	import {
+		isRouteOperationSuccess,
+		isTerminalStatusCode,
+		resolveRouteStatusCode
+	} from '$lib/utils/routeResult';
+	import { parseFareInfoJson } from '$lib/utils/fareInfo';
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
+	import { ConfirmDialogController } from '$lib/utils/confirmDialog.svelte';
 
 	interface RouteSegment {
 		id: number;
@@ -28,195 +36,45 @@ import { FareType, FareTypeLabels, type FareInfo, type TicketHolderItem } from '
 	let route = $state<FaretClass | null>(null);
 	let startStation = $state('');
 	let segments = $state<RouteSegment[]>([]);
-let fareInfo = $state<FareInfo | null>(null);
-let detailLink = $state('');
-let canUndo = $state(false);
-let canReverse = $state(false);
-let optionEnabled = $state(false);
-let showFareSummary = $state(false);
-let routeTerminal = $state(false);
-let appMenuOpen = $state(false);
-let hasOsakakanOption = $state(false);
-let hasKokuraOption = $state(false);
-let osakaDetourSelected = $state(false);
-let treatKokuraAsSame = $state(true);
-let drawerOpen = $state(false);
-let holderItems = $state<TicketHolderItem[]>([]);
-let holderView = $state<
-	{
-		key: string;
-		order: number;
-		routeScript: string;
-		fareType: FareType;
-		title: string;
-		fareText: string;
-		kmText: string;
-		fareValue: number;
-		kmValue: number;
-		availableFareTypes: FareType[];
-		fareOptions: FarePickerOption[];
-		selectedFareType: FareType;
-	}[]
->([]);
-let info = $state('');
-let theme = $state<'light' | 'dark'>('light');
-let currentRouteScript = $state('');
-let confirmDialogOpen = $state(false);
-let confirmDialogMessage = $state('');
-let confirmResolver: ((result: boolean) => void) | null = null;
-let drawerEditing = $state(false);
-const osakaMenuLabel = $derived(
-	osakaDetourSelected ? '大阪環状線近回り' : '大阪環状線遠回り'
-);
-const kokuraMenuLabel = $derived(
-	treatKokuraAsSame
-		? '小倉-博多間新幹線在来線別線扱い（無効）'
-		: '小倉-博多間新幹線在来線別線扱い（有効）'
-);
-const canAddToHolder = $derived(() => {
-	const script = route ? safeRouteScript(route) : currentRouteScript;
-	const count = resolveRouteCount(route, script);
-	return Boolean(script) && count > 1;
-});
-
-		/**
-	 * `isBuildSuccess` の判定結果を返します。
-	 *
-	 * @param result 処理対象の値です。
-	 * @returns 判定結果を返します。
-	 */
-function isBuildSuccess(result: unknown): boolean {
-		const statusCode = resolveRouteStatusCode(result);
-		return statusCode !== null ? statusCode >= 0 : false;
-	}
-
-		/**
-	 * `resolveRouteStatusCode` の解決結果を返します。
-	 *
-	 * @param result 処理対象の値です。
-	 * @returns 数値結果を返します。
-	 */
-function resolveRouteStatusCode(result: unknown): number | null {
-		if (typeof result === 'number') return result;
-		if (typeof result === 'string') {
-			const trimmed = result.trim().replace(/\0/g, '');
-			const numeric = Number(trimmed);
-			if (!Number.isNaN(numeric)) return numeric;
-			try {
-				const parsed = JSON.parse(trimmed) as { rc?: number };
-				return typeof parsed.rc === 'number' ? parsed.rc : null;
-			} catch {
-				const match = trimmed.match(/"rc"\s*:\s*(-?\d+)/);
-				return match ? Number(match[1]) : null;
-			}
-		}
-		return null;
-	}
-
-		/**
-	 * `isTerminalStatusCode` の判定結果を返します。
-	 *
-	 * @param statusCode 処理対象の値です。
-	 * @returns 判定結果を返します。
-	 */
-function isTerminalStatusCode(statusCode: number | null): boolean {
-		return statusCode === 0 || statusCode === 4 || statusCode === 5;
-	}
-
-/**
- * `parseFareInfoJson` の解析結果を返します。
- *
- * @param raw 処理対象の文字列です。
- * @returns 解決結果を返します。
- */
-function parseFareInfoJson(raw: unknown): FareInfo | null {
-	if (typeof raw !== 'string') return null;
-	const cleaned = raw.replace(/\u0000/g, '').trim();
-	if (!cleaned) return null;
-
-		/**
-	 * `normalizeKilometers` を正規化します。
-	 *
-	 * @param info 処理に必要な入力値です。
-	 * @returns 処理結果を返します。
-	 */
-const normalizeKilometers = (info: FareInfo): FareInfo => {
-		const kmKeys: Array<keyof FareInfo> = [
-			'totalSalesKm',
-			'jrSalesKm',
-			'jrCalcKm',
-			'companySalesKm',
-			'brtSalesKm',
-			'salesKmForHokkaido',
-			'calcKmForHokkaido',
-			'salesKmForEast',
-			'calcKmForEast',
-			'salesKmForShikoku',
-			'calcKmForShikoku',
-			'salesKmForKyusyu',
-			'calcKmForKyusyu',
-			'rule114SalesKm',
-			'rule114CalcKm'
-		];
-		const kmValues = kmKeys
-			.map((key) => info[key])
-			.filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
-		if (!kmValues.length) return info;
-		if (!kmValues.every((value) => Number.isInteger(value))) return info;
-		const normalized = { ...info } as FareInfo;
-		for (const key of kmKeys) {
-			const value = normalized[key];
-			if (typeof value === 'number' && Number.isFinite(value)) {
-				(normalized as Record<string, unknown>)[key] = value / 10;
-			}
-		}
-		return normalized;
-	};
-
-		/**
-	 * `tryParse` を処理します。
-	 *
-	 * @param text 処理対象の文字列です。
-	 * @returns 解決結果を返します。
-	 */
-const tryParse = (text: string): FareInfo | null => {
-		try {
-			const parsed = JSON.parse(text) as FareInfo;
-			const normalized = normalizeKilometers(parsed);
-			normalized.messages = Array.isArray(normalized.messages) ? [...normalized.messages] : [];
-			return normalized;
-		} catch (err) {
-			return null;
-		}
-	};
-
-		/**
-	 * `collapseCommas` を処理します。
-	 *
-	 * @param input 処理に必要な入力値です。
-	 * @returns 文字列結果を返します。
-	 */
-const collapseCommas = (input: string): string => {
-		let output = input.replace(/,\s*([}\]])/g, '$1').replace(/([\[{])\s*,/g, '$1');
-		while (/,(\s*,)+/.test(output)) {
-			output = output.replace(/,\s*,+/g, ',');
-		}
-		return output;
-	};
-
-	const candidates = [
-		cleaned,
-		collapseCommas(cleaned),
-		collapseCommas(collapseCommas(cleaned))
-	];
-
-	for (const candidate of candidates) {
-		const parsed = tryParse(candidate);
-		if (parsed) return parsed;
-	}
-
-	return null;
-}
+	let fareInfo = $state<FareInfo | null>(null);
+	let detailLink = $state('');
+	let canUndo = $state(false);
+	let canReverse = $state(false);
+	let optionEnabled = $state(false);
+	let showFareSummary = $state(false);
+	let routeTerminal = $state(false);
+	let appMenuOpen = $state(false);
+	let hasOsakakanOption = $state(false);
+	let osakaDetourSelected = $state(false);
+	let drawerOpen = $state(false);
+	let holderItems = $state<TicketHolderItem[]>([]);
+	let holderView = $state<
+		{
+			key: string;
+			order: number;
+			routeScript: string;
+			fareType: FareType;
+			title: string;
+			fareText: string;
+			kmText: string;
+			fareValue: number;
+			kmValue: number;
+			availableFareTypes: FareType[];
+			fareOptions: FarePickerOption[];
+			selectedFareType: FareType;
+		}[]
+	>([]);
+	let info = $state('');
+	let theme = $state<'light' | 'dark'>('light');
+	let currentRouteScript = $state('');
+	const confirmDialog = new ConfirmDialogController();
+	let drawerEditing = $state(false);
+	const osakaMenuLabel = $derived(osakaDetourSelected ? '大阪環状線近回り' : '大阪環状線遠回り');
+	const canAddToHolder = $derived.by(() => {
+		const script = route ? safeRouteScript(route) : currentRouteScript;
+		const count = resolveRouteCount(route, script);
+		return Boolean(script) && count > 1;
+	});
 
 	onMount(() => {
 		let unsubscribe: (() => void) | null = null;
@@ -257,12 +115,12 @@ const collapseCommas = (input: string): string => {
 		};
 	});
 
-		/**
+	/**
 	 * `resolveTheme` の解決結果を返します。
 	 *
 	 * @returns 処理結果を返します。
 	 */
-function resolveTheme(): 'light' | 'dark' {
+	function resolveTheme(): 'light' | 'dark' {
 		if (typeof localStorage !== 'undefined') {
 			const stored = localStorage.getItem('theme');
 			if (stored === 'dark' || stored === 'light') return stored;
@@ -270,13 +128,13 @@ function resolveTheme(): 'light' | 'dark' {
 		return 'light';
 	}
 
-		/**
+	/**
 	 * `applyTheme` を適用します。
 	 *
 	 * @param next 処理に必要な入力値です。
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function applyTheme(next: 'light' | 'dark'): void {
+	function applyTheme(next: 'light' | 'dark'): void {
 		theme = next;
 		if (typeof document !== 'undefined') {
 			document.documentElement.setAttribute('data-theme', next);
@@ -286,22 +144,22 @@ function applyTheme(next: 'light' | 'dark'): void {
 		}
 	}
 
-		/**
+	/**
 	 * `toggleTheme` の切替処理を行います。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function toggleTheme(): void {
+	function toggleTheme(): void {
 		applyTheme(theme === 'light' ? 'dark' : 'light');
 	}
 
-		/**
+	/**
 	 * `refreshRouteState` を処理します。
 	 *
 	 * @param current 処理に必要な入力値です。
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function refreshRouteState(current: FaretClass | null) {
+	function refreshRouteState(current: FaretClass | null) {
 		if (!current) {
 			resetView();
 			return;
@@ -314,13 +172,13 @@ function refreshRouteState(current: FaretClass | null) {
 		}
 		currentRouteScript = script;
 
-	const tokens = script
-		.split(',')
-		.map((token) => token.trim())
-		.filter((token) => token.length > 0);
+		const tokens = script
+			.split(',')
+			.map((token) => token.trim())
+			.filter((token) => token.length > 0);
 
-	startStation = tokens[0] ?? '';
-	const hasStart = Boolean(startStation);
+		startStation = tokens[0] ?? '';
+		const hasStart = Boolean(startStation);
 
 		const parsedSegments: RouteSegment[] = [];
 		for (let i = 1, segIndex = 0; i < tokens.length; i += 2, segIndex += 1) {
@@ -334,160 +192,137 @@ function refreshRouteState(current: FaretClass | null) {
 			});
 		}
 
-	segments = parsedSegments;
-	canUndo = hasStart;
-	routeTerminal = false;
-	try {
-		const routeCount = current.getRouteCount ? current.getRouteCount() : parsedSegments.length;
-		showFareSummary = routeCount >= 2;
-	} catch (err) {
-		console.warn('経路本数の取得に失敗しました', err);
-		showFareSummary = parsedSegments.length > 0;
-	}
-
-	try {
-		const raw = current.getFareInfoObjectJson ? current.getFareInfoObjectJson() : '';
-		fareInfo = parseFareInfoJson(raw);
-		if (!fareInfo && raw.trim()) {
-			console.warn('運賃情報の復元に失敗しました（修復不可）');
-		}
-	} catch (err) {
-		console.warn('運賃情報の取得に失敗しました', err);
-		fareInfo = null;
-	}
-
-	try {
-		detailLink = generateShareUrl(current, -1, { basePath: base });
-	} catch (err) {
-		console.error('シェアURLの生成に失敗しました', err);
-		detailLink = '';
-	}
-
-	try {
-		const notSame = current.isNotSameKokuraHakataShinZai
-			? current.isNotSameKokuraHakataShinZai()
-			: false;
-		treatKokuraAsSame = !notSame;
-	} catch (err) {
-		console.warn('小倉-博多オプション状態の取得に失敗しました', err);
-		treatKokuraAsSame = true;
-	}
-
-	try {
-		osakaDetourSelected = current.isOsakakanDetour ? current.isOsakakanDetour() : false;
-	} catch (err) {
-		console.warn('大阪環状線オプション状態の取得に失敗しました', err);
-		osakaDetourSelected = false;
-	}
-
-	canReverse = current.isAvailableReverse ? current.isAvailableReverse() : parsedSegments.length > 0;
-	if (parsedSegments.length > 0) {
+		segments = parsedSegments;
+		canUndo = hasStart;
+		routeTerminal = false;
 		try {
-			const routeStatus = resolveRouteStatusCode(current.buildRoute(script));
-			routeTerminal = isTerminalStatusCode(routeStatus);
+			const routeCount = current.getRouteCount ? current.getRouteCount() : parsedSegments.length;
+			showFareSummary = routeCount >= 2;
 		} catch (err) {
-			console.warn('経路終端状態の取得に失敗しました', err);
-			routeTerminal = false;
+			console.warn('経路本数の取得に失敗しました', err);
+			showFareSummary = parsedSegments.length > 0;
 		}
+
+		try {
+			const raw = current.getFareInfoObjectJson ? current.getFareInfoObjectJson() : '';
+			fareInfo = parseFareInfoJson(raw);
+			if (!fareInfo && raw.trim()) {
+				console.warn('運賃情報の復元に失敗しました（修復不可）');
+			}
+		} catch (err) {
+			console.warn('運賃情報の取得に失敗しました', err);
+			fareInfo = null;
+		}
+
+		try {
+			detailLink = generateShareUrl(current, -1, { basePath: base });
+		} catch (err) {
+			console.error('シェアURLの生成に失敗しました', err);
+			detailLink = '';
+		}
+
+		try {
+			osakaDetourSelected = current.isOsakakanDetour ? current.isOsakakanDetour() : false;
+		} catch (err) {
+			console.warn('大阪環状線オプション状態の取得に失敗しました', err);
+			osakaDetourSelected = false;
+		}
+
+		canReverse = current.isAvailableReverse
+			? current.isAvailableReverse()
+			: parsedSegments.length > 0;
+		if (parsedSegments.length > 0) {
+			try {
+				const routeStatus = resolveRouteStatusCode(current.buildRoute(script));
+				routeTerminal = isTerminalStatusCode(routeStatus);
+			} catch (err) {
+				console.warn('経路終端状態の取得に失敗しました', err);
+				routeTerminal = false;
+			}
+		}
+		updateOptionAvailability();
 	}
-	updateOptionAvailability(fareInfo);
-}
 
-/**
- * `resetView` を処理します。
- *
- * @returns この処理は戻り値を持ちません。
- */
-function resetView() {
-	currentRouteScript = '';
-	startStation = '';
-	segments = [];
-	fareInfo = null;
-	detailLink = '';
-	canUndo = false;
-	canReverse = false;
-	optionEnabled = true;
-	hasOsakakanOption = false;
-	hasKokuraOption = true;
-	osakaDetourSelected = false;
-	treatKokuraAsSame = true;
-	appMenuOpen = false;
-	showFareSummary = false;
-	routeTerminal = false;
-}
-
-/**
- * `updateOptionAvailability` を処理します。
- *
- * @param _info 処理に必要な入力値です。
- * @returns この処理は戻り値を持ちません。
- */
-function updateOptionAvailability(_info: FareInfo | null) {
-	const tokens = currentRouteScript
-		.split(',')
-		.map((token) => token.trim())
-		.filter(Boolean);
-	const lineTokens = tokens.filter((_, index) => index > 0 && index % 2 === 1);
-	const hasRouteScriptOsaka = lineTokens.some(
-		(line) => line === OSAKA_LOOP_LINE || line === `r${OSAKA_LOOP_LINE}` || line.includes(OSAKA_LOOP_LINE)
-	);
-	const hasRdetourOsaka = segments.some(
-		(segment) => segment.line === `r${OSAKA_LOOP_LINE}` || segment.line.includes(`r${OSAKA_LOOP_LINE}`)
-	);
-	const hasOsakaLoop = segments.some(
-		(segment) => segment.line === OSAKA_LOOP_LINE || segment.line.includes(OSAKA_LOOP_LINE)
-	);
-	hasOsakakanOption = hasOsakaLoop || hasRdetourOsaka || hasRouteScriptOsaka;
-	hasKokuraOption = true;
-	optionEnabled = true;
-}
-
-		/**
-	 * `ensureRoute` を処理します。
+	/**
+	 * `resetView` を処理します。
 	 *
-	 * @returns 処理結果を返します。
+	 * @returns この処理は戻り値を持ちません。
 	 */
-function ensureRoute(): FaretClass {
-		if (route) return route;
-		const next = new Farert();
-		route = next;
-		mainRoute.set(next);
-		return next;
+	function resetView() {
+		currentRouteScript = '';
+		startStation = '';
+		segments = [];
+		fareInfo = null;
+		detailLink = '';
+		canUndo = false;
+		canReverse = false;
+		optionEnabled = true;
+		hasOsakakanOption = false;
+		osakaDetourSelected = false;
+		appMenuOpen = false;
+		showFareSummary = false;
+		routeTerminal = false;
 	}
 
-		/**
+	/**
+	 * `updateOptionAvailability` を処理します。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function updateOptionAvailability() {
+		const tokens = currentRouteScript
+			.split(',')
+			.map((token) => token.trim())
+			.filter(Boolean);
+		const lineTokens = tokens.filter((_, index) => index > 0 && index % 2 === 1);
+		const hasRouteScriptOsaka = lineTokens.some(
+			(line) =>
+				line === OSAKA_LOOP_LINE || line === `r${OSAKA_LOOP_LINE}` || line.includes(OSAKA_LOOP_LINE)
+		);
+		const hasRdetourOsaka = segments.some(
+			(segment) =>
+				segment.line === `r${OSAKA_LOOP_LINE}` || segment.line.includes(`r${OSAKA_LOOP_LINE}`)
+		);
+		const hasOsakaLoop = segments.some(
+			(segment) => segment.line === OSAKA_LOOP_LINE || segment.line.includes(OSAKA_LOOP_LINE)
+		);
+		hasOsakakanOption = hasOsakaLoop || hasRdetourOsaka || hasRouteScriptOsaka;
+		optionEnabled = true;
+	}
+
+	/**
 	 * `openDrawer` を開始または表示します。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function openDrawer() {
+	function openDrawer() {
 		drawerOpen = !drawerOpen;
 	}
 
-		/**
+	/**
 	 * `openVersionInfo` を開始または表示します。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function openVersionInfo() {
-		goto(`${base}/version`);
+	function openVersionInfo() {
+		goto(resolve('/version'));
 	}
 
-		/**
+	/**
 	 * `openHelp` を開始または表示します。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function openHelp(): void {
-		goto(`${base}/help`);
+	function openHelp(): void {
+		goto(resolve('/help'));
 	}
 
-		/**
+	/**
 	 * `toggleAppMenu` の切替処理を行います。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function toggleAppMenu() {
+	function toggleAppMenu() {
 		appMenuOpen = !appMenuOpen;
 		if (!appMenuOpen) return;
 		if (!optionEnabled) {
@@ -495,50 +330,50 @@ function toggleAppMenu() {
 		}
 	}
 
-		/**
+	/**
 	 * `closeMenus` を終了または非表示にします。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function closeMenus() {
+	function closeMenus() {
 		appMenuOpen = false;
 	}
 
-		/**
+	/**
 	 * `handleVersionMenuSelection` のイベント処理を行います。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function handleVersionMenuSelection() {
+	function handleVersionMenuSelection() {
 		closeMenus();
 		openVersionInfo();
 	}
 
-		/**
+	/**
 	 * `handleHelpMenuSelection` のイベント処理を行います。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function handleHelpMenuSelection() {
+	function handleHelpMenuSelection() {
 		closeMenus();
 		openHelp();
 	}
 
-		/**
+	/**
 	 * `openTerminalSelection` を開始または表示します。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function openTerminalSelection() {
-		goto(`${base}/terminal-selection`);
+	function openTerminalSelection() {
+		goto(resolve('/terminal-selection'));
 	}
 
-		/**
+	/**
 	 * `openRouteAddition` を開始または表示します。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function openRouteAddition() {
+	function openRouteAddition() {
 		if (routeTerminal) {
 			return;
 		}
@@ -552,61 +387,62 @@ function openRouteAddition() {
 			error = '次に接続する駅を特定できません。';
 			return;
 		}
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- local non-reactive collection
 		const params = new URLSearchParams();
 		params.set('from', 'main');
 		params.set('station', stationParam);
 		if (lastSegment?.line) {
 			params.set('line', lastSegment.line);
 		}
-		goto(`${base}/line-selection?${params.toString()}`);
+		goto(resolve(`/line-selection?${params.toString()}` as '/line-selection'));
 	}
 
-		/**
+	/**
 	 * `openSegmentDetail` を開始または表示します。
 	 *
 	 * @param segmentIndex 対象位置を表す数値です。
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function openSegmentDetail(segmentIndex: number) {
+	function openSegmentDetail(segmentIndex: number) {
 		if (!route) return;
 		try {
 			const compressed = compressRouteForUrl(route, segmentIndex + 1);
-			goto(`${base}/detail?r=${compressed}`);
+			goto(resolve(`/detail?r=${compressed}` as '/detail'));
 		} catch (err) {
 			error = `詳細画面を開けませんでした: ${err}`;
 		}
 	}
 
-		/**
+	/**
 	 * `openFullDetail` を開始または表示します。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function openFullDetail() {
+	function openFullDetail() {
 		if (!route) return;
 		try {
 			const compressed = compressRouteForUrl(route);
-			goto(`${base}/detail?r=${compressed}`);
+			goto(resolve(`/detail?r=${compressed}` as '/detail'));
 		} catch (err) {
 			error = `詳細画面を開けませんでした: ${err}`;
 		}
 	}
 
-		/**
+	/**
 	 * `scrollToTop` を処理します。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function scrollToTop(): void {
+	function scrollToTop(): void {
 		window.scrollTo({ top: 0, behavior: 'smooth' });
 	}
 
-		/**
+	/**
 	 * `scrollToBottom` を処理します。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function scrollToBottom(): void {
+	function scrollToBottom(): void {
 		const scrollHeight = Math.max(
 			document.documentElement.scrollHeight,
 			document.body?.scrollHeight ?? 0
@@ -614,33 +450,33 @@ function scrollToBottom(): void {
 		window.scrollTo({ top: scrollHeight, behavior: 'smooth' });
 	}
 
-/**
- * `handleUndo` のイベント処理を行います。
- *
- * @returns この処理は戻り値を持ちません。
- */
-function handleUndo() {
-	if (!route || !canUndo) return;
-	if (segments.length > 0) {
-		route.removeTail();
+	/**
+	 * `handleUndo` のイベント処理を行います。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function handleUndo() {
+		if (!route || !canUndo) return;
+		if (segments.length > 0) {
+			route.removeTail();
+			mainRoute.set(route);
+			refreshRouteState(route);
+			return;
+		}
+		route.removeAll();
 		mainRoute.set(route);
 		refreshRouteState(route);
-		return;
 	}
-	route.removeAll();
-	mainRoute.set(route);
-	refreshRouteState(route);
-}
 
-		/**
+	/**
 	 * `handleReverse` のイベント処理を行います。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function handleReverse() {
+	function handleReverse() {
 		if (!route || !canReverse) return;
 		const result = route.reverse();
-		if (!isBuildSuccess(result)) {
+		if (!isRouteOperationSuccess(result)) {
 			error = '経路の反転に失敗しました。';
 			return;
 		}
@@ -648,42 +484,23 @@ function handleReverse() {
 		refreshRouteState(route);
 	}
 
-		/**
+	/**
 	 * `openSave` を開始または表示します。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function openSave() {
-		goto(`${base}/save`);
+	function openSave() {
+		goto(resolve('/save'));
 	}
 
-		/**
-	 * `toggleKokuraHakataLink` の切替処理を行います。
-	 *
-	 * @returns この処理は戻り値を持ちません。
-	 */
-function toggleKokuraHakataLink() {
-		if (!hasKokuraOption) return;
-		const next = !treatKokuraAsSame;
-		treatKokuraAsSame = next;
-		if (!route) return;
-		try {
-			route.setNotSameKokuraHakataShinZai(!next);
-			mainRoute.set(route);
-			appMenuOpen = false;
-		} catch (err) {
-			console.error('小倉-博多オプションの切り替えに失敗しました', err);
-		}
-	}
-
-		/**
+	/**
 	 * `parseFareForHolder` の解析結果を返します。
 	 *
 	 * @param info 処理に必要な入力値です。
 	 * @param fareType 処理対象の値です。
 	 * @returns 数値結果を返します。
 	 */
-function parseFareForHolder(info: FareInfo | null, fareType: FareType): number {
+	function parseFareForHolder(info: FareInfo | null, fareType: FareType): number {
 		if (!info) return 0;
 		switch (fareType) {
 			case FareType.CHILD:
@@ -706,23 +523,23 @@ function parseFareForHolder(info: FareInfo | null, fareType: FareType): number {
 		}
 	}
 
-		/**
+	/**
 	 * `normalizeStockDiscountTitle` を正規化します。
 	 *
 	 * @param title 処理に必要な入力値です。
 	 * @returns 文字列結果を返します。
 	 */
-function normalizeStockDiscountTitle(title: string | undefined): string {
+	function normalizeStockDiscountTitle(title: string | undefined): string {
 		return (title ?? '').replace(/\s+/g, '');
 	}
 
-		/**
+	/**
 	 * `resolveStockDiscountKind` の解決結果を返します。
 	 *
 	 * @param item 処理に必要な入力値です。
 	 * @returns 解決結果を返します。
 	 */
-function resolveStockDiscountKind(
+	function resolveStockDiscountKind(
 		item: FareInfo['stockDiscounts'][number] | undefined
 	): 'single' | 'double' | null {
 		if (!item) return null;
@@ -738,13 +555,13 @@ function resolveStockDiscountKind(
 		return null;
 	}
 
-		/**
+	/**
 	 * `isSingleStockDiscount` の判定結果を返します。
 	 *
 	 * @param item 処理に必要な入力値です。
 	 * @returns 判定結果を返します。
 	 */
-function isSingleStockDiscount(item: FareInfo['stockDiscounts'][number] | undefined): boolean {
+	function isSingleStockDiscount(item: FareInfo['stockDiscounts'][number] | undefined): boolean {
 		if (!item || (item.stockDiscountFare ?? 0) <= 0) return false;
 		const discountKind = resolveStockDiscountKind(item);
 		if (discountKind) {
@@ -754,13 +571,13 @@ function isSingleStockDiscount(item: FareInfo['stockDiscounts'][number] | undefi
 		return !title.includes('2割');
 	}
 
-		/**
+	/**
 	 * `isDoubleStockDiscount` の判定結果を返します。
 	 *
 	 * @param item 処理に必要な入力値です。
 	 * @returns 判定結果を返します。
 	 */
-function isDoubleStockDiscount(item: FareInfo['stockDiscounts'][number] | undefined): boolean {
+	function isDoubleStockDiscount(item: FareInfo['stockDiscounts'][number] | undefined): boolean {
 		if (!item || (item.stockDiscountFare ?? 0) <= 0) return false;
 		const discountKind = resolveStockDiscountKind(item);
 		if (discountKind) {
@@ -769,14 +586,14 @@ function isDoubleStockDiscount(item: FareInfo['stockDiscounts'][number] | undefi
 		return isTokaiDoubleStockDiscountTitle(item.stockDiscountTitle);
 	}
 
-		/**
+	/**
 	 * `resolveFareOptionLabel` の解決結果を返します。
 	 *
 	 * @param type 処理対象の値です。
 	 * @param info 処理に必要な入力値です。
 	 * @returns 文字列結果を返します。
 	 */
-function resolveFareOptionLabel(type: FareType, info: FareInfo | null): string {
+	function resolveFareOptionLabel(type: FareType, info: FareInfo | null): string {
 		if (!info) return FareTypeLabels[type];
 		switch (type) {
 			case FareType.STOCK_DISCOUNT: {
@@ -792,46 +609,46 @@ function resolveFareOptionLabel(type: FareType, info: FareInfo | null): string {
 		}
 	}
 
-		/**
+	/**
 	 * `resolveSingleStockDiscountFare` の解決結果を返します。
 	 *
 	 * @param info 処理に必要な入力値です。
 	 * @returns 数値結果を返します。
 	 */
-function resolveSingleStockDiscountFare(info: FareInfo): number {
+	function resolveSingleStockDiscountFare(info: FareInfo): number {
 		const stock = (info.stockDiscounts ?? []).find((item) => isSingleStockDiscount(item));
 		return stock?.stockDiscountFare ?? 0;
 	}
 
-		/**
+	/**
 	 * `isTokaiDoubleStockDiscountTitle` の判定結果を返します。
 	 *
 	 * @param title 処理に必要な入力値です。
 	 * @returns 判定結果を返します。
 	 */
-function isTokaiDoubleStockDiscountTitle(title: string | undefined): boolean {
+	function isTokaiDoubleStockDiscountTitle(title: string | undefined): boolean {
 		const normalized = normalizeStockDiscountTitle(title);
 		return normalized.includes('JR東海') && normalized.includes('2割');
 	}
 
-		/**
+	/**
 	 * `resolveTokaiDoubleStockDiscountFare` の解決結果を返します。
 	 *
 	 * @param info 処理に必要な入力値です。
 	 * @returns 数値結果を返します。
 	 */
-function resolveTokaiDoubleStockDiscountFare(info: FareInfo): number {
+	function resolveTokaiDoubleStockDiscountFare(info: FareInfo): number {
 		const tokaiStock = (info.stockDiscounts ?? []).find((item) => isDoubleStockDiscount(item));
 		return tokaiStock?.stockDiscountFare ?? 0;
 	}
 
-		/**
+	/**
 	 * `resolveAvailableFareTypes` の解決結果を返します。
 	 *
 	 * @param info 処理に必要な入力値です。
 	 * @returns 配列結果を返します。
 	 */
-function resolveAvailableFareTypes(info: FareInfo | null): FareType[] {
+	function resolveAvailableFareTypes(info: FareInfo | null): FareType[] {
 		if (!info) {
 			return [FareType.NORMAL, FareType.DISABLED];
 		}
@@ -866,26 +683,29 @@ function resolveAvailableFareTypes(info: FareInfo | null): FareType[] {
 		return available;
 	}
 
-		/**
+	/**
 	 * `resolveHolderFareType` の解決結果を返します。
 	 *
 	 * @param info 処理に必要な入力値です。
 	 * @param fareType 処理対象の値です。
 	 * @returns 処理結果を返します。
 	 */
-function resolveHolderFareType(info: FareInfo | null, fareType: FareType): FareType {
+	function resolveHolderFareType(info: FareInfo | null, fareType: FareType): FareType {
 		const available = resolveAvailableFareTypes(info);
 		return available.includes(fareType) ? fareType : FareType.NORMAL;
 	}
 
-		/**
+	/**
 	 * `deriveTitle` を処理します。
 	 *
 	 * @param script 処理対象の文字列です。
 	 * @returns 文字列結果を返します。
 	 */
-function deriveTitle(script: string): string {
-		const tokens = script.split(',').map((t) => t.trim()).filter(Boolean);
+	function deriveTitle(script: string): string {
+		const tokens = script
+			.split(',')
+			.map((t) => t.trim())
+			.filter(Boolean);
 		if (tokens.length >= 3) {
 			const from = tokens[0];
 			const to = tokens[tokens.length - 1];
@@ -894,34 +714,34 @@ function deriveTitle(script: string): string {
 		return script || '経路';
 	}
 
-		/**
+	/**
 	 * `formatFare` の整形結果を返します。
 	 *
 	 * @param value 処理対象の値です。
 	 * @returns 文字列結果を返します。
 	 */
-function formatFare(value: number | null | undefined): string {
+	function formatFare(value: number | null | undefined): string {
 		if (typeof value !== 'number' || Number.isNaN(value)) return '—';
 		return `¥${value.toLocaleString('ja-JP')}`;
 	}
 
-		/**
+	/**
 	 * `formatKm` の整形結果を返します。
 	 *
 	 * @param value 処理対象の値です。
 	 * @returns 文字列結果を返します。
 	 */
-function formatKm(value: number | null | undefined): string {
+	function formatKm(value: number | null | undefined): string {
 		if (typeof value !== 'number' || Number.isNaN(value)) return '— km';
 		return `${value.toFixed(1)}km`;
 	}
 
-/**
- * `updateHolderView` を処理します。
- *
- * @returns この処理は戻り値を持ちません。
- */
-function updateHolderView(): void {
+	/**
+	 * `updateHolderView` を処理します。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function updateHolderView(): void {
 		const views: {
 			key: string;
 			order: number;
@@ -936,7 +756,7 @@ function updateHolderView(): void {
 			fareOptions: FarePickerOption[];
 			selectedFareType: FareType;
 		}[] = [];
-		for (const [index, item] of holderItems.entries()) {
+		for (const item of holderItems) {
 			let fare = 0;
 			let km = 0;
 			let availableFareTypes: FareType[] = [FareType.NORMAL, FareType.DISABLED];
@@ -948,20 +768,20 @@ function updateHolderView(): void {
 			try {
 				const tmp = new Farert();
 				const rc = tmp.buildRoute(item.routeScript);
-				if (isBuildSuccess(rc)) {
+				if (isRouteOperationSuccess(rc)) {
 					try {
 						tmp.showFare?.();
 					} catch (err) {
 						console.warn('きっぷホルダ項目の運賃計算に失敗しました', err);
 					}
-						const info = parseFareInfoJson(tmp.getFareInfoObjectJson());
-						availableFareTypes = resolveAvailableFareTypes(info);
-						fareOptions = availableFareTypes.map((type) => ({
-							value: type,
-							label: resolveFareOptionLabel(type, info)
-						}));
-						selectedFareType = resolveHolderFareType(info, item.fareType);
-						fare = parseFareForHolder(info, selectedFareType);
+					const info = parseFareInfoJson(tmp.getFareInfoObjectJson());
+					availableFareTypes = resolveAvailableFareTypes(info);
+					fareOptions = availableFareTypes.map((type) => ({
+						value: type,
+						label: resolveFareOptionLabel(type, info)
+					}));
+					selectedFareType = resolveHolderFareType(info, item.fareType);
+					fare = parseFareForHolder(info, selectedFareType);
 					km = info?.totalSalesKm ?? 0;
 				}
 			} catch (err) {
@@ -976,53 +796,53 @@ function updateHolderView(): void {
 				fareText: formatFare(fare),
 				kmText: formatKm(km),
 				fareValue: fare,
-					kmValue: km,
-					availableFareTypes,
-					fareOptions,
-					selectedFareType
-				});
+				kmValue: km,
+				availableFareTypes,
+				fareOptions,
+				selectedFareType
+			});
 		}
 		holderView = views;
 	}
 
-		/**
+	/**
 	 * `handleHolderDelete` のイベント処理を行います。
 	 *
 	 * @param order 対象位置を表す数値です。
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function handleHolderDelete(order: number): void {
+	function handleHolderDelete(order: number): void {
 		if (!Number.isFinite(order)) return;
 		ticketHolder.update((list) => list.filter((item) => item.order !== order));
 	}
 
-		/**
+	/**
 	 * `toggleDrawerEditing` の切替処理を行います。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function toggleDrawerEditing(): void {
+	function toggleDrawerEditing(): void {
 		drawerEditing = !drawerEditing;
 	}
 
-		/**
+	/**
 	 * `closeDrawer` を終了または非表示にします。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function closeDrawer(): void {
+	function closeDrawer(): void {
 		drawerOpen = false;
 		drawerEditing = false;
 	}
 
-		/**
+	/**
 	 * `handleHolderFareChange` のイベント処理を行います。
 	 *
 	 * @param order 対象位置を表す数値です。
 	 * @param fareType 処理対象の値です。
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function handleHolderFareChange(order: number, fareType: FareType): void {
+	function handleHolderFareChange(order: number, fareType: FareType): void {
 		if (!Number.isFinite(order)) return;
 		ticketHolder.update((list) =>
 			list.map((item) => (item.order === order ? { ...item, fareType } : item))
@@ -1030,7 +850,7 @@ function handleHolderFareChange(order: number, fareType: FareType): void {
 		updateHolderView();
 	}
 
-		/**
+	/**
 	 * `handleHolderMove` のイベント処理を行います。
 	 *
 	 * @param fromOrder 対象位置を表す数値です。
@@ -1038,11 +858,7 @@ function handleHolderFareChange(order: number, fareType: FareType): void {
 	 * @param insertBefore 処理に必要な入力値です。
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function handleHolderMove(
-		fromOrder: number,
-		toOrder: number,
-		insertBefore = true
-	): void {
+	function handleHolderMove(fromOrder: number, toOrder: number, insertBefore = true): void {
 		if (!Number.isFinite(fromOrder) || !Number.isFinite(toOrder)) return;
 		if (fromOrder <= 0 || toOrder <= 0) return;
 		ticketHolder.update((list) => {
@@ -1067,13 +883,13 @@ function handleHolderMove(
 		});
 	}
 
-		/**
+	/**
 	 * `handleHolderSelect` のイベント処理を行います。
 	 *
 	 * @param drawerItem 処理対象の文字列です。
 	 * @returns この処理は戻り値を持ちません。
 	 */
-async function handleHolderSelect(drawerItem: TicketHolderItem): Promise<void> {
+	async function handleHolderSelect(drawerItem: TicketHolderItem): Promise<void> {
 		const script = drawerItem.routeScript;
 		if (!script) return;
 		if (shouldConfirmRouteOverwrite(script) && !(await confirmRouteOverwrite())) {
@@ -1082,7 +898,7 @@ async function handleHolderSelect(drawerItem: TicketHolderItem): Promise<void> {
 		try {
 			const next = new Farert();
 			const rc = next.buildRoute(script);
-			if (!isBuildSuccess(rc)) {
+			if (!isRouteOperationSuccess(rc)) {
 				error = `きっぷホルダの経路復元に失敗しました (コード: ${rc})`;
 				return;
 			}
@@ -1095,13 +911,13 @@ async function handleHolderSelect(drawerItem: TicketHolderItem): Promise<void> {
 		}
 	}
 
-		/**
+	/**
 	 * `safeRouteScript` を処理します。
 	 *
 	 * @param target 処理に必要な入力値です。
 	 * @returns 文字列結果を返します。
 	 */
-function safeRouteScript(target: FaretClass | null): string {
+	function safeRouteScript(target: FaretClass | null): string {
 		try {
 			return target?.routeScript()?.trim() ?? '';
 		} catch (err) {
@@ -1110,68 +926,36 @@ function safeRouteScript(target: FaretClass | null): string {
 		}
 	}
 
-		/**
+	/**
 	 * `shouldConfirmRouteOverwrite` の判定結果を返します。
 	 *
 	 * @param nextScript 処理対象の文字列です。
 	 * @returns 判定結果を返します。
 	 */
-function shouldConfirmRouteOverwrite(nextScript: string): boolean {
+	function shouldConfirmRouteOverwrite(nextScript: string): boolean {
 		const currentScript = safeRouteScript(route);
 		if (!currentScript || currentScript === nextScript) return false;
 		const count = resolveRouteCount(route, currentScript);
 		return count >= 2;
 	}
 
-		/**
+	/**
 	 * `confirmRouteOverwrite` を処理します。
 	 *
 	 * @returns 非同期処理の成否を返します。
 	 */
-function confirmRouteOverwrite(): Promise<boolean> {
-		return openConfirmDialog('経路が消去されますがよろしいですか？');
+	function confirmRouteOverwrite(): Promise<boolean> {
+		return confirmDialog.request('経路が消去されますがよろしいですか？');
 	}
 
-		/**
-	 * `openConfirmDialog` を開始または表示します。
-	 *
-	 * @param message 表示または処理に使うメッセージです。
-	 * @returns 非同期処理の成否を返します。
-	 */
-function openConfirmDialog(message: string): Promise<boolean> {
-		if (confirmResolver) {
-			confirmResolver(false);
-			confirmResolver = null;
-		}
-		confirmDialogMessage = message;
-		confirmDialogOpen = true;
-		return new Promise((resolve) => {
-			confirmResolver = resolve;
-		});
-	}
-
-		/**
-	 * `resolveConfirmDialog` の解決結果を返します。
-	 *
-	 * @param result 処理対象の値です。
-	 * @returns この処理は戻り値を持ちません。
-	 */
-function resolveConfirmDialog(result: boolean): void {
-		confirmDialogOpen = false;
-		confirmDialogMessage = '';
-		const resolver = confirmResolver;
-		confirmResolver = null;
-		resolver?.(result);
-	}
-
-		/**
+	/**
 	 * `resolveRouteCount` の解決結果を返します。
 	 *
 	 * @param target 処理に必要な入力値です。
 	 * @param script 処理対象の文字列です。
 	 * @returns 数値結果を返します。
 	 */
-function resolveRouteCount(target: FaretClass | null, script: string): number {
+	function resolveRouteCount(target: FaretClass | null, script: string): number {
 		try {
 			if (target?.getRouteCount) return target.getRouteCount();
 		} catch (err) {
@@ -1181,12 +965,12 @@ function resolveRouteCount(target: FaretClass | null, script: string): number {
 		return Math.max(0, (tokens.length - 1) / 2);
 	}
 
-		/**
+	/**
 	 * `handleAddToHolder` のイベント処理を行います。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function handleAddToHolder(): void {
+	function handleAddToHolder(): void {
 		const script = route ? route.routeScript() : currentRouteScript;
 		if (!script) {
 			error = '追加する経路がありません。';
@@ -1208,12 +992,12 @@ function handleAddToHolder(): void {
 		info = 'きっぷホルダに追加しました。';
 	}
 
-		/**
+	/**
 	 * `handleShareHolder` のイベント処理を行います。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-async function handleShareHolder(): Promise<void> {
+	async function handleShareHolder(): Promise<void> {
 		const text = holderItems.map((item) => item.routeScript).join('\n');
 		if (!text) return;
 		try {
@@ -1234,12 +1018,12 @@ async function handleShareHolder(): Promise<void> {
 		}
 	}
 
-		/**
+	/**
 	 * `toggleOsakaDetourOption` の切替処理を行います。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function toggleOsakaDetourOption() {
+	function toggleOsakaDetourOption() {
 		if (!route || !hasOsakakanOption) return;
 		const next = !osakaDetourSelected;
 		try {
@@ -1263,59 +1047,60 @@ function toggleOsakaDetourOption() {
 		<button type="button" class="icon-button" aria-label="きっぷホルダ" onclick={openDrawer}>
 			<span class="material-symbols-rounded icon-button-symbol" aria-hidden="true">menu</span>
 		</button>
-	<div class="title">
-		<img src="{base}/trade-icon.png" alt="" class="title-icon tall" />
-		<div class="title-text">
-			<h1>経路運賃営業キロ計算</h1>
-			<p>Farert</p>
-		</div>
-	</div>
-	<div class="menu-container">
-		<button
-			type="button"
-			class="icon-button"
-			aria-label={theme === 'dark' ? 'ライトモードに切り替え' : 'ダークモードに切り替え'}
-			onclick={toggleTheme}
-			data-testid="theme-toggle"
-		>
-			<span class="material-symbols-rounded icon-button-symbol" aria-hidden="true">
-				{theme === 'dark' ? 'light_mode' : 'dark_mode'}
-			</span>
-		</button>
-		<button
-			type="button"
-			class="icon-button"
-			aria-label="メニュー"
-			aria-expanded={appMenuOpen}
-			onclick={toggleAppMenu}
-		>
-			<span class="material-symbols-rounded icon-button-symbol" aria-hidden="true">more_vert</span>
-		</button>
-		{#if appMenuOpen}
-			<div class="app-menu" role="menu">
-				<button type="button" role="menuitem" onclick={handleVersionMenuSelection}>バージョン情報</button>
-				<button type="button" role="menuitem" onclick={handleHelpMenuSelection}>
-					ヘルプ
-				</button>
-				{#if optionEnabled}
-					<hr class="menu-divider" />
-					<div class="menu-section-title">経路オプション</div>
-					<button
-						type="button"
-						role="menuitem"
-						onclick={toggleOsakaDetourOption}
-						disabled={!hasOsakakanOption}
-					>
-						<span>{osakaMenuLabel}</span>
-						{#if osakaDetourSelected}
-							<span class="material-symbols-rounded" aria-hidden="true">check</span>
-						{/if}
-					</button>
-				{/if}
+		<div class="title">
+			<img src="{base}/trade-icon.png" alt="" class="title-icon tall" />
+			<div class="title-text">
+				<h1>経路運賃営業キロ計算</h1>
+				<p>Farert</p>
 			</div>
-		{/if}
-	</div>
-</header>
+		</div>
+		<div class="menu-container">
+			<button
+				type="button"
+				class="icon-button"
+				aria-label={theme === 'dark' ? 'ライトモードに切り替え' : 'ダークモードに切り替え'}
+				onclick={toggleTheme}
+				data-testid="theme-toggle"
+			>
+				<span class="material-symbols-rounded icon-button-symbol" aria-hidden="true">
+					{theme === 'dark' ? 'light_mode' : 'dark_mode'}
+				</span>
+			</button>
+			<button
+				type="button"
+				class="icon-button"
+				aria-label="メニュー"
+				aria-expanded={appMenuOpen}
+				onclick={toggleAppMenu}
+			>
+				<span class="material-symbols-rounded icon-button-symbol" aria-hidden="true">more_vert</span
+				>
+			</button>
+			{#if appMenuOpen}
+				<div class="app-menu" role="menu">
+					<button type="button" role="menuitem" onclick={handleVersionMenuSelection}
+						>バージョン情報</button
+					>
+					<button type="button" role="menuitem" onclick={handleHelpMenuSelection}> ヘルプ </button>
+					{#if optionEnabled}
+						<hr class="menu-divider" />
+						<div class="menu-section-title">経路オプション</div>
+						<button
+							type="button"
+							role="menuitem"
+							onclick={toggleOsakaDetourOption}
+							disabled={!hasOsakakanOption}
+						>
+							<span>{osakaMenuLabel}</span>
+							{#if osakaDetourSelected}
+								<span class="material-symbols-rounded" aria-hidden="true">check</span>
+							{/if}
+						</button>
+					{/if}
+				</div>
+			{/if}
+		</div>
+	</header>
 
 	{#if loading}
 		<p class="info-banner">データを読み込み中です...</p>
@@ -1355,7 +1140,7 @@ function toggleOsakaDetourOption() {
 				<p class="placeholder">区間が追加されていません</p>
 			{:else}
 				<ul class="segment-cards">
-					{#each segments as segment, index}
+					{#each segments as segment, index (segment.id)}
 						<li>
 							<button
 								type="button"
@@ -1389,7 +1174,7 @@ function toggleOsakaDetourOption() {
 		{#if showFareSummary}
 			<section>
 				<FareSummaryCard
-					fareInfo={fareInfo}
+					{fareInfo}
 					detailEnabled={Boolean(detailLink)}
 					onDetailClick={openFullDetail}
 				/>
@@ -1406,18 +1191,27 @@ function toggleOsakaDetourOption() {
 			<button type="button" onclick={openSave} aria-label="保存">
 				<span class="material-symbols-rounded bottom-nav-icon" aria-hidden="true">save</span>
 			</button>
-			<button type="button" class="bottom-nav-scroll" onclick={scrollToTop} aria-label="Scroll to top">
+			<button
+				type="button"
+				class="bottom-nav-scroll"
+				onclick={scrollToTop}
+				aria-label="Scroll to top"
+			>
 				<span class="material-symbols-rounded bottom-nav-icon" aria-hidden="true">
 					vertical_align_top
 				</span>
 			</button>
-			<button type="button" class="bottom-nav-scroll" onclick={scrollToBottom} aria-label="Scroll to bottom">
+			<button
+				type="button"
+				class="bottom-nav-scroll"
+				onclick={scrollToBottom}
+				aria-label="Scroll to bottom"
+			>
 				<span class="material-symbols-rounded bottom-nav-icon" aria-hidden="true">
 					vertical_align_bottom
 				</span>
 			</button>
 		</nav>
-
 	{/if}
 
 	{#if appMenuOpen}
@@ -1429,26 +1223,11 @@ function toggleOsakaDetourOption() {
 		></button>
 	{/if}
 
-	{#if confirmDialogOpen}
-		<div class="confirm-overlay" role="dialog" aria-modal="true" aria-label="確認ダイアログ">
-			<section class="confirm-card">
-				<h3>確認</h3>
-				<p>{confirmDialogMessage}</p>
-				<div class="confirm-actions">
-					<button type="button" class="confirm-primary" onclick={() => resolveConfirmDialog(true)}>
-						はい
-					</button>
-					<button
-						type="button"
-						class="confirm-secondary"
-						onclick={() => resolveConfirmDialog(false)}
-					>
-						いいえ
-					</button>
-				</div>
-			</section>
-		</div>
-	{/if}
+	<ConfirmDialog
+		open={confirmDialog.open}
+		message={confirmDialog.message}
+		onResolve={(result) => confirmDialog.resolve(result)}
+	/>
 
 	<DrawerNavigation
 		isOpen={drawerOpen}
@@ -1566,7 +1345,9 @@ function toggleOsakaDetourOption() {
 		box-shadow: var(--card-shadow);
 		border: none;
 		text-align: left;
-		transition: transform 0.15s ease, box-shadow 0.15s ease;
+		transition:
+			transform 0.15s ease,
+			box-shadow 0.15s ease;
 	}
 
 	.card.actionable {
@@ -1813,64 +1594,10 @@ function toggleOsakaDetourOption() {
 		z-index: 20;
 		border: none;
 		padding: 0;
-}
+	}
 
 	.menu-overlay.dim {
 		background: var(--overlay-dim);
-	}
-
-	.confirm-overlay {
-		position: fixed;
-		inset: 0;
-		display: grid;
-		place-items: center;
-		background: rgba(2, 6, 23, 0.45);
-		backdrop-filter: blur(2px);
-		z-index: 60;
-	}
-
-	.confirm-card {
-		width: min(420px, calc(100% - 2rem));
-		background: var(--card-bg);
-		border-radius: 1rem;
-		padding: 1rem;
-		box-shadow: 0 24px 40px rgba(15, 23, 42, 0.35);
-	}
-
-	.confirm-card h3 {
-		margin: 0 0 0.5rem;
-		font-size: 1.05rem;
-		color: var(--title-color);
-	}
-
-	.confirm-card p {
-		margin: 0;
-		color: var(--text-main);
-	}
-
-	.confirm-actions {
-		margin-top: 1rem;
-		display: flex;
-		justify-content: flex-end;
-		gap: 0.5rem;
-	}
-
-	.confirm-actions button {
-		border: none;
-		border-radius: 0.65rem;
-		padding: 0.5rem 0.95rem;
-		font-weight: 700;
-		cursor: pointer;
-	}
-
-	.confirm-primary {
-		background: #2563eb;
-		color: #fff;
-	}
-
-	.confirm-secondary {
-		background: #e5e7eb;
-		color: #1f2937;
 	}
 
 	.bottom-nav button:disabled {

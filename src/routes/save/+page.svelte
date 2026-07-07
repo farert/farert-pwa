@@ -3,43 +3,40 @@
 現在経路保存、一覧読込、削除、クリップボード連携を扱います。
 -->
 <script lang="ts">
-import { goto } from '$app/navigation';
-import { base } from '$app/paths';
-import { onDestroy, onMount } from 'svelte';
-import SavedRouteCard from '$lib/components/SavedRouteCard.svelte';
-import { initFarert, Farert } from '$lib/wasm';
-import { initStores, mainRoute, savedRoutes, stationHistory, ticketHolder } from '$lib/stores';
-import {
-	downloadAppBackupAsFile,
-	exportAppBackup,
-	importAppBackup,
-	importAppBackupFromFile
-} from '$lib/storage/backup';
-import type { FaretClass } from '$lib/wasm/types';
-import type { AppStorage, TicketHolderItem } from '$lib/types';
-import { getSerializedRouteScript } from '$lib/utils/routeScriptPersistence';
-import { scrollPageToBottom, scrollPageToTop } from '$lib/utils/responsiveLayout';
-import { normalizeRouteScript, restoreRouteFromScript } from '$lib/utils/urlRoute';
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
+	import { onDestroy, onMount } from 'svelte';
+	import SavedRouteCard from '$lib/components/SavedRouteCard.svelte';
+	import { initFarert, Farert } from '$lib/wasm';
+	import { initStores, mainRoute, savedRoutes, stationHistory, ticketHolder } from '$lib/stores';
+	import {
+		downloadAppBackupAsFile,
+		exportAppBackup,
+		importAppBackup,
+		importAppBackupFromFile
+	} from '$lib/storage/backup';
+	import type { FaretClass } from '$lib/wasm/types';
+	import type { AppStorage, TicketHolderItem } from '$lib/types';
+	import { getSerializedRouteScript } from '$lib/utils/routeScriptPersistence';
+	import { scrollPageToBottom, scrollPageToTop } from '$lib/utils/responsiveLayout';
+	import { normalizeRouteScript, restoreRouteFromScript } from '$lib/utils/urlRoute';
+	import { parseRouteOperationResult, type RouteOperationResult } from '$lib/utils/routeResult';
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
+	import { ConfirmDialogController } from '$lib/utils/confirmDialog.svelte';
 
-type BuildRouteResult = {
-	rc: number;
-	failItem?: string;
-	offset?: number;
-};
+	type ImportRouteResult =
+		| { ok: true; script: string }
+		| { ok: false; detail: string; routeText: string };
 
-type ImportRouteResult =
-	| { ok: true; script: string }
-	| { ok: false; detail: string; routeText: string };
+	type ImportCandidate = {
+		source: string;
+		normalized: string;
+	};
 
-type ImportCandidate = {
-	source: string;
-	normalized: string;
-};
-
-type ImportErrorDetail = {
-	routeText: string;
-	detail: string;
-};
+	type ImportErrorDetail = {
+		routeText: string;
+		detail: string;
+	};
 
 	let loading = $state(true);
 	let errorMessage = $state('');
@@ -53,9 +50,7 @@ type ImportErrorDetail = {
 	let holderItems = $state<TicketHolderItem[]>([]);
 	let stationHistoryList = $state<string[]>([]);
 	let warnDialog = $state('');
-	let confirmDialogOpen = $state(false);
-	let confirmDialogMessage = $state('');
-	let confirmResolver: ((result: boolean) => void) | null = null;
+	const confirmDialog = new ConfirmDialogController();
 	let importDialogOpen = $state(false);
 	let importDialogText = $state('');
 	let importDialogResolver: ((result: string | null) => void) | null = null;
@@ -112,7 +107,7 @@ type ImportErrorDetail = {
 	});
 
 	const isCurrentSaved = $derived(
-		currentRouteScript && savedList.some((route) => route === currentRouteScript)
+		Boolean(currentRouteScript) && savedList.some((route) => route === currentRouteScript)
 	);
 	const currentRouteCount = $derived(getCurrentRouteCount());
 	const visibleSavedList = $derived(
@@ -148,6 +143,7 @@ type ImportErrorDetail = {
 	 * @returns 文字列結果を返します。
 	 */
 	function uniqueRouteScripts(routes: string[]): string[] {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- local non-reactive collection
 		const seen = new Set<string>();
 		const normalized: string[] = [];
 		for (const route of routes) {
@@ -199,14 +195,14 @@ type ImportErrorDetail = {
 		scheduleStatusClear();
 	}
 
-		/**
+	/**
 	 * `showError` を処理します。
 	 *
 	 * @param message 表示または処理に使うメッセージです。
 	 * @param details 処理に必要な入力値です。
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function showError(message: string, details: ImportErrorDetail[] = []): void {
+	function showError(message: string, details: ImportErrorDetail[] = []): void {
 		errorMessage = message;
 		importErrorDetails = details;
 		if (details.length === 0) {
@@ -216,12 +212,12 @@ function showError(message: string, details: ImportErrorDetail[] = []): void {
 		clearStatusTimer();
 	}
 
-		/**
+	/**
 	 * `clearMessages` を処理します。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function clearMessages(): void {
+	function clearMessages(): void {
 		errorMessage = '';
 		importErrorDetails = [];
 		infoMessage = '';
@@ -246,13 +242,13 @@ function clearMessages(): void {
 		}, delay);
 	}
 
-		/**
+	/**
 	 * `handleBack` のイベント処理を行います。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function handleBack(): void {
-		goto(`${base}/`);
+	function handleBack(): void {
+		goto(resolve('/'));
 	}
 
 	function scrollToTop(): void {
@@ -300,12 +296,12 @@ function handleBack(): void {
 		showInfo('保存しました。');
 	}
 
-		/**
+	/**
 	 * `getCurrentRouteCount` を取得します。
 	 *
 	 * @returns 数値結果を返します。
 	 */
-function getCurrentRouteCount(): number {
+	function getCurrentRouteCount(): number {
 		try {
 			if (currentRoute?.getRouteCount) return currentRoute.getRouteCount();
 			const tokens = currentRouteScript ? currentRouteScript.split(',') : [];
@@ -316,35 +312,35 @@ function getCurrentRouteCount(): number {
 		}
 	}
 
-		/**
+	/**
 	 * `handleDeleteRoute` のイベント処理を行います。
 	 *
 	 * @param routeScript 対象の経路または経路文字列です。
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function handleDeleteRoute(routeScript: string): void {
+	function handleDeleteRoute(routeScript: string): void {
 		const normalized = normalizeRouteScript(routeScript);
 		if (!normalized) return;
 		savedRoutes.update((list) => list.filter((item) => normalizeRouteScript(item) !== normalized));
 	}
 
-		/**
+	/**
 	 * `handleDeleteCurrent` のイベント処理を行います。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function handleDeleteCurrent(): void {
+	function handleDeleteCurrent(): void {
 		if (!currentRouteScript) return;
 		handleDeleteRoute(currentRouteScript);
 	}
 
-		/**
+	/**
 	 * `shouldConfirmRouteOverwrite` の判定結果を返します。
 	 *
 	 * @param targetScript 処理対象の文字列です。
 	 * @returns 判定結果を返します。
 	 */
-function shouldConfirmRouteOverwrite(targetScript: string): boolean {
+	function shouldConfirmRouteOverwrite(targetScript: string): boolean {
 		if (!currentRouteScript || currentRouteScript === targetScript) return false;
 		const isCurrentInSaved = savedList.some((item) => item === currentRouteScript);
 		const isCurrentInHolder = holderItems.some(
@@ -353,45 +349,23 @@ function shouldConfirmRouteOverwrite(targetScript: string): boolean {
 		return !isCurrentInSaved && !isCurrentInHolder;
 	}
 
-		/**
-	 * `resolveConfirmDialog` の解決結果を返します。
-	 *
-	 * @param result 処理対象の値です。
-	 * @returns この処理は戻り値を持ちません。
-	 */
-function resolveConfirmDialog(result: boolean): void {
-		confirmDialogOpen = false;
-		confirmDialogMessage = '';
-		const resolver = confirmResolver;
-		confirmResolver = null;
-		resolver?.(result);
-	}
-
-		/**
+	/**
 	 * `requestConfirm` を処理します。
 	 *
 	 * @param message 表示または処理に使うメッセージです。
 	 * @returns 非同期処理の成否を返します。
 	 */
-function requestConfirm(message: string): Promise<boolean> {
-		if (confirmResolver) {
-			confirmResolver(false);
-			confirmResolver = null;
-		}
-		confirmDialogMessage = message;
-		confirmDialogOpen = true;
-		return new Promise((resolve) => {
-			confirmResolver = resolve;
-		});
+	function requestConfirm(message: string): Promise<boolean> {
+		return confirmDialog.request(message);
 	}
 
-		/**
+	/**
 	 * `openImportDialog` を開始または表示します。
 	 *
 	 * @param defaultText 処理対象の文字列です。
 	 * @returns 非同期処理で得た文字列または `null` を返します。
 	 */
-function openImportDialog(defaultText = ''): Promise<string | null> {
+	function openImportDialog(defaultText = ''): Promise<string | null> {
 		if (importDialogResolver) {
 			importDialogResolver(null);
 		}
@@ -402,13 +376,13 @@ function openImportDialog(defaultText = ''): Promise<string | null> {
 		});
 	}
 
-		/**
+	/**
 	 * `resolveImportDialog` の解決結果を返します。
 	 *
 	 * @param result 処理対象の値です。
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function resolveImportDialog(result: string | null): void {
+	function resolveImportDialog(result: string | null): void {
 		importDialogOpen = false;
 		const resolver = importDialogResolver;
 		importDialogResolver = null;
@@ -503,13 +477,13 @@ function resolveImportDialog(result: string | null): void {
 		}
 	}
 
-		/**
+	/**
 	 * `parseImportCandidates` の解析結果を返します。
 	 *
 	 * @param rawText 処理対象の文字列です。
 	 * @returns 配列結果を返します。
 	 */
-function parseImportCandidates(rawText: string): ImportCandidate[] {
+	function parseImportCandidates(rawText: string): ImportCandidate[] {
 		return rawText
 			.split(/\r?\n/u)
 			.map((line) => ({
@@ -519,14 +493,14 @@ function parseImportCandidates(rawText: string): ImportCandidate[] {
 			.filter((line) => line.normalized.length > 0);
 	}
 
-		/**
+	/**
 	 * `tryImportRoute` を処理します。
 	 *
 	 * @param candidate 処理に必要な入力値です。
 	 * @param lineNumber 対象の路線名です。
 	 * @returns 処理結果を返します。
 	 */
-function tryImportRoute(candidate: ImportCandidate, lineNumber: number): ImportRouteResult {
+	function tryImportRoute(candidate: ImportCandidate, lineNumber: number): ImportRouteResult {
 		const route = new Farert();
 		try {
 			const restored = restoreRouteFromScript(route, candidate.normalized);
@@ -534,7 +508,7 @@ function tryImportRoute(candidate: ImportCandidate, lineNumber: number): ImportR
 				return {
 					ok: false,
 					detail: formatImportError(
-						parseBuildRouteResult(route.buildRoute(candidate.normalized)),
+						parseRouteOperationResult(route.buildRoute(candidate.normalized)),
 						lineNumber
 					),
 					routeText: candidate.source || candidate.normalized
@@ -561,49 +535,14 @@ function tryImportRoute(candidate: ImportCandidate, lineNumber: number): ImportR
 		}
 	}
 
-		/**
-	 * `parseBuildRouteResult` の解析結果を返します。
-	 *
-	 * @param result 処理対象の値です。
-	 * @returns 解決結果を返します。
-	 */
-function parseBuildRouteResult(result: unknown): BuildRouteResult | null {
-		if (typeof result === 'number') {
-			return { rc: result };
-		}
-		if (typeof result === 'string') {
-			const trimmed = result.trim().replace(/\0/g, '');
-			const numeric = Number(trimmed);
-			if (!Number.isNaN(numeric)) {
-				return { rc: numeric };
-			}
-			try {
-				const parsed = JSON.parse(trimmed) as BuildRouteResult;
-				if (typeof parsed?.rc === 'number') {
-					return {
-						rc: parsed.rc,
-						failItem: parsed.failItem,
-						offset: parsed.offset
-					};
-				}
-			} catch {
-				const match = trimmed.match(/"rc"\s*:\s*(-?\d+)/);
-				if (match) {
-					return { rc: Number(match[1]) };
-				}
-			}
-		}
-		return null;
-	}
-
-		/**
+	/**
 	 * `formatImportError` の整形結果を返します。
 	 *
 	 * @param result 処理対象の値です。
 	 * @param lineNumber 対象の路線名です。
 	 * @returns 文字列結果を返します。
 	 */
-function formatImportError(result: BuildRouteResult | null, lineNumber: number): string {
+	function formatImportError(result: RouteOperationResult | null, lineNumber: number): string {
 		let message = `${lineNumber} 行目`;
 		if (!result?.failItem) {
 			return message;
@@ -616,13 +555,13 @@ function formatImportError(result: BuildRouteResult | null, lineNumber: number):
 		return message;
 	}
 
-		/**
+	/**
 	 * `applyRoute` を適用します。
 	 *
 	 * @param routeScript 対象の経路または経路文字列です。
 	 * @returns この処理は戻り値を持ちません。
 	 */
-async function applyRoute(routeScript: string): Promise<void> {
+	async function applyRoute(routeScript: string): Promise<void> {
 		if (isEditing) {
 			return;
 		}
@@ -648,19 +587,19 @@ async function applyRoute(routeScript: string): Promise<void> {
 			}
 			mainRoute.set(route);
 			savedRoutes.update((list) => moveRouteToFront(list, normalizedScript));
-			goto(`${base}/`);
+			goto(resolve('/'));
 		} catch (err) {
 			console.error('経路適用に失敗しました', err);
 			showError('経路の適用に失敗しました。');
 		}
 	}
 
-		/**
+	/**
 	 * `handleImport` のイベント処理を行います。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-async function handleImport(): Promise<void> {
+	async function handleImport(): Promise<void> {
 		clearMessages();
 		const input = await openImportDialog('');
 		if (input === null) {
@@ -818,9 +757,7 @@ async function handleImport(): Promise<void> {
 			showInfo('バックアップを復元しました。');
 		} catch (err) {
 			console.error('バックアップのインポートに失敗しました', err);
-			showError(
-				err instanceof Error ? err.message : 'バックアップのインポートに失敗しました。'
-			);
+			showError(err instanceof Error ? err.message : 'バックアップのインポートに失敗しました。');
 		}
 	}
 
@@ -856,13 +793,13 @@ async function handleImport(): Promise<void> {
 		copyTextWithExecCommand(text);
 	}
 
-		/**
+	/**
 	 * `copyTextWithExecCommand` を処理します。
 	 *
 	 * @param text 処理対象の文字列です。
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function copyTextWithExecCommand(text: string): void {
+	function copyTextWithExecCommand(text: string): void {
 		if (typeof document === 'undefined') {
 			throw new Error('document is not available');
 		}
@@ -917,7 +854,7 @@ function copyTextWithExecCommand(text: string): void {
 		{#if errorMessage}
 			<div class="banner error" role="alert">
 				<p>{errorMessage}</p>
-				{#each importErrorDetails as detail}
+				{#each importErrorDetails as detail, detailIndex (detailIndex)}
 					<div class="import-error-block">
 						<p class="error-route-text">{detail.routeText}</p>
 						<p class="import-error-detail">{detail.detail}</p>
@@ -929,31 +866,31 @@ function copyTextWithExecCommand(text: string): void {
 		<section class="list">
 			{#if currentRouteScript}
 				{#if currentRouteCount > 1}
-				<SavedRouteCard
-					route={currentRouteScript}
-					statusLabel={isCurrentSaved ? '保存済み' : '未保存'}
-					statusTone={isCurrentSaved ? 'muted' : 'alert'}
-					isTextFormat={!isCurrentSaved}
-					showDelete={isEditing && isCurrentSaved}
-					onSelect={() => applyRoute(currentRouteScript)}
-					onDelete={handleDeleteCurrent}
-				/>
+					<SavedRouteCard
+						route={currentRouteScript}
+						statusLabel={isCurrentSaved ? '保存済み' : '未保存'}
+						statusTone={isCurrentSaved ? 'muted' : 'alert'}
+						isTextFormat={!isCurrentSaved}
+						showDelete={isEditing && isCurrentSaved}
+						onSelect={() => applyRoute(currentRouteScript)}
+						onDelete={handleDeleteCurrent}
+					/>
 				{/if}
 			{/if}
 
 			{#if savedList.length === 0 && !currentRouteScript}
 				<p class="placeholder">保存された経路はありません。</p>
 			{:else}
-				{#each visibleSavedList as route}
+				{#each visibleSavedList as route (route)}
 					<SavedRouteCard
-						route={route}
+						{route}
 						showDelete={isEditing}
 						onSelect={() => applyRoute(route)}
 						onDelete={() => handleDeleteRoute(route)}
 					/>
 				{/each}
 			{/if}
-	</section>
+		</section>
 	{/if}
 
 	<footer class="action-bar">
@@ -1025,43 +962,39 @@ function copyTextWithExecCommand(text: string): void {
 			<span class="material-symbols-rounded" aria-hidden="true">save</span>
 			<span>保存</span>
 		</button>
-		</footer>
+	</footer>
 
-		{#if exportDialogOpen}
-			<div class="modal-backdrop" role="dialog" aria-modal="true" aria-label="経路エクスポート">
-				<section class="modal">
-					<h3>経路エクスポート</h3>
-					<p class="placeholder small">{exportDialogStatus}</p>
-					<textarea
-						class="route-textarea"
-						aria-label="エクスポート結果"
-						rows="10"
-						readonly
-						bind:value={exportDialogText}
-					></textarea>
-					<div class="confirm-actions">
-						<button
-							type="button"
-							class="confirm-secondary icon-action"
-							aria-label="共有"
-							onclick={handleShareExport}
-						>
-							<span class="material-symbols-rounded" aria-hidden="true">share</span>
-						</button>
-						<button type="button" class="confirm-primary" onclick={() => (exportDialogOpen = false)}>
-							閉じる
-						</button>
-					</div>
-				</section>
-			</div>
-		{/if}
+	{#if exportDialogOpen}
+		<div class="modal-backdrop" role="dialog" aria-modal="true" aria-label="経路エクスポート">
+			<section class="modal">
+				<h3>経路エクスポート</h3>
+				<p class="placeholder small">{exportDialogStatus}</p>
+				<textarea
+					class="route-textarea"
+					aria-label="エクスポート結果"
+					rows="10"
+					readonly
+					bind:value={exportDialogText}
+				></textarea>
+				<div class="confirm-actions">
+					<button
+						type="button"
+						class="confirm-secondary icon-action"
+						aria-label="共有"
+						onclick={handleShareExport}
+					>
+						<span class="material-symbols-rounded" aria-hidden="true">share</span>
+					</button>
+					<button type="button" class="confirm-primary" onclick={() => (exportDialogOpen = false)}>
+						閉じる
+					</button>
+				</div>
+			</section>
+		</div>
+	{/if}
 
-		{#if floatingStatusMessage}
-			<div
-				class={`floating-status ${floatingStatusTone}`}
-			role="status"
-			aria-live="polite"
-		>
+	{#if floatingStatusMessage}
+		<div class={`floating-status ${floatingStatusTone}`} role="status" aria-live="polite">
 			<p>{floatingStatusMessage}</p>
 		</div>
 	{/if}
@@ -1105,26 +1038,11 @@ function copyTextWithExecCommand(text: string): void {
 		</div>
 	{/if}
 
-	{#if confirmDialogOpen}
-		<div class="modal-backdrop" role="dialog" aria-modal="true" aria-label="確認ダイアログ">
-			<section class="modal">
-				<h3>確認</h3>
-				<p>{confirmDialogMessage}</p>
-				<div class="confirm-actions">
-					<button type="button" class="confirm-primary" onclick={() => resolveConfirmDialog(true)}>
-						はい
-					</button>
-					<button
-						type="button"
-						class="confirm-secondary"
-						onclick={() => resolveConfirmDialog(false)}
-					>
-						いいえ
-					</button>
-				</div>
-			</section>
-		</div>
-	{/if}
+	<ConfirmDialog
+		open={confirmDialog.open}
+		message={confirmDialog.message}
+		onResolve={(result) => confirmDialog.resolve(result)}
+	/>
 
 	{#if importDialogOpen}
 		<div class="modal-backdrop" role="dialog" aria-modal="true" aria-label="経路インポート">
@@ -1140,14 +1058,14 @@ function copyTextWithExecCommand(text: string): void {
 					bind:value={importDialogText}
 				></textarea>
 				<div class="confirm-actions">
-					<button type="button" class="confirm-primary" onclick={() => resolveImportDialog(importDialogText)}>
-						インポート実行
-					</button>
 					<button
 						type="button"
-						class="confirm-secondary"
-						onclick={() => resolveImportDialog(null)}
+						class="confirm-primary"
+						onclick={() => resolveImportDialog(importDialogText)}
 					>
+						インポート実行
+					</button>
+					<button type="button" class="confirm-secondary" onclick={() => resolveImportDialog(null)}>
 						キャンセル
 					</button>
 				</div>
@@ -1159,9 +1077,7 @@ function copyTextWithExecCommand(text: string): void {
 		<div class="modal-backdrop" role="dialog" aria-modal="true" aria-label="バックアップ読込">
 			<section class="modal">
 				<h3>バックアップJSONを入力</h3>
-				<p class="placeholder small">
-					この画面には AppBackup 形式の JSON を貼り付けてください
-				</p>
+				<p class="placeholder small">この画面には AppBackup 形式の JSON を貼り付けてください</p>
 				<textarea
 					class="route-textarea"
 					aria-label="バックアップJSON"
@@ -1169,7 +1085,11 @@ function copyTextWithExecCommand(text: string): void {
 					bind:value={backupImportDialogText}
 				></textarea>
 				<div class="confirm-actions">
-					<button type="button" class="confirm-primary" onclick={() => resolveBackupImportDialog(backupImportDialogText)}>
+					<button
+						type="button"
+						class="confirm-primary"
+						onclick={() => resolveBackupImportDialog(backupImportDialogText)}
+					>
 						読み込む
 					</button>
 					<button
@@ -1262,8 +1182,9 @@ function copyTextWithExecCommand(text: string): void {
 
 	.error-route-text {
 		margin-top: 0.45rem;
-		font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
-			'Courier New', monospace;
+		font-family:
+			ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+			monospace;
 		overflow-wrap: anywhere;
 		user-select: all;
 	}
@@ -1498,7 +1419,8 @@ function copyTextWithExecCommand(text: string): void {
 		padding: 0.6rem;
 		border: 1px solid var(--border-color);
 		border-radius: 0.6rem;
-		font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+		font-family:
+			ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
 			monospace;
 		margin-bottom: 0.75rem;
 		background: var(--input-bg);

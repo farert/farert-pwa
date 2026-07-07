@@ -20,7 +20,7 @@
 		selectedFareType?: FareType;
 	};
 
-let {
+	let {
 		isOpen = false,
 		isEditing = false,
 		items = [],
@@ -48,30 +48,34 @@ let {
 		canAdd?: boolean;
 	}>();
 
-	const totalFare = $derived(items.reduce((sum: number, item: DrawerItem) => sum + (item.fareValue ?? 0), 0));
-	const totalKm = $derived(items.reduce((sum: number, item: DrawerItem) => sum + (item.kmValue ?? 0), 0));
+	const totalFare = $derived(
+		items.reduce((sum: number, item: DrawerItem) => sum + (item.fareValue ?? 0), 0)
+	);
+	const totalKm = $derived(
+		items.reduce((sum: number, item: DrawerItem) => sum + (item.kmValue ?? 0), 0)
+	);
 	let draggingFromOrder = $state<number | null>(null);
 	let dropTargetOrder = $state<number | null>(null);
 	let dropTargetPosition = $state<'before' | 'after' | null>(null);
 
-		/**
+	/**
 	 * `parseOrder` の解析結果を返します。
 	 *
 	 * @param key 処理に必要な入力値です。
 	 * @returns 数値結果を返します。
 	 */
-function parseOrder(key: string): number {
+	function parseOrder(key: string): number {
 		const value = Number(key);
 		return Number.isNaN(value) ? -1 : value;
 	}
 
-		/**
+	/**
 	 * `getOrderFromTarget` を取得します。
 	 *
 	 * @param target 処理に必要な入力値です。
 	 * @returns 数値結果を返します。
 	 */
-function getOrderFromTarget(target: EventTarget | null): number | null {
+	function getOrderFromTarget(target: EventTarget | null): number | null {
 		if (!(target instanceof Element)) return null;
 		const card = target.closest('[data-holder-order]');
 		if (!card) return null;
@@ -79,25 +83,28 @@ function getOrderFromTarget(target: EventTarget | null): number | null {
 		return Number.isNaN(order) ? null : order;
 	}
 
-		/**
+	/**
 	 * `parseOrderKey` の解析結果を返します。
 	 *
 	 * @param key 処理に必要な入力値です。
 	 * @returns 数値結果を返します。
 	 */
-function parseOrderKey(key: string): number {
+	function parseOrderKey(key: string): number {
 		const order = Number(key);
 		return Number.isNaN(order) ? Number.NaN : order;
 	}
 
-		/**
+	/**
 	 * `getDropPositionFromEvent` を取得します。
 	 *
 	 * @param target 処理に必要な入力値です。
 	 * @param clientY 処理に必要な入力値です。
 	 * @returns 処理結果を返します。
 	 */
-function getDropPositionFromEvent(target: EventTarget | null, clientY: number): 'before' | 'after' {
+	function getDropPositionFromEvent(
+		target: EventTarget | null,
+		clientY: number
+	): 'before' | 'after' {
 		if (!(target instanceof Element)) return 'after';
 		const card = target.closest('[data-holder-order]');
 		if (!card) return 'after';
@@ -105,14 +112,14 @@ function getDropPositionFromEvent(target: EventTarget | null, clientY: number): 
 		return clientY - rect.top <= rect.height / 2 ? 'before' : 'after';
 	}
 
-		/**
+	/**
 	 * `handleMoveDragStart` のイベント処理を行います。
 	 *
 	 * @param event 発生したイベントです。
 	 * @param key 処理に必要な入力値です。
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function handleMoveDragStart(event: DragEvent, key: string): void {
+	function handleMoveDragStart(event: DragEvent, key: string): void {
 		if (!event.dataTransfer) return;
 		event.dataTransfer.effectAllowed = 'move';
 		event.dataTransfer.setData('text/plain', key);
@@ -121,14 +128,14 @@ function handleMoveDragStart(event: DragEvent, key: string): void {
 		dropTargetPosition = null;
 	}
 
-		/**
+	/**
 	 * `handleMoveDragOver` のイベント処理を行います。
 	 *
 	 * @param event 発生したイベントです。
 	 * @param key 処理に必要な入力値です。
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function handleMoveDragOver(event: DragEvent, key: string): void {
+	function handleMoveDragOver(event: DragEvent, key: string): void {
 		event.preventDefault();
 		const targetOrder = parseOrderKey(key);
 		if (Number.isNaN(targetOrder)) return;
@@ -139,14 +146,14 @@ function handleMoveDragOver(event: DragEvent, key: string): void {
 		}
 	}
 
-		/**
+	/**
 	 * `handleMoveDragEnter` のイベント処理を行います。
 	 *
 	 * @param event 発生したイベントです。
 	 * @param key 処理に必要な入力値です。
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function handleMoveDragEnter(event: DragEvent, key: string): void {
+	function handleMoveDragEnter(event: DragEvent, key: string): void {
 		event.preventDefault();
 		const targetOrder = parseOrderKey(key);
 		if (Number.isNaN(targetOrder)) return;
@@ -157,20 +164,22 @@ function handleMoveDragEnter(event: DragEvent, key: string): void {
 		}
 	}
 
-		/**
+	/**
 	 * `handleMoveDragLeave` のイベント処理を行います。
 	 *
 	 * @param event 発生したイベントです。
 	 * @param key 処理に必要な入力値です。
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function handleMoveDragLeave(event: DragEvent, key: string): void {
+	function handleMoveDragLeave(event: DragEvent, key: string): void {
 		const order = parseOrderKey(key);
 		if (Number.isNaN(order)) return;
 		const relatedTarget = event.relatedTarget;
 		if (relatedTarget instanceof Element) {
 			const relatedCard = relatedTarget.closest('[data-holder-order]');
-			const relatedOrder = relatedCard ? Number(relatedCard.getAttribute('data-holder-order')) : null;
+			const relatedOrder = relatedCard
+				? Number(relatedCard.getAttribute('data-holder-order'))
+				: null;
 			if (relatedCard && !Number.isNaN(relatedOrder) && relatedOrder === dropTargetOrder) {
 				return;
 			}
@@ -181,14 +190,14 @@ function handleMoveDragLeave(event: DragEvent, key: string): void {
 		}
 	}
 
-		/**
+	/**
 	 * `handleMoveDrop` のイベント処理を行います。
 	 *
 	 * @param event 発生したイベントです。
 	 * @param key 処理に必要な入力値です。
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function handleMoveDrop(event: DragEvent, key: string): void {
+	function handleMoveDrop(event: DragEvent, key: string): void {
 		event.preventDefault();
 		if (!onMoveItem) {
 			draggingFromOrder = null;
@@ -209,24 +218,24 @@ function handleMoveDrop(event: DragEvent, key: string): void {
 		dropTargetPosition = null;
 	}
 
-		/**
+	/**
 	 * `handleMoveDragEnd` のイベント処理を行います。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function handleMoveDragEnd(): void {
+	function handleMoveDragEnd(): void {
 		draggingFromOrder = null;
 		dropTargetOrder = null;
 		dropTargetPosition = null;
 	}
 
-		/**
+	/**
 	 * `handleTouchStart` のイベント処理を行います。
 	 *
 	 * @param event 発生したイベントです。
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function handleTouchStart(event: TouchEvent): void {
+	function handleTouchStart(event: TouchEvent): void {
 		const target = event.target;
 		if (!(target instanceof Element)) return;
 		if (!target.closest('.drag-handle')) return;
@@ -238,13 +247,13 @@ function handleTouchStart(event: TouchEvent): void {
 		dropTargetPosition = 'after';
 	}
 
-		/**
+	/**
 	 * `handleTouchMove` のイベント処理を行います。
 	 *
 	 * @param event 発生したイベントです。
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function handleTouchMove(event: TouchEvent): void {
+	function handleTouchMove(event: TouchEvent): void {
 		if (draggingFromOrder === null || event.touches.length === 0) return;
 		const point = event.touches[0];
 		const element = document.elementFromPoint(point.clientX, point.clientY);
@@ -256,13 +265,13 @@ function handleTouchMove(event: TouchEvent): void {
 		event.preventDefault();
 	}
 
-		/**
+	/**
 	 * `handleTouchEnd` のイベント処理を行います。
 	 *
 	 * @param event 発生したイベントです。
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function handleTouchEnd(event: TouchEvent): void {
+	function handleTouchEnd(event: TouchEvent): void {
 		if (draggingFromOrder === null) return;
 		const point = event.changedTouches?.[0];
 		const endOrder = point
@@ -272,8 +281,8 @@ function handleTouchEnd(event: TouchEvent): void {
 			? getDropPositionFromEvent(
 					document.elementFromPoint(point.clientX, point.clientY),
 					point.clientY
-			  )
-			: dropTargetPosition ?? 'after';
+				)
+			: (dropTargetPosition ?? 'after');
 		if (endOrder !== null && onMoveItem) {
 			onMoveItem(draggingFromOrder, endOrder, endPosition === 'before');
 		}
@@ -282,23 +291,23 @@ function handleTouchEnd(event: TouchEvent): void {
 		dropTargetPosition = null;
 	}
 
-		/**
+	/**
 	 * `isDropTarget` の判定結果を返します。
 	 *
 	 * @param order 対象位置を表す数値です。
 	 * @returns 判定結果を返します。
 	 */
-function isDropTarget(order: number): boolean {
+	function isDropTarget(order: number): boolean {
 		return order === dropTargetOrder;
 	}
 
-		/**
+	/**
 	 * `getDropPosition` を取得します。
 	 *
 	 * @param order 対象位置を表す数値です。
 	 * @returns 解決結果を返します。
 	 */
-function getDropPosition(order: number): 'before' | 'after' | null {
+	function getDropPosition(order: number): 'before' | 'after' | null {
 		if (!isDropTarget(order)) return null;
 		return dropTargetPosition;
 	}
@@ -350,7 +359,7 @@ function getDropPosition(order: number): 'before' | 'after' | null {
 		{:else}
 			{#each items as item (item.key)}
 				<TicketHolderCard
-					item={item}
+					{item}
 					title={item.title}
 					fareText={item.fareText}
 					kmText={item.kmText}

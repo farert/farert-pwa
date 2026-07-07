@@ -3,67 +3,72 @@
 普通運賃、営業キロ、有効日数と詳細導線をまとめて表示します。
 -->
 <script lang="ts">
-import type { FareInfo } from '$lib/types';
+	import type { FareInfo } from '$lib/types';
 
-export let fareInfo: FareInfo | null = null;
-export let onDetailClick: (() => void) | undefined;
-export let detailEnabled = false;
+	let {
+		fareInfo = null,
+		onDetailClick = undefined,
+		detailEnabled = false
+	} = $props<{
+		fareInfo?: FareInfo | null;
+		onDetailClick?: (() => void) | undefined;
+		detailEnabled?: boolean;
+	}>();
 
-/**
- * `formatCurrency` の整形結果を返します。
- *
- * @param value 処理対象の値です。
- * @returns 文字列結果を返します。
- */
-function formatCurrency(value: number | undefined): string {
-	if (typeof value !== 'number' || Number.isNaN(value)) return '¥—';
-	return `¥${value.toLocaleString()}`;
-}
+	/**
+	 * 金額を日本円表記に整形します。
+	 *
+	 * @param value 整形対象の金額
+	 * @returns 表示用文字列（不正値は「¥—」）
+	 */
+	function formatCurrency(value: number | undefined): string {
+		if (typeof value !== 'number' || Number.isNaN(value)) return '¥—';
+		return `¥${value.toLocaleString()}`;
+	}
 
-/**
- * `resolveDistance` の解決結果を返します。
- *
- * @param info 処理に必要な入力値です。
- * @returns 文字列結果を返します。
- */
-function resolveDistance(info: FareInfo | null): string {
-	const raw = (info?.totalSalesKm as number | undefined) ?? (info?.distance as number | undefined);
-	if (typeof raw !== 'number' || Number.isNaN(raw)) return '— km';
-	return `${raw} km`;
-}
+	/**
+	 * 営業キロ表示文字列を返します。
+	 *
+	 * @param info 運賃情報
+	 * @returns 表示用文字列（不正値は「— km」）
+	 */
+	function resolveDistance(info: FareInfo | null): string {
+		const raw = info?.totalSalesKm;
+		if (typeof raw !== 'number' || Number.isNaN(raw)) return '— km';
+		return `${raw} km`;
+	}
 
-/**
- * `resolveValidDays` の解決結果を返します。
- *
- * @param info 処理に必要な入力値です。
- * @returns 文字列結果を返します。
- */
-function resolveValidDays(info: FareInfo | null): string {
-	const raw = (info?.ticketAvailDays as number | undefined) ?? (info?.validDays as number | undefined);
-	if (typeof raw !== 'number' || Number.isNaN(raw)) return '— 日';
-	return `${raw} 日`;
-}
+	/**
+	 * 有効日数表示文字列を返します。
+	 *
+	 * @param info 運賃情報
+	 * @returns 表示用文字列（不正値は「— 日」）
+	 */
+	function resolveValidDays(info: FareInfo | null): string {
+		const raw = info?.ticketAvailDays;
+		if (typeof raw !== 'number' || Number.isNaN(raw)) return '— 日';
+		return `${raw} 日`;
+	}
 
-$: fareAmount = formatCurrency((fareInfo?.fare as number | undefined) ?? undefined);
-$: distanceText = resolveDistance(fareInfo);
-$: validDaysText = resolveValidDays(fareInfo);
+	const fareAmount = $derived(formatCurrency(fareInfo?.fare));
+	const distanceText = $derived(resolveDistance(fareInfo));
+	const validDaysText = $derived(resolveValidDays(fareInfo));
 
-/**
- * `handleDetailClick` のイベント処理を行います。
- *
- * @returns この処理は戻り値を持ちません。
- */
-function handleDetailClick(): void {
-	const showDetail = detailEnabled && onDetailClick;
-	if (!showDetail) return;
-	onDetailClick();
-}
+	/**
+	 * 詳細ボタン押下時に有効時のみコールバックを呼び出します。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function handleDetailClick(): void {
+		if (!detailEnabled || !onDetailClick) return;
+		onDetailClick();
+	}
 </script>
 
 <button
 	class="fare-summary-card"
 	type="button"
-	on:click={handleDetailClick}
+	onclick={handleDetailClick}
 	disabled={!detailEnabled}
 	aria-label="運賃サマリー"
 >

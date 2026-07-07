@@ -3,8 +3,19 @@
  * 指標表示、共有、運賃オプション、エクスポート挙動を固定します。
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { page } from 'vitest/browser';
+import { page, type Locator } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
+
+/**
+ * Playwright プロバイダの実行時 Locator だけが持つ CSS セレクタ探索を型付けします。
+ *
+ * @param target - 親となる Locator
+ * @param selector - CSS セレクタ
+ * @returns セレクタで絞り込んだ Locator
+ */
+function locateBySelector(target: Locator, selector: string): Locator {
+	return (target as unknown as { locator: (selector: string) => Locator }).locator(selector);
+}
 
 const initFarertMock = vi.fn();
 const decompressMock = vi.fn();
@@ -23,19 +34,20 @@ vi.mock('$app/navigation', () => ({
 }));
 
 vi.mock('$app/paths', () => ({
-	base: '/farert-pwa'
+	base: '/farert-pwa',
+	resolve: (path: string) => `/farert-pwa${path}`
 }));
 
 const { default: DetailPage } = await import('./+page.svelte');
 
-	describe('/detail/+page.svelte', () => {
-		beforeEach(() => {
-			initFarertMock.mockReset();
-			decompressMock.mockReset();
-			gotoMock.mockReset();
-			initFarertMock.mockResolvedValue(undefined);
-			vi.unstubAllGlobals();
-		});
+describe('/detail/+page.svelte', () => {
+	beforeEach(() => {
+		initFarertMock.mockReset();
+		decompressMock.mockReset();
+		gotoMock.mockReset();
+		initFarertMock.mockResolvedValue(undefined);
+		vi.unstubAllGlobals();
+	});
 
 	it('shows an error when route parameter is missing', async () => {
 		render(DetailPage);
@@ -161,15 +173,15 @@ const { default: DetailPage } = await import('./+page.svelte');
 
 		await expect.element(page.getByText('運賃詳細')).toBeInTheDocument();
 		await expect.element(page.getByText('キロ程')).toBeInTheDocument();
-		const kilometerSection = page.getByRole('heading', { name: 'キロ程' }).locator('..');
+		const kilometerSection = locateBySelector(page.getByRole('heading', { name: 'キロ程' }), '..');
+		await expect.element(kilometerSection.getByText('営業キロ / 計算キロ(JR)')).toBeInTheDocument();
 		await expect
-			.element(kilometerSection.getByText('営業キロ / 計算キロ(JR)'))
+			.element(kilometerSection.getByText(/218\.3km\s*\/\s*226\.4km/))
 			.toBeInTheDocument();
-		await expect.element(kilometerSection.getByText(/218\.3km\s*\/\s*226\.4km/)).toBeInTheDocument();
-		await expect.element(kilometerSection.getByText('JR北海道 営業キロ/計算キロ')).toBeInTheDocument();
 		await expect
-			.element(kilometerSection.getByText(/405\.5km\s*\/\s*20\.0km/))
+			.element(kilometerSection.getByText('JR北海道 営業キロ/計算キロ'))
 			.toBeInTheDocument();
+		await expect.element(kilometerSection.getByText(/405\.5km\s*\/\s*20\.0km/)).toBeInTheDocument();
 		await expect.element(kilometerSection.getByText('JR線 / 会社線')).toBeInTheDocument();
 		await expect.element(kilometerSection.getByText(/218\.3km\s*\/\s*24\.4km/)).toBeInTheDocument();
 		await expect
@@ -180,7 +192,7 @@ const { default: DetailPage } = await import('./+page.svelte');
 			.element(kilometerSection.getByText('規程114条適用 営業キロ / 計算キロ'))
 			.toBeInTheDocument();
 		await expect.element(kilometerSection.getByText('200.5km / 208.8km')).toBeInTheDocument();
-		const fareSection = page.getByRole('heading', { name: '運賃' }).locator('..');
+		const fareSection = locateBySelector(page.getByRole('heading', { name: '運賃' }), '..');
 		await expect.element(fareSection).toBeInTheDocument();
 		await expect.element(fareSection.getByText('普通運賃（IC運賃）')).toBeInTheDocument();
 		await expect.element(fareSection.getByText('うち会社線')).toBeInTheDocument();
@@ -198,14 +210,10 @@ const { default: DetailPage } = await import('./+page.svelte');
 		await expect.element(fareSection.getByText('¥3,800')).toBeInTheDocument();
 		await expect.element(fareSection.getByText('¥3,040')).toBeInTheDocument();
 		await expect.element(fareSection.getByText('¥6,080')).toBeInTheDocument();
-		await expect
-			.element(page.getByText('株主優待運賃（JR東海株主優待）'))
-			.toBeInTheDocument();
+		await expect.element(page.getByText('株主優待運賃（JR東海株主優待）')).toBeInTheDocument();
 		await expect.element(page.getByText('¥3,400')).toBeInTheDocument();
 		await expect.element(page.getByText('規程114条適用前: ¥3,600')).toBeInTheDocument();
-		await expect
-			.element(page.getByText('規程114条適用前（往復運賃）'))
-			.toBeInTheDocument();
+		await expect.element(page.getByText('規程114条適用前（往復運賃）')).toBeInTheDocument();
 		await expect.element(page.getByText('有効日数')).toBeInTheDocument();
 		await expect.element(page.getByText('3日間')).toBeInTheDocument();
 		await expect.element(page.getByText('途中下車できます')).toBeInTheDocument();
@@ -254,17 +262,19 @@ const { default: DetailPage } = await import('./+page.svelte');
 
 		render(DetailPage, { initialCompressedRoute: 'encoded-simple' });
 
-		const kilometerSection = page.getByRole('heading', { name: 'キロ程' }).locator('..');
+		const kilometerSection = locateBySelector(page.getByRole('heading', { name: 'キロ程' }), '..');
 		await expect.element(kilometerSection.getByText(/^営業キロ$/)).toBeInTheDocument();
 		await expect.element(kilometerSection.getByText('104.5km')).toBeInTheDocument();
 		await expect.element(kilometerSection.getByText('JR北海道 営業キロ')).toBeInTheDocument();
 		await expect.element(kilometerSection.getByText('30.0km')).toBeInTheDocument();
-		await expect.element(kilometerSection.getByText('営業キロ / 計算キロ(JR)')).not.toBeInTheDocument();
+		await expect
+			.element(kilometerSection.getByText('営業キロ / 計算キロ(JR)'))
+			.not.toBeInTheDocument();
 		await expect.element(kilometerSection.getByText('営業キロ / 計算キロ')).not.toBeInTheDocument();
 		await expect.element(kilometerSection.getByText('JR営業キロ')).not.toBeInTheDocument();
 		await expect.element(kilometerSection.getByText('JR線 / 会社線')).not.toBeInTheDocument();
 
-		const fareSection = page.getByRole('heading', { name: '運賃' }).locator('..');
+		const fareSection = locateBySelector(page.getByRole('heading', { name: '運賃' }), '..');
 		await expect.element(fareSection.getByText('小児運賃')).toBeInTheDocument();
 		await expect.element(fareSection.getByText('学割運賃')).toBeInTheDocument();
 		await expect.element(fareSection.getByText('¥990')).toBeInTheDocument();
@@ -300,9 +310,11 @@ const { default: DetailPage } = await import('./+page.svelte');
 
 		render(DetailPage, { initialCompressedRoute: 'encoded-east-only' });
 
-		const kilometerSection = page.getByRole('heading', { name: 'キロ程' }).locator('..');
+		const kilometerSection = locateBySelector(page.getByRole('heading', { name: 'キロ程' }), '..');
 		await expect.element(kilometerSection.getByText('営業キロ / 計算キロ')).toBeInTheDocument();
-		await expect.element(kilometerSection.getByText(/104\.5km\s*\/\s*110\.0km/)).toBeInTheDocument();
+		await expect
+			.element(kilometerSection.getByText(/104\.5km\s*\/\s*110\.0km/))
+			.toBeInTheDocument();
 		await expect.element(kilometerSection.getByText('JR東日本 営業キロ')).toBeInTheDocument();
 		await expect.element(kilometerSection.getByText('123,400.0km')).toBeInTheDocument();
 		await expect
@@ -354,7 +366,9 @@ const { default: DetailPage } = await import('./+page.svelte');
 		await expect.element(page.getByText('途中下車できます')).toBeInTheDocument();
 
 		await page.getByRole('button', { name: 'メニュー' }).click();
-		await expect.element(page.getByRole('menuitem', { name: '発駅を単駅指定' })).toBeInTheDocument();
+		await expect
+			.element(page.getByRole('menuitem', { name: '発駅を単駅指定' }))
+			.toBeInTheDocument();
 
 		await page.getByRole('menuitem', { name: '発駅を単駅指定' }).click();
 		expect(setArrivalAsCityMock).toHaveBeenCalledTimes(1);
@@ -387,9 +401,15 @@ const { default: DetailPage } = await import('./+page.svelte');
 		render(DetailPage, { initialCompressedRoute: 'encoded-no-options' });
 
 		await page.getByRole('button', { name: 'メニュー' }).click();
-		await expect.element(page.getByRole('menuitem', { name: '発駅を単駅指定' })).not.toBeInTheDocument();
-		await expect.element(page.getByRole('menuitem', { name: '着駅を単駅指定' })).not.toBeInTheDocument();
-		await expect.element(page.getByRole('menuitem', { name: 'オプション' })).not.toBeInTheDocument();
+		await expect
+			.element(page.getByRole('menuitem', { name: '発駅を単駅指定' }))
+			.not.toBeInTheDocument();
+		await expect
+			.element(page.getByRole('menuitem', { name: '着駅を単駅指定' }))
+			.not.toBeInTheDocument();
+		await expect
+			.element(page.getByRole('menuitem', { name: 'オプション' }))
+			.not.toBeInTheDocument();
 	});
 
 	it('shows fare option menu when isFareOptEnabled is omitted but option flag is available', async () => {
@@ -421,8 +441,12 @@ const { default: DetailPage } = await import('./+page.svelte');
 		render(DetailPage, { initialCompressedRoute: 'encoded-meihan-legacy' });
 
 		await page.getByRole('button', { name: 'メニュー' }).click();
-		await expect.element(page.getByRole('menuitem', { name: '発駅を単駅指定' })).toBeInTheDocument();
-		await expect.element(page.getByRole('menuitem', { name: 'バージョン情報' })).toBeInTheDocument();
+		await expect
+			.element(page.getByRole('menuitem', { name: '発駅を単駅指定' }))
+			.toBeInTheDocument();
+		await expect
+			.element(page.getByRole('menuitem', { name: 'バージョン情報' }))
+			.toBeInTheDocument();
 	});
 
 	it('shows fare options for legacy route output including fare opt flags', async () => {

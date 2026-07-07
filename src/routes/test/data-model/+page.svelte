@@ -5,9 +5,22 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { initFarert, Farert } from '$lib/wasm';
-	import { initStores, mainRoute, savedRoutes, ticketHolder, stationHistory, addToStationHistory, clearAllStores } from '$lib/stores';
-	import { exportRoutes, importRoutes, copyRouteToClipboard, pasteRouteFromClipboard } from '$lib/storage';
-	import { FareType, FareTypeLabels, type TicketHolderItem } from '$lib/types';
+	import {
+		initStores,
+		mainRoute,
+		savedRoutes,
+		ticketHolder,
+		stationHistory,
+		addToStationHistory,
+		clearAllStores
+	} from '$lib/stores';
+	import {
+		exportRoutes,
+		importRoutes,
+		copyRouteToClipboard,
+		pasteRouteFromClipboard
+	} from '$lib/storage';
+	import { FareType, type TicketHolderItem } from '$lib/types';
 
 	let initialized = $state(false);
 	let loading = $state(true);
@@ -28,24 +41,24 @@
 		currentStationHistory = $stationHistory;
 	});
 
-		/**
+	/**
 	 * `addTestResult` を処理します。
 	 *
 	 * @param message 表示または処理に使うメッセージです。
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function addTestResult(message: string) {
+	function addTestResult(message: string) {
 		testResults = [...testResults, `✅ ${message}`];
 		console.log(`[TEST] ${message}`);
 	}
 
-		/**
+	/**
 	 * `addTestError` を処理します。
 	 *
 	 * @param message 表示または処理に使うメッセージです。
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function addTestError(message: string) {
+	function addTestError(message: string) {
 		testResults = [...testResults, `❌ ${message}`];
 		console.error(`[TEST] ${message}`);
 	}
@@ -71,12 +84,12 @@ function addTestError(message: string) {
 		}
 	});
 
-		/**
+	/**
 	 * `runTests` を処理します。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-async function runTests() {
+	async function runTests() {
 		addTestResult('=== データモデルテスト開始 ===');
 
 		// Test 1: 経路作成とrouteScript
@@ -94,7 +107,9 @@ async function runTests() {
 			if (script === '東京,東海道線,熱海') {
 				addTestResult(`経路作成とrouteScript: ${script}`);
 			} else {
-				addTestError(`経路作成失敗: expected "東京,東海道線,熱海", got "${script}" (rc1=${rc1}, rc2=${rc2})`);
+				addTestError(
+					`経路作成失敗: expected "東京,東海道線,熱海", got "${script}" (rc1=${rc1}, rc2=${rc2})`
+				);
 			}
 		} catch (err) {
 			addTestError(`経路作成エラー: ${err}`);
@@ -121,7 +136,7 @@ async function runTests() {
 			mainRoute.set(route);
 
 			// 少し待ってlocalStorageに保存されるのを確認
-			await new Promise(resolve => setTimeout(resolve, 100));
+			await new Promise((resolve) => setTimeout(resolve, 100));
 
 			const stored = localStorage.getItem('farert_current_route');
 			if (stored === '新宿,中央東線,八王子') {
@@ -139,7 +154,7 @@ async function runTests() {
 			addToStationHistory('新宿');
 			addToStationHistory('東京'); // 重複
 
-			await new Promise(resolve => setTimeout(resolve, 100));
+			await new Promise((resolve) => setTimeout(resolve, 100));
 
 			const history = $stationHistory;
 			if (history[0] === '東京' && history[1] === '新宿' && history.length === 2) {
@@ -165,7 +180,7 @@ async function runTests() {
 			};
 			ticketHolder.set([item1, item2]);
 
-			await new Promise(resolve => setTimeout(resolve, 100));
+			await new Promise((resolve) => setTimeout(resolve, 100));
 
 			const holder = $ticketHolder;
 			if (holder.length === 2 && holder[0].fareType === FareType.NORMAL) {
@@ -181,7 +196,7 @@ async function runTests() {
 		try {
 			savedRoutes.set(['東京,東海道線,新大阪', '札幌,函館本線,小樽']);
 
-			await new Promise(resolve => setTimeout(resolve, 100));
+			await new Promise((resolve) => setTimeout(resolve, 100));
 
 			const routes = $savedRoutes;
 			if (routes.length === 2) {
@@ -221,29 +236,29 @@ async function runTests() {
 			} else {
 				addTestResult('クリップボード: Clipboard API未対応（スキップ）');
 			}
-		} catch (err) {
+		} catch {
 			addTestResult('クリップボード: エラー（スキップ）');
 		}
 
 		addTestResult('=== データモデルテスト完了 ===');
 	}
 
-		/**
+	/**
 	 * `handleClearAll` のイベント処理を行います。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function handleClearAll() {
+	function handleClearAll() {
 		clearAllStores();
 		testResults = [...testResults, '⚠️ すべてのストアをクリアしました'];
 	}
 
-		/**
+	/**
 	 * `handleReload` のイベント処理を行います。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function handleReload() {
+	function handleReload() {
 		window.location.reload();
 	}
 </script>
@@ -260,7 +275,7 @@ function handleReload() {
 			<section class="test-results">
 				<h2>テスト結果</h2>
 				<div class="results">
-					{#each testResults as result}
+					{#each testResults as result, resultIndex (resultIndex)}
 						<div class="result-item">{result}</div>
 					{/each}
 				</div>
@@ -304,7 +319,10 @@ function handleReload() {
 		max-width: 1000px;
 		margin: 0 auto;
 		padding: 2rem;
-		font-family: system-ui, -apple-system, sans-serif;
+		font-family:
+			system-ui,
+			-apple-system,
+			sans-serif;
 	}
 
 	h1 {

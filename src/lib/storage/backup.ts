@@ -126,7 +126,9 @@ export function importAppBackup(jsonString: string): AppBackup {
 		}
 
 		const currentRoute =
-			typeof storage.currentRoute === 'string' ? normalizeRouteScript(storage.currentRoute) || null : null;
+			typeof storage.currentRoute === 'string'
+				? normalizeRouteScript(storage.currentRoute) || null
+				: null;
 		const savedRoutes = Array.isArray(storage.savedRoutes)
 			? normalizeUniqueStrings(storage.savedRoutes)
 			: [];

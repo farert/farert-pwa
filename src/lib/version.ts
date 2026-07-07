@@ -11,5 +11,4 @@ export const BUILD_AT: string =
 export const GIT_COMMIT_AT: string =
 	typeof __GIT_COMMIT_AT__ === 'string' && __GIT_COMMIT_AT__ ? __GIT_COMMIT_AT__ : '';
 
-export const GIT_SHA: string =
-	typeof __GIT_SHA__ === 'string' && __GIT_SHA__ ? __GIT_SHA__ : '';
+export const GIT_SHA: string = typeof __GIT_SHA__ === 'string' && __GIT_SHA__ ? __GIT_SHA__ : '';

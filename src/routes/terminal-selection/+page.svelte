@@ -3,1368 +3,1327 @@
 グループ、都道府県、履歴、検索の各導線を統合して扱います。
 -->
 <script lang="ts">
-import { goto } from '$app/navigation';
-import { base } from '$app/paths';
-import { onMount } from 'svelte';
-import {
-	initFarert,
-	Farert,
-	getCompanys,
-	getPrefects,
-	getLinesByCompany,
-	getLinesByPrefect,
-	getStationsByCompanyAndLine,
-	getStationsByPrefectureAndLine,
-	getStationsByLine,
-	searchStationFuzzy,
-	getKanaByStation,
-	getPrefectureByStation,
-	getLinesByStation,
-	executeSql
-} from '$lib/wasm';
-import { addToStationHistory, mainRoute, mainScreenErrorMessage, stationHistory } from '$lib/stores';
-import {
-	extractLinesFromPrefecturePayload,
-	toWasmPrefecture
-} from '$lib/utils/prefectureSelection';
-import {
-	observeWideScreenViewport,
-	scrollPageToBottom,
-	scrollPageToTop
-} from '$lib/utils/responsiveLayout';
-import {
-	buildStationDisplayMeta,
-	buildStationDisplayNameFromCandidates,
-	normalizeStationName
-} from '$lib/utils/stationDisplay';
-import type { FaretClass } from '$lib/wasm/types';
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
+	import { onMount } from 'svelte';
+	import {
+		initFarert,
+		Farert,
+		getCompanys,
+		getPrefects,
+		getLinesByCompany,
+		getLinesByPrefect,
+		getStationsByCompanyAndLine,
+		getStationsByPrefectureAndLine,
+		getStationsByLine,
+		searchStationFuzzy,
+		getKanaByStation,
+		getPrefectureByStation,
+		getLinesByStation,
+		executeSql
+	} from '$lib/wasm';
+	import {
+		addToStationHistory,
+		mainRoute,
+		mainScreenErrorMessage,
+		stationHistory
+	} from '$lib/stores';
+	import {
+		extractLinesFromPrefecturePayload,
+		toWasmPrefecture
+	} from '$lib/utils/prefectureSelection';
+	import {
+		observeWideScreenViewport,
+		scrollPageToBottom,
+		scrollPageToTop
+	} from '$lib/utils/responsiveLayout';
+	import {
+		buildStationDisplayMeta,
+		buildStationDisplayNameFromCandidates,
+		normalizeStationName
+	} from '$lib/utils/stationDisplay';
+	import { isRouteOperationSuccess } from '$lib/utils/routeResult';
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
+	import { ConfirmDialogController } from '$lib/utils/confirmDialog.svelte';
+	import type { FaretClass } from '$lib/wasm/types';
 
-type Tab = 'group' | 'prefecture' | 'history';
-type Stage = 'root' | 'lines' | 'stations';
-type SelectionBase = 'group' | 'prefecture';
+	type Tab = 'group' | 'prefecture' | 'history';
+	type Stage = 'root' | 'lines' | 'stations';
+	type SelectionBase = 'group' | 'prefecture';
 
-interface SearchResultItem {
-	name: string;
-	displayName: string;
-	kana: string;
-	prefecture: string;
-}
-
-interface SearchMeta {
-	kana: string;
-	prefecture: string;
-}
-
-interface StationListMeta {
-	name: string;
-	kana: string;
-	lines: string[];
-	prefecture: string;
-}
-
-interface FuzzySearchItem {
-	name: string;
-	kana?: string;
-	samename?: string[];
-	score?: number;
-}
-
-const START_SCREEN_TITLE = '発駅選択';
-const DESTINATION_SCREEN_TITLE = '着駅指定（最短経路）';
-const PREFECTURE_FALLBACK = [
-	'北海道',
-	'青森県',
-	'秋田県',
-	'岩手県',
-	'山形県',
-	'宮城県',
-	'福島県',
-	'新潟県',
-	'栃木県',
-	'群馬県',
-	'茨城県',
-	'千葉県',
-	'埼玉県',
-	'東京都',
-	'神奈川県',
-	'静岡県',
-	'山梨県',
-	'長野県',
-	'岐阜県',
-	'富山県',
-	'福井県',
-	'石川県',
-	'愛知県',
-	'三重県',
-	'滋賀県',
-	'京都府',
-	'大阪府',
-	'和歌山県',
-	'奈良県',
-	'兵庫県',
-	'鳥取県',
-	'島根県',
-	'岡山県',
-	'広島県',
-	'山口県',
-	'香川県',
-	'徳島県',
-	'愛媛県',
-	'高知県',
-	'福岡県',
-	'佐賀県',
-	'長崎県',
-	'大分県',
-	'熊本県',
-	'宮崎県',
-	'鹿児島県'
-];
-
-let tab = $state<Tab>('group');
-let stage = $state<Stage>('root');
-let selectionBase = $state<SelectionBase>('group');
-let loading = $state(true);
-let panelLoading = $state(false);
-let searchLoading = $state(false);
-let errorMessage = $state('');
-let searchQuery = $state('');
-let searchMode = $state(false);
-let searchResults = $state<SearchResultItem[]>([]);
-let companies = $state<string[]>([]);
-let prefectures = $state<string[]>([]);
-let lines = $state<string[]>([]);
-let stations = $state<string[]>([]);
-let selectedCompany = $state('');
-let selectedPrefecture = $state('');
-let selectedLine = $state('');
-let historyItems = $state<string[]>([]);
-let stationListMeta = $state<Record<string, StationListMeta>>({});
-let historySwipeOffsets = $state<Record<string, number>>({});
-let activeSwipeStation = $state<string | null>(null);
-let swipeSession: { station: string; startX: number; pointerId: number; initialOffset: number } | null = null;
-let routeRef = $state<FaretClass | null>(null);
-let initialFetchDone = $state(false);
-let searchToken = 0;
-const linePrefectureCache = new Map<string, Set<string>>();
-let screenMode = $state<'start' | 'destination'>('start');
-let splitViewEnabled = $state(false);
-const screenTitle = $derived(
-	screenMode === 'destination' ? DESTINATION_SCREEN_TITLE : START_SCREEN_TITLE
-);
-const screenSubtitle = $derived(
-	screenMode === 'destination' ? '着駅を選択してください' : '発駅を選択してください'
-);
-let { initialMode = '' } = $props<{ initialMode?: 'start' | 'destination' }>();
-let autoRouteDialogOpen = $state(false);
-let pendingDestinationStation = $state('');
-let confirmDialogOpen = $state(false);
-let confirmDialogMessage = $state('');
-let confirmResolver: ((result: boolean) => void) | null = null;
-
-interface ParseListOptions {
-	suppressError?: boolean;
-	onError?: (err: unknown) => void;
-}
-
-onMount(() => {
-	const stopObservingViewport = observeWideScreenViewport((isWide) => {
-		splitViewEnabled = isWide;
-	});
-
-	const unsubRoute = mainRoute.subscribe((value) => {
-		routeRef = value;
-	});
-	const unsubHistory = stationHistory.subscribe((value) => {
-		historyItems = value;
-		historySwipeOffsets = Object.fromEntries(
-			Object.entries(historySwipeOffsets).filter(([station]) => value.includes(station))
-		);
-	});
-
-	if (initialMode === 'destination') {
-		screenMode = 'destination';
-	} else if (typeof window !== 'undefined') {
-		const params = new URLSearchParams(window.location.search);
-		if (params.get('mode') === 'destination') {
-			screenMode = 'destination';
-		}
+	interface SearchResultItem {
+		name: string;
+		displayName: string;
+		kana: string;
+		prefecture: string;
 	}
 
-	(async () => {
-		try {
-			await initFarert();
-			await loadInitialLists();
-			tab = 'group';
-			selectionBase = 'group';
-		} catch (err) {
-			handleError('初期データの取得に失敗しました', err);
-		} finally {
-			loading = false;
-			initialFetchDone = true;
-		}
-	})();
-
-	return () => {
-		stopObservingViewport();
-		unsubRoute?.();
-		unsubHistory?.();
-	};
-});
-
-/**
- * `loadInitialLists` の読み込み処理を行います。
- *
- * @returns この処理は戻り値を持ちません。
- */
-async function loadInitialLists(): Promise<void> {
-	companies = parseList(getCompanys(), 'JRグループの取得に失敗しました', 'companies');
-	const prefectList = parseList(getPrefects(), '都道府県一覧の取得に失敗しました', [
-		'prefectures',
-		'prefects'
-	]);
-	prefectures = normalizePrefectures(prefectList);
-}
-
-/**
- * `parseList` の解析結果を返します。
- *
- * @param payload 処理対象の文字列です。
- * @param errorLabel 処理に必要な入力値です。
- * @param keyHints 処理に必要な入力値です。
- * @param options 受け取り値のまとまりです。
- * @returns 文字列結果を返します。
- */
-function parseList(
-	payload: string,
-	errorLabel: string,
-	keyHints?: string | string[],
-	options?: ParseListOptions
-): string[] {
-	try {
-		if (!payload) return [];
-		const parsed = JSON.parse(payload);
-		if (Array.isArray(parsed)) {
-			return dedupe(normalizeStringList(parsed));
-		}
-		if (parsed && typeof parsed === 'object' && Object.keys(parsed).length === 0) {
-			return [];
-		}
-		const hints = Array.isArray(keyHints) ? keyHints : keyHints ? [keyHints] : [];
-		for (const hint of hints) {
-			if (hint && Array.isArray((parsed as Record<string, unknown>)[hint])) {
-				return dedupe(normalizeStringList((parsed as Record<string, unknown>)[hint]));
-			}
-		}
-		const firstArrayKey = Object.keys(parsed ?? {}).find((key) =>
-			Array.isArray((parsed as Record<string, unknown>)[key])
-		);
-		if (firstArrayKey && Array.isArray((parsed as Record<string, unknown>)[firstArrayKey])) {
-			return dedupe(normalizeStringList((parsed as Record<string, unknown>)[firstArrayKey]));
-		}
-		const values = Object.values(parsed ?? {});
-		const firstArray = values.find((value) => Array.isArray(value));
-		if (Array.isArray(firstArray)) {
-			return dedupe(normalizeStringList(firstArray));
-		}
-		throw new Error('一覧形式ではありません');
-	} catch (err) {
-		options?.onError?.(err);
-		if (!options?.suppressError) {
-			handleError(errorLabel, err);
-		}
-		return [];
+	interface SearchMeta {
+		kana: string;
+		prefecture: string;
 	}
-}
 
-/**
- * `normalizeStringList` を正規化します。
- *
- * @param value 処理対象の値です。
- * @returns 文字列結果を返します。
- */
-function normalizeStringList(value: unknown): string[] {
-	if (!Array.isArray(value)) return [];
-	const result: string[] = [];
-	for (const entry of value) {
-		if (typeof entry !== 'string') continue;
-		const trimmed = entry.trim();
-		if (!trimmed) continue;
-		result.push(trimmed);
+	interface StationListMeta {
+		name: string;
+		kana: string;
+		lines: string[];
+		prefecture: string;
 	}
-	return result;
-}
 
-/**
- * `dedupe` を処理します。
- *
- * @param values 処理対象の値です。
- * @returns 文字列結果を返します。
- */
-function dedupe(values: string[]): string[] {
-	const seen = new Set<string>();
-	const result: string[] = [];
-	for (const value of values) {
-		if (!value || seen.has(value)) continue;
-		seen.add(value);
-		result.push(value);
+	interface FuzzySearchItem {
+		name: string;
+		kana?: string;
+		samename?: string[];
+		score?: number;
 	}
-	return result;
-}
 
-/**
- * `normalizePrefectures` を正規化します。
- *
- * @param list 処理に必要な入力値です。
- * @returns 文字列結果を返します。
- */
-function normalizePrefectures(list: string[]): string[] {
-	const normalized = Array.from(
-		new Set(
-			(list ?? []).map((name) => name?.trim()).filter((name): name is string => Boolean(name))
-		)
+	const START_SCREEN_TITLE = '発駅選択';
+	const DESTINATION_SCREEN_TITLE = '着駅指定（最短経路）';
+	const PREFECTURE_FALLBACK = [
+		'北海道',
+		'青森県',
+		'秋田県',
+		'岩手県',
+		'山形県',
+		'宮城県',
+		'福島県',
+		'新潟県',
+		'栃木県',
+		'群馬県',
+		'茨城県',
+		'千葉県',
+		'埼玉県',
+		'東京都',
+		'神奈川県',
+		'静岡県',
+		'山梨県',
+		'長野県',
+		'岐阜県',
+		'富山県',
+		'福井県',
+		'石川県',
+		'愛知県',
+		'三重県',
+		'滋賀県',
+		'京都府',
+		'大阪府',
+		'和歌山県',
+		'奈良県',
+		'兵庫県',
+		'鳥取県',
+		'島根県',
+		'岡山県',
+		'広島県',
+		'山口県',
+		'香川県',
+		'徳島県',
+		'愛媛県',
+		'高知県',
+		'福岡県',
+		'佐賀県',
+		'長崎県',
+		'大分県',
+		'熊本県',
+		'宮崎県',
+		'鹿児島県'
+	];
+
+	let tab = $state<Tab>('group');
+	let stage = $state<Stage>('root');
+	let selectionBase = $state<SelectionBase>('group');
+	let loading = $state(true);
+	let panelLoading = $state(false);
+	let searchLoading = $state(false);
+	let errorMessage = $state('');
+	let searchQuery = $state('');
+	let searchMode = $state(false);
+	let searchResults = $state<SearchResultItem[]>([]);
+	let companies = $state<string[]>([]);
+	let prefectures = $state<string[]>([]);
+	let lines = $state<string[]>([]);
+	let stations = $state<string[]>([]);
+	let selectedCompany = $state('');
+	let selectedPrefecture = $state('');
+	let selectedLine = $state('');
+	let historyItems = $state<string[]>([]);
+	let stationListMeta = $state<Record<string, StationListMeta>>({});
+	let historySwipeOffsets = $state<Record<string, number>>({});
+	let activeSwipeStation = $state<string | null>(null);
+	let swipeSession: {
+		station: string;
+		startX: number;
+		pointerId: number;
+		initialOffset: number;
+	} | null = null;
+	let routeRef = $state<FaretClass | null>(null);
+	let initialFetchDone = $state(false);
+	let searchToken = 0;
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- local non-reactive collection
+	const linePrefectureCache = new Map<string, Set<string>>();
+	let screenMode = $state<'start' | 'destination'>('start');
+	let splitViewEnabled = $state(false);
+	const screenTitle = $derived(
+		screenMode === 'destination' ? DESTINATION_SCREEN_TITLE : START_SCREEN_TITLE
 	);
-	if (normalized.length >= PREFECTURE_FALLBACK.length && normalized.includes('北海道')) {
-		return normalized;
+	const screenSubtitle = $derived(
+		screenMode === 'destination' ? '着駅を選択してください' : '発駅を選択してください'
+	);
+	// eslint-disable-next-line svelte/valid-prop-names-in-kit-pages -- prop is injected by tests and embedding, not by the router
+	let { initialMode = '' } = $props<{ initialMode?: 'start' | 'destination' }>();
+	let autoRouteDialogOpen = $state(false);
+	let pendingDestinationStation = $state('');
+	const confirmDialog = new ConfirmDialogController();
+
+	interface ParseListOptions {
+		suppressError?: boolean;
+		onError?: (err: unknown) => void;
 	}
-	return PREFECTURE_FALLBACK;
-}
 
-/**
- * `handleError` のイベント処理を行います。
- *
- * @param message 表示または処理に使うメッセージです。
- * @param err 処理に必要な入力値です。
- * @returns この処理は戻り値を持ちません。
- */
-function handleError(message: string, err: unknown): void {
-	console.error('[TERMINAL_SELECTION]', message, err);
-	errorMessage = `${message}: ${(err as Error)?.message ?? err}`;
-}
+	onMount(() => {
+		const stopObservingViewport = observeWideScreenViewport((isWide) => {
+			splitViewEnabled = isWide;
+		});
 
-/**
- * `resetSelections` を処理します。
- *
- * @returns この処理は戻り値を持ちません。
- */
-function resetSelections(): void {
-	stage = 'root';
-	lines = [];
-	stations = [];
-	stationListMeta = {};
-	selectedLine = '';
-	selectedCompany = '';
-	selectedPrefecture = '';
-	panelLoading = false;
-}
+		const unsubRoute = mainRoute.subscribe((value) => {
+			routeRef = value;
+		});
+		const unsubHistory = stationHistory.subscribe((value) => {
+			historyItems = value;
+			historySwipeOffsets = Object.fromEntries(
+				Object.entries(historySwipeOffsets).filter(([station]) => value.includes(station))
+			);
+		});
 
-/**
- * `resetToInitialState` を処理します。
- *
- * @returns この処理は戻り値を持ちません。
- */
-function resetToInitialState(): void {
-	clearSearch();
-	resetSelections();
-	tab = 'group';
-	selectionBase = 'group';
-	errorMessage = '';
-}
-
-/**
- * `selectTab` を処理します。
- *
- * @param next 処理に必要な入力値です。
- * @returns この処理は戻り値を持ちません。
- */
-function selectTab(next: Tab): void {
-	if (tab === next) return;
-	tab = next;
-	searchMode = false;
-	searchQuery = '';
-	searchResults = [];
-	resetSelections();
-	if (next === 'prefecture') {
-		selectionBase = 'prefecture';
-	} else if (next === 'group') {
-		selectionBase = 'group';
-	} else {
-		selectionBase = 'group';
-	}
-}
-
-/**
- * `getListTitle` を取得します。
- *
- * @returns 文字列結果を返します。
- */
-function getListTitle(): string {
-	if (searchMode && searchQuery.trim().length > 0) {
-		return `一致件数: ${searchResults.length}件`;
-	}
-	if (stage === 'lines') {
-		if (selectionBase === 'group' && selectedCompany) {
-			return `${selectedCompany}`;
-		}
-		if (selectionBase === 'prefecture' && selectedPrefecture) {
-			return `${selectedPrefecture}`;
-		}
-		return '路線一覧';
-	}
-	if (stage === 'stations') {
-		const base = selectionBase === 'prefecture' ? selectedPrefecture : selectedCompany;
-		if (base && selectedLine) {
-			return `${base}ー${selectedLine}`;
-		}
-		return selectedLine || '駅一覧';
-	}
-	switch (tab) {
-		case 'prefecture':
-			return '都道府県';
-		case 'history':
-			return '履歴';
-		default:
-			return 'JRグループ';
-	}
-}
-
-/**
- * `clearError` を処理します。
- *
- * @returns この処理は戻り値を持ちません。
- */
-function clearError(): void {
-	errorMessage = '';
-}
-
-/**
- * `clearSearch` を処理します。
- *
- * @returns この処理は戻り値を持ちません。
- */
-function clearSearch(): void {
-	searchQuery = '';
-	searchMode = false;
-	searchResults = [];
-	searchLoading = false;
-}
-
-/**
- * `handleBack` のイベント処理を行います。
- *
- * @returns この処理は戻り値を持ちません。
- */
-function handleBack(): void {
-	if (searchMode) {
-		clearSearch();
-		return;
-	}
-	if (splitViewEnabled && stage === 'lines' && selectedLine) {
-		stations = [];
-		stationListMeta = {};
-		selectedLine = '';
-		return;
-	}
-	if (stage === 'stations') {
-		stage = 'lines';
-		stations = [];
-		stationListMeta = {};
-		selectedLine = '';
-		return;
-	}
-	if (stage === 'lines') {
-		stage = 'root';
-		lines = [];
-		return;
-	}
-	resetToInitialState();
-	goto(`${base}/`);
-}
-
-/**
- * `openLinesFromGroup` を開始または表示します。
- *
- * @param company 処理に必要な入力値です。
- * @returns この処理は戻り値を持ちません。
- */
-async function openLinesFromGroup(company: string): Promise<void> {
-	selectionBase = 'group';
-	selectedCompany = company;
-	await loadLines(() => getLinesByCompany(company));
-}
-
-/**
- * `openLinesFromPrefecture` を開始または表示します。
- *
- * @param prefecture 処理に必要な入力値です。
- * @returns この処理は戻り値を持ちません。
- */
-async function openLinesFromPrefecture(prefecture: string): Promise<void> {
-	selectionBase = 'prefecture';
-	selectedPrefecture = prefecture;
-	await loadLines(() => fetchPrefectureLines(prefecture));
-}
-
-/**
- * `fetchPrefectureLines` を処理します。
- *
- * @param prefecture 処理に必要な入力値です。
- * @returns 文字列結果を返します。
- */
-function fetchPrefectureLines(prefecture: string): string {
-	const normalized = toWasmPrefecture(prefecture);
-	const normalizedPayload = getLinesByPrefect(normalized);
-	if (normalized === prefecture || prefecturePayloadHasLines(normalizedPayload, prefecture)) {
-		return normalizedPayload;
-	}
-	return getLinesByPrefect(prefecture);
-}
-
-/**
- * `prefecturePayloadHasLines` を処理します。
- *
- * @param payload 処理対象の文字列です。
- * @param prefecture 処理に必要な入力値です。
- * @returns 判定結果を返します。
- */
-function prefecturePayloadHasLines(payload: string, prefecture: string): boolean {
-	return extractLinesFromPrefecturePayload(payload, prefecture).length > 0;
-}
-
-/**
- * `loadLines` の読み込み処理を行います。
- *
- * @param fetcher 処理に必要な入力値です。
- * @returns この処理は戻り値を持ちません。
- */
-async function loadLines(fetcher: () => string): Promise<void> {
-	stage = 'lines';
-	panelLoading = true;
-	clearSearch();
-	try {
-		const payload = fetcher();
-		let fetchedLines = parseList(payload, '路線一覧の取得に失敗しました', 'lines');
-		if (selectionBase === 'prefecture' && selectedPrefecture) {
-			const structured = extractLinesFromPrefecturePayload(payload, selectedPrefecture);
-			if (structured.length > 0) {
-				fetchedLines = structured;
-			} else {
-				fetchedLines = filterLinesByPrefecture(fetchedLines, selectedPrefecture);
+		if (initialMode === 'destination') {
+			screenMode = 'destination';
+		} else if (typeof window !== 'undefined') {
+			const params = new URLSearchParams(window.location.search);
+			if (params.get('mode') === 'destination') {
+				screenMode = 'destination';
 			}
 		}
-		lines = fetchedLines;
-		stations = [];
-		stationListMeta = {};
-		selectedLine = '';
-	} finally {
-		panelLoading = false;
-	}
-}
 
-/**
- * `filterLinesByPrefecture` を処理します。
- *
- * @param lineList 対象の路線名です。
- * @param prefecture 処理に必要な入力値です。
- * @returns 文字列結果を返します。
- */
-function filterLinesByPrefecture(lineList: string[], prefecture: string): string[] {
-	const filtered: string[] = [];
-	for (const line of lineList) {
-		if (lineBelongsToPrefecture(line, prefecture)) {
-			filtered.push(line);
-		}
-	}
-	return filtered;
-}
+		(async () => {
+			try {
+				await initFarert();
+				await loadInitialLists();
+				tab = 'group';
+				selectionBase = 'group';
+			} catch (err) {
+				handleError('初期データの取得に失敗しました', err);
+			} finally {
+				loading = false;
+				initialFetchDone = true;
+			}
+		})();
 
-/**
- * `lineBelongsToPrefecture` を処理します。
- *
- * @param line 対象の路線名です。
- * @param prefecture 処理に必要な入力値です。
- * @returns 判定結果を返します。
- */
-function lineBelongsToPrefecture(line: string, prefecture: string): boolean {
-	const normalizedPref = toWasmPrefecture(prefecture);
-	const cached = linePrefectureCache.get(line);
-	if (cached?.has(normalizedPref)) {
-		return true;
+		return () => {
+			stopObservingViewport();
+			unsubRoute?.();
+			unsubHistory?.();
+		};
+	});
+
+	/**
+	 * `loadInitialLists` の読み込み処理を行います。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	async function loadInitialLists(): Promise<void> {
+		companies = parseList(getCompanys(), 'JRグループの取得に失敗しました', 'companies');
+		const prefectList = parseList(getPrefects(), '都道府県一覧の取得に失敗しました', [
+			'prefectures',
+			'prefects'
+		]);
+		prefectures = normalizePrefectures(prefectList);
 	}
-	const prefSet = cached ?? new Set<string>();
-	let found = false;
-	let parseFailed = false;
-	let stationsPayload = '';
-	try {
-		stationsPayload = getStationsByLine(line);
-		const stationList = parseList(
-			stationsPayload,
-			'駅一覧の取得に失敗しました',
-			'stations',
-			{
-				suppressError: true,
-				onError: () => {
-					parseFailed = true;
+
+	/**
+	 * `parseList` の解析結果を返します。
+	 *
+	 * @param payload 処理対象の文字列です。
+	 * @param errorLabel 処理に必要な入力値です。
+	 * @param keyHints 処理に必要な入力値です。
+	 * @param options 受け取り値のまとまりです。
+	 * @returns 文字列結果を返します。
+	 */
+	function parseList(
+		payload: string,
+		errorLabel: string,
+		keyHints?: string | string[],
+		options?: ParseListOptions
+	): string[] {
+		try {
+			if (!payload) return [];
+			const parsed = JSON.parse(payload);
+			if (Array.isArray(parsed)) {
+				return dedupe(normalizeStringList(parsed));
+			}
+			if (parsed && typeof parsed === 'object' && Object.keys(parsed).length === 0) {
+				return [];
+			}
+			const hints = Array.isArray(keyHints) ? keyHints : keyHints ? [keyHints] : [];
+			for (const hint of hints) {
+				if (hint && Array.isArray((parsed as Record<string, unknown>)[hint])) {
+					return dedupe(normalizeStringList((parsed as Record<string, unknown>)[hint]));
 				}
 			}
-		);
-		for (const station of stationList) {
-			const stationPref = (getPrefectureByStation(station) ?? '').trim();
-			const normalizedStationPref = toWasmPrefecture(stationPref);
-			if (normalizedStationPref) {
-				prefSet.add(normalizedStationPref);
+			const firstArrayKey = Object.keys(parsed ?? {}).find((key) =>
+				Array.isArray((parsed as Record<string, unknown>)[key])
+			);
+			if (firstArrayKey && Array.isArray((parsed as Record<string, unknown>)[firstArrayKey])) {
+				return dedupe(normalizeStringList((parsed as Record<string, unknown>)[firstArrayKey]));
 			}
-			if (normalizedStationPref === normalizedPref) {
-				found = true;
+			const values = Object.values(parsed ?? {});
+			const firstArray = values.find((value) => Array.isArray(value));
+			if (Array.isArray(firstArray)) {
+				return dedupe(normalizeStringList(firstArray));
 			}
-		}
-	} catch (err) {
-		console.warn('[TERMINAL_SELECTION] 路線フィルタリングに失敗しました', err);
-	}
-	if (!cached) {
-		linePrefectureCache.set(line, prefSet);
-	}
-	if (!found) {
-		try {
-			const fallbackStations = resolveStationsByPrefecture(line, prefecture);
-			if (fallbackStations.length > 0) {
-				prefSet.add(normalizedPref);
-				return true;
-			}
+			throw new Error('一覧形式ではありません');
 		} catch (err) {
-			console.warn('[TERMINAL_SELECTION] 路線フォールバック判定に失敗しました', err);
-		}
-		if (parseFailed) {
-			parseList(stationsPayload, '駅一覧の取得に失敗しました', 'stations');
+			options?.onError?.(err);
+			if (!options?.suppressError) {
+				handleError(errorLabel, err);
+			}
+			return [];
 		}
 	}
-	return found;
-}
 
-/**
- * `resolveStationsByPrefecture` の解決結果を返します。
- *
- * @param line 対象の路線名です。
- * @param prefecture 処理に必要な入力値です。
- * @returns 文字列結果を返します。
- */
-function resolveStationsByPrefecture(line: string, prefecture: string): string[] {
-	const payload = getStationsByPrefectureAndLine(toWasmPrefecture(prefecture), line);
-	let parseFailed = false;
-	const stationsFromPrefecture = parseList(
-		payload,
-		'駅一覧の取得に失敗しました',
-		'stations',
-		{
+	/**
+	 * `normalizeStringList` を正規化します。
+	 *
+	 * @param value 処理対象の値です。
+	 * @returns 文字列結果を返します。
+	 */
+	function normalizeStringList(value: unknown): string[] {
+		if (!Array.isArray(value)) return [];
+		const result: string[] = [];
+		for (const entry of value) {
+			if (typeof entry !== 'string') continue;
+			const trimmed = entry.trim();
+			if (!trimmed) continue;
+			result.push(trimmed);
+		}
+		return result;
+	}
+
+	/**
+	 * `dedupe` を処理します。
+	 *
+	 * @param values 処理対象の値です。
+	 * @returns 文字列結果を返します。
+	 */
+	function dedupe(values: string[]): string[] {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- local non-reactive collection
+		const seen = new Set<string>();
+		const result: string[] = [];
+		for (const value of values) {
+			if (!value || seen.has(value)) continue;
+			seen.add(value);
+			result.push(value);
+		}
+		return result;
+	}
+
+	/**
+	 * `normalizePrefectures` を正規化します。
+	 *
+	 * @param list 処理に必要な入力値です。
+	 * @returns 文字列結果を返します。
+	 */
+	function normalizePrefectures(list: string[]): string[] {
+		const normalized = Array.from(
+			new Set(
+				(list ?? []).map((name) => name?.trim()).filter((name): name is string => Boolean(name))
+			)
+		);
+		if (normalized.length >= PREFECTURE_FALLBACK.length && normalized.includes('北海道')) {
+			return normalized;
+		}
+		return PREFECTURE_FALLBACK;
+	}
+
+	/**
+	 * `handleError` のイベント処理を行います。
+	 *
+	 * @param message 表示または処理に使うメッセージです。
+	 * @param err 処理に必要な入力値です。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function handleError(message: string, err: unknown): void {
+		console.error('[TERMINAL_SELECTION]', message, err);
+		errorMessage = `${message}: ${(err as Error)?.message ?? err}`;
+	}
+
+	/**
+	 * `resetSelections` を処理します。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function resetSelections(): void {
+		stage = 'root';
+		lines = [];
+		stations = [];
+		stationListMeta = {};
+		selectedLine = '';
+		selectedCompany = '';
+		selectedPrefecture = '';
+		panelLoading = false;
+	}
+
+	/**
+	 * `resetToInitialState` を処理します。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function resetToInitialState(): void {
+		clearSearch();
+		resetSelections();
+		tab = 'group';
+		selectionBase = 'group';
+		errorMessage = '';
+	}
+
+	/**
+	 * `selectTab` を処理します。
+	 *
+	 * @param next 処理に必要な入力値です。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function selectTab(next: Tab): void {
+		if (tab === next) return;
+		tab = next;
+		searchMode = false;
+		searchQuery = '';
+		searchResults = [];
+		resetSelections();
+		if (next === 'prefecture') {
+			selectionBase = 'prefecture';
+		} else if (next === 'group') {
+			selectionBase = 'group';
+		} else {
+			selectionBase = 'group';
+		}
+	}
+
+	/**
+	 * `getListTitle` を取得します。
+	 *
+	 * @returns 文字列結果を返します。
+	 */
+	function getListTitle(): string {
+		if (searchMode && searchQuery.trim().length > 0) {
+			return `一致件数: ${searchResults.length}件`;
+		}
+		if (stage === 'lines') {
+			if (selectionBase === 'group' && selectedCompany) {
+				return `${selectedCompany}`;
+			}
+			if (selectionBase === 'prefecture' && selectedPrefecture) {
+				return `${selectedPrefecture}`;
+			}
+			return '路線一覧';
+		}
+		if (stage === 'stations') {
+			const base = selectionBase === 'prefecture' ? selectedPrefecture : selectedCompany;
+			if (base && selectedLine) {
+				return `${base}ー${selectedLine}`;
+			}
+			return selectedLine || '駅一覧';
+		}
+		switch (tab) {
+			case 'prefecture':
+				return '都道府県';
+			case 'history':
+				return '履歴';
+			default:
+				return 'JRグループ';
+		}
+	}
+
+	/**
+	 * `clearError` を処理します。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function clearError(): void {
+		errorMessage = '';
+	}
+
+	/**
+	 * `clearSearch` を処理します。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function clearSearch(): void {
+		searchQuery = '';
+		searchMode = false;
+		searchResults = [];
+		searchLoading = false;
+	}
+
+	/**
+	 * `handleBack` のイベント処理を行います。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function handleBack(): void {
+		if (searchMode) {
+			clearSearch();
+			return;
+		}
+		if (splitViewEnabled && stage === 'lines' && selectedLine) {
+			stations = [];
+			stationListMeta = {};
+			selectedLine = '';
+			return;
+		}
+		if (stage === 'stations') {
+			stage = 'lines';
+			stations = [];
+			stationListMeta = {};
+			selectedLine = '';
+			return;
+		}
+		if (stage === 'lines') {
+			stage = 'root';
+			lines = [];
+			return;
+		}
+		resetToInitialState();
+		goto(resolve('/'));
+	}
+
+	/**
+	 * `openLinesFromGroup` を開始または表示します。
+	 *
+	 * @param company 処理に必要な入力値です。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	async function openLinesFromGroup(company: string): Promise<void> {
+		selectionBase = 'group';
+		selectedCompany = company;
+		await loadLines(() => getLinesByCompany(company));
+	}
+
+	/**
+	 * `openLinesFromPrefecture` を開始または表示します。
+	 *
+	 * @param prefecture 処理に必要な入力値です。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	async function openLinesFromPrefecture(prefecture: string): Promise<void> {
+		selectionBase = 'prefecture';
+		selectedPrefecture = prefecture;
+		await loadLines(() => fetchPrefectureLines(prefecture));
+	}
+
+	/**
+	 * `fetchPrefectureLines` を処理します。
+	 *
+	 * @param prefecture 処理に必要な入力値です。
+	 * @returns 文字列結果を返します。
+	 */
+	function fetchPrefectureLines(prefecture: string): string {
+		const normalized = toWasmPrefecture(prefecture);
+		const normalizedPayload = getLinesByPrefect(normalized);
+		if (normalized === prefecture || prefecturePayloadHasLines(normalizedPayload, prefecture)) {
+			return normalizedPayload;
+		}
+		return getLinesByPrefect(prefecture);
+	}
+
+	/**
+	 * `prefecturePayloadHasLines` を処理します。
+	 *
+	 * @param payload 処理対象の文字列です。
+	 * @param prefecture 処理に必要な入力値です。
+	 * @returns 判定結果を返します。
+	 */
+	function prefecturePayloadHasLines(payload: string, prefecture: string): boolean {
+		return extractLinesFromPrefecturePayload(payload, prefecture).length > 0;
+	}
+
+	/**
+	 * `loadLines` の読み込み処理を行います。
+	 *
+	 * @param fetcher 処理に必要な入力値です。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	async function loadLines(fetcher: () => string): Promise<void> {
+		stage = 'lines';
+		panelLoading = true;
+		clearSearch();
+		try {
+			const payload = fetcher();
+			let fetchedLines = parseList(payload, '路線一覧の取得に失敗しました', 'lines');
+			if (selectionBase === 'prefecture' && selectedPrefecture) {
+				const structured = extractLinesFromPrefecturePayload(payload, selectedPrefecture);
+				if (structured.length > 0) {
+					fetchedLines = structured;
+				} else {
+					fetchedLines = filterLinesByPrefecture(fetchedLines, selectedPrefecture);
+				}
+			}
+			lines = fetchedLines;
+			stations = [];
+			stationListMeta = {};
+			selectedLine = '';
+		} finally {
+			panelLoading = false;
+		}
+	}
+
+	/**
+	 * `filterLinesByPrefecture` を処理します。
+	 *
+	 * @param lineList 対象の路線名です。
+	 * @param prefecture 処理に必要な入力値です。
+	 * @returns 文字列結果を返します。
+	 */
+	function filterLinesByPrefecture(lineList: string[], prefecture: string): string[] {
+		const filtered: string[] = [];
+		for (const line of lineList) {
+			if (lineBelongsToPrefecture(line, prefecture)) {
+				filtered.push(line);
+			}
+		}
+		return filtered;
+	}
+
+	/**
+	 * `lineBelongsToPrefecture` を処理します。
+	 *
+	 * @param line 対象の路線名です。
+	 * @param prefecture 処理に必要な入力値です。
+	 * @returns 判定結果を返します。
+	 */
+	function lineBelongsToPrefecture(line: string, prefecture: string): boolean {
+		const normalizedPref = toWasmPrefecture(prefecture);
+		const cached = linePrefectureCache.get(line);
+		if (cached?.has(normalizedPref)) {
+			return true;
+		}
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- local non-reactive collection
+		const prefSet = cached ?? new Set<string>();
+		let found = false;
+		let parseFailed = false;
+		let stationsPayload = '';
+		// 初回のみ路線の全駅を走査して都道府県集合を構築する（キャッシュ済みなら省略）
+		if (!cached) {
+			try {
+				stationsPayload = getStationsByLine(line);
+				const stationList = parseList(stationsPayload, '駅一覧の取得に失敗しました', 'stations', {
+					suppressError: true,
+					onError: () => {
+						parseFailed = true;
+					}
+				});
+				for (const station of stationList) {
+					const stationPref = (getPrefectureByStation(station) ?? '').trim();
+					const normalizedStationPref = toWasmPrefecture(stationPref);
+					if (normalizedStationPref) {
+						prefSet.add(normalizedStationPref);
+					}
+					if (normalizedStationPref === normalizedPref) {
+						found = true;
+					}
+				}
+			} catch (err) {
+				console.warn('[TERMINAL_SELECTION] 路線フィルタリングに失敗しました', err);
+			}
+			linePrefectureCache.set(line, prefSet);
+		}
+		if (!found) {
+			try {
+				const fallbackStations = resolveStationsByPrefecture(line, prefecture);
+				if (fallbackStations.length > 0) {
+					prefSet.add(normalizedPref);
+					return true;
+				}
+			} catch (err) {
+				console.warn('[TERMINAL_SELECTION] 路線フォールバック判定に失敗しました', err);
+			}
+			if (parseFailed) {
+				parseList(stationsPayload, '駅一覧の取得に失敗しました', 'stations');
+			}
+		}
+		return found;
+	}
+
+	/**
+	 * `resolveStationsByPrefecture` の解決結果を返します。
+	 *
+	 * @param line 対象の路線名です。
+	 * @param prefecture 処理に必要な入力値です。
+	 * @returns 文字列結果を返します。
+	 */
+	function resolveStationsByPrefecture(line: string, prefecture: string): string[] {
+		const payload = getStationsByPrefectureAndLine(toWasmPrefecture(prefecture), line);
+		let parseFailed = false;
+		const stationsFromPrefecture = parseList(payload, '駅一覧の取得に失敗しました', 'stations', {
 			suppressError: true,
 			onError: () => {
 				parseFailed = true;
 			}
+		});
+		if (stationsFromPrefecture.length > 0) {
+			return stationsFromPrefecture;
 		}
-	);
-	if (stationsFromPrefecture.length > 0) {
-		return stationsFromPrefecture;
-	}
-	const stationsFromLine = parseList(
-		getStationsByLine(line),
-		'駅一覧の取得に失敗しました',
-		'stations',
-		{
-			suppressError: true
+		const stationsFromLine = parseList(
+			getStationsByLine(line),
+			'駅一覧の取得に失敗しました',
+			'stations',
+			{
+				suppressError: true
+			}
+		);
+		const filteredStations = filterStationsByPrefecture(stationsFromLine, prefecture);
+		if (filteredStations.length > 0) {
+			return filteredStations;
 		}
-	);
-	const filteredStations = filterStationsByPrefecture(stationsFromLine, prefecture);
-	if (filteredStations.length > 0) {
-		return filteredStations;
-	}
-	if (parseFailed) {
-		parseList(payload, '駅一覧の取得に失敗しました', 'stations');
-	}
-	return [];
-}
-
-/**
- * `filterStationsByPrefecture` を処理します。
- *
- * @param stationList 対象の駅名です。
- * @param prefecture 処理に必要な入力値です。
- * @returns 文字列結果を返します。
- */
-function filterStationsByPrefecture(stationList: string[], prefecture: string): string[] {
-	const normalizedPref = toWasmPrefecture(prefecture);
-	if (!normalizedPref) {
+		if (parseFailed) {
+			parseList(payload, '駅一覧の取得に失敗しました', 'stations');
+		}
 		return [];
 	}
-	const matched: string[] = [];
-	for (const station of stationList) {
-		try {
-			const stationPref = (getPrefectureByStation(station) ?? '').trim();
-			const normalizedStationPref = toWasmPrefecture(stationPref);
-			if (normalizedStationPref === normalizedPref) {
-				matched.push(station);
+
+	/**
+	 * `filterStationsByPrefecture` を処理します。
+	 *
+	 * @param stationList 対象の駅名です。
+	 * @param prefecture 処理に必要な入力値です。
+	 * @returns 文字列結果を返します。
+	 */
+	function filterStationsByPrefecture(stationList: string[], prefecture: string): string[] {
+		const normalizedPref = toWasmPrefecture(prefecture);
+		if (!normalizedPref) {
+			return [];
+		}
+		const matched: string[] = [];
+		for (const station of stationList) {
+			try {
+				const stationPref = (getPrefectureByStation(station) ?? '').trim();
+				const normalizedStationPref = toWasmPrefecture(stationPref);
+				if (normalizedStationPref === normalizedPref) {
+					matched.push(station);
+				}
+			} catch (err) {
+				console.warn('[TERMINAL_SELECTION] 駅の都道府県判定に失敗しました', err);
 			}
-		} catch (err) {
-			console.warn('[TERMINAL_SELECTION] 駅の都道府県判定に失敗しました', err);
 		}
+		return matched;
 	}
-	return matched;
-}
 
-/**
- * `openStations` を開始または表示します。
- *
- * @param line 対象の路線名です。
- * @returns この処理は戻り値を持ちません。
- */
-async function openStations(line: string): Promise<void> {
-	selectedLine = line;
-	if (!splitViewEnabled) {
-		stage = 'stations';
-	}
-	panelLoading = true;
-	try {
-		let nextStations: string[] = [];
-		if (selectionBase === 'group' && selectedCompany) {
-			nextStations = parseList(
-				getStationsByCompanyAndLine(selectedCompany, line),
-				'駅一覧の取得に失敗しました',
-				'stations'
-			);
-		} else if (selectionBase === 'prefecture' && selectedPrefecture) {
-			nextStations = resolveStationsByPrefecture(line, selectedPrefecture);
-		} else {
-			nextStations = [];
+	/**
+	 * `openStations` を開始または表示します。
+	 *
+	 * @param line 対象の路線名です。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	async function openStations(line: string): Promise<void> {
+		selectedLine = line;
+		if (!splitViewEnabled) {
+			stage = 'stations';
 		}
-		stations = nextStations;
-		stationListMeta = buildStationListMeta(nextStations, line);
-	} finally {
-		panelLoading = false;
-	}
-}
-
-/**
- * `buildStationListMeta` を組み立てます。
- *
- * @param stationNames 対象の駅名です。
- * @param currentLine 対象の路線名です。
- * @returns 文字列結果を返します。
- */
-function buildStationListMeta(stationNames: string[], currentLine: string): Record<string, StationListMeta> {
-	return buildStationDisplayMeta(stationNames, currentLine, {
-		executeSql,
-		getKanaByStation,
-		getLinesByStation,
-		getPrefectureByStation,
-		parseList: (raw) =>
-			parseList(raw, '所属路線の取得に失敗しました', undefined, {
-				suppressError: true
-			})
-	});
-}
-
-/**
- * `stationPrefecture` を処理します。
- *
- * @param station 対象の駅名です。
- * @param stationNames 対象の駅名です。
- * @param index 対象位置を表す数値です。
- * @returns 文字列結果を返します。
- */
-function stationPrefecture(station: string, stationNames: string[], index: number): string {
-	const prefecture = stationListMeta[station]?.prefecture ?? '';
-	if (!prefecture) return '';
-	const previousStation = stationNames[index - 1];
-	if (!previousStation) return prefecture;
-	const previousPrefecture = stationListMeta[previousStation]?.prefecture ?? '';
-	return previousPrefecture === prefecture ? '' : prefecture;
-}
-
-/**
- * `searchResultPrefecture` を処理します。
- *
- * @param index 対象位置を表す数値です。
- * @returns 文字列結果を返します。
- */
-function searchResultPrefecture(index: number): string {
-	const prefecture = searchResults[index]?.prefecture?.trim() ?? '';
-	if (!prefecture) return '';
-	const previousPrefecture = searchResults[index - 1]?.prefecture?.trim() ?? '';
-	return previousPrefecture === prefecture ? '' : prefecture;
-}
-
-/**
- * `stationMetaText` を処理します。
- *
- * @param station 対象の駅名です。
- * @returns 文字列結果を返します。
- */
-function stationMetaText(station: string): string {
-	const meta = stationListMeta[station];
-	if (!meta) return '';
-	const parts: string[] = [];
-	if (meta.kana) {
-		parts.push(`（${meta.kana}）`);
-	}
-	if (meta.lines.length > 1) {
-		parts.push(meta.lines.join('/'));
-	}
-	return parts.join('/');
-}
-
-/**
- * `handleStationSelect` のイベント処理を行います。
- *
- * @param station 対象の駅名です。
- * @returns この処理は戻り値を持ちません。
- */
-async function handleStationSelect(station: string): Promise<void> {
-	if (!station) return;
-	const selectedStation = stationListMeta[station]?.name ?? station;
-	if (screenMode === 'destination') {
-		pendingDestinationStation = selectedStation;
-		autoRouteDialogOpen = true;
-		return;
-	}
-	panelLoading = true;
-	try {
-		let route = routeRef;
-		if (!route) {
-			route = new Farert();
-		}
-		if (shouldConfirmRouteOverwrite(route) && !(await confirmRouteOverwrite())) {
-			return;
-		}
-		route.removeAll();
-		const result = route.addStartRoute(selectedStation);
-		if (result < 0) {
-			handleError('発駅の設定に失敗しました', new Error(`addStartRoute rc=${result}`));
-			return;
-		}
-		mainRoute.set(route);
-		routeRef = route;
-		addToStationHistory(selectedStation);
-		await goto(`${base}/`);
-	} catch (err) {
-		handleError('発駅の設定に失敗しました', err);
-	} finally {
-		panelLoading = false;
-	}
-}
-
-/**
- * `shouldConfirmRouteOverwrite` の判定結果を返します。
- *
- * @param route 対象の経路または経路文字列です。
- * @returns 判定結果を返します。
- */
-function shouldConfirmRouteOverwrite(route: FaretClass): boolean {
-	try {
-		const count = route.getRouteCount ? route.getRouteCount() : 0;
-		return typeof count === 'number' && count >= 2;
-	} catch (err) {
-		console.warn('[TERMINAL_SELECTION] 経路数の取得に失敗しました', err);
-		return false;
-	}
-}
-
-/**
- * `confirmRouteOverwrite` を処理します。
- *
- * @returns 非同期処理の成否を返します。
- */
-function confirmRouteOverwrite(): Promise<boolean> {
-	return openConfirmDialog('経路が消去されますがよろしいですか？');
-}
-
-/**
- * `openConfirmDialog` を開始または表示します。
- *
- * @param message 表示または処理に使うメッセージです。
- * @returns 非同期処理の成否を返します。
- */
-function openConfirmDialog(message: string): Promise<boolean> {
-	if (confirmResolver) {
-		confirmResolver(false);
-		confirmResolver = null;
-	}
-	confirmDialogMessage = message;
-	confirmDialogOpen = true;
-	return new Promise((resolve) => {
-		confirmResolver = resolve;
-	});
-}
-
-/**
- * `resolveConfirmDialog` の解決結果を返します。
- *
- * @param result 処理対象の値です。
- * @returns この処理は戻り値を持ちません。
- */
-function resolveConfirmDialog(result: boolean): void {
-	confirmDialogOpen = false;
-	confirmDialogMessage = '';
-	const resolver = confirmResolver;
-	confirmResolver = null;
-	resolver?.(result);
-}
-
-/**
- * `cancelAutoRouteDialog` の判定結果を返します。
- *
- * @returns この処理は戻り値を持ちません。
- */
-function cancelAutoRouteDialog(): void {
-	pendingDestinationStation = '';
-	autoRouteDialogOpen = false;
-}
-
-/**
- * `confirmAutoRoute` を処理します。
- *
- * @param useBulletTrain 処理に必要な入力値です。
- * @returns この処理は戻り値を持ちません。
- */
-function confirmAutoRoute(useBulletTrain: boolean): void {
-	const destination = pendingDestinationStation;
-	if (!destination) {
-		autoRouteDialogOpen = false;
-		return;
-	}
-	autoRouteDialogOpen = false;
-	pendingDestinationStation = '';
-	executeAutoRoute(useBulletTrain, destination);
-}
-
-/**
- * `executeAutoRoute` を処理します。
- *
- * @param useBulletTrain 処理に必要な入力値です。
- * @param destination 処理に必要な入力値です。
- * @returns この処理は戻り値を持ちません。
- */
-async function executeAutoRoute(useBulletTrain: boolean, destination: string): Promise<void> {
-	const route = routeRef;
-	if (!route) {
-		errorMessage = '先に発駅を設定してください。';
-		return;
-	}
-	const start = (route.departureStationName?.() ?? '').trim();
-	if (!start) {
-		errorMessage = '先に発駅を設定してください。';
-		return;
-	}
-	panelLoading = true;
-	try {
-		route.removeAll();
-		const addResult = route.addStartRoute(start);
-		if (addResult < 0) {
-			handleError('発駅の再設定に失敗しました', new Error(`addStartRoute rc=${addResult}`));
-			return;
-		}
-		const autoRouteResult = route.autoRoute(useBulletTrain ? 1 : 0, destination);
-		if (!isRouteOperationSuccess(autoRouteResult)) {
-			mainScreenErrorMessage.set(`最短経路の計算に失敗しました: autoRoute rc=${autoRouteResult}`);
-			await goto(`${base}/`);
-			return;
-		}
-		mainRoute.set(route);
-		await goto(`${base}/`);
-	} catch (err) {
-		mainScreenErrorMessage.set('最短経路の計算に失敗しました。');
-		await goto(`${base}/`);
-	} finally {
-		panelLoading = false;
-	}
-}
-
-/**
- * `isRouteOperationSuccess` の判定結果を返します。
- *
- * @param result 処理対象の値です。
- * @returns 判定結果を返します。
- */
-function isRouteOperationSuccess(result: unknown): boolean {
-	if (typeof result === 'number') return result >= 0;
-	if (typeof result === 'string') {
-		const trimmed = result.trim().replace(/\0/g, '');
-		const numeric = Number(trimmed);
-		if (!Number.isNaN(numeric)) return numeric >= 0;
+		panelLoading = true;
 		try {
-			const parsed = JSON.parse(trimmed) as { rc?: number };
-			return typeof parsed.rc === 'number' ? parsed.rc >= 0 : false;
-		} catch {
-			const match = trimmed.match(/"rc"\s*:\s*(-?\d+)/);
-			return match ? Number(match[1]) >= 0 : false;
+			let nextStations: string[] = [];
+			if (selectionBase === 'group' && selectedCompany) {
+				nextStations = parseList(
+					getStationsByCompanyAndLine(selectedCompany, line),
+					'駅一覧の取得に失敗しました',
+					'stations'
+				);
+			} else if (selectionBase === 'prefecture' && selectedPrefecture) {
+				nextStations = resolveStationsByPrefecture(line, selectedPrefecture);
+			} else {
+				nextStations = [];
+			}
+			stations = nextStations;
+			stationListMeta = buildStationListMeta(nextStations, line);
+		} finally {
+			panelLoading = false;
 		}
 	}
-	return false;
-}
 
-/**
- * `removeHistoryItem` を処理します。
- *
- * @param station 対象の駅名です。
- * @returns この処理は戻り値を持ちません。
- */
-function removeHistoryItem(station: string): void {
-	if (!station) return;
-	updateSwipeOffset(station, 0);
-	stationHistory.update((items) => items.filter((item) => item !== station));
-}
-
-/**
- * `handleHistorySelect` のイベント処理を行います。
- *
- * @param station 対象の駅名です。
- * @returns この処理は戻り値を持ちません。
- */
-function handleHistorySelect(station: string): void {
-	resetSwipe(station);
-	handleStationSelect(station);
-}
-
-/**
- * `handleHistoryKeydown` のイベント処理を行います。
- *
- * @param station 対象の駅名です。
- * @param event 発生したイベントです。
- * @returns この処理は戻り値を持ちません。
- */
-function handleHistoryKeydown(station: string, event: KeyboardEvent): void {
-	if (event.key === 'Delete' || event.key === 'Backspace') {
-		updateSwipeOffset(station, -MAX_SWIPE_DISTANCE);
-		activeSwipeStation = station;
-		event.preventDefault();
-		return;
+	/**
+	 * `buildStationListMeta` を組み立てます。
+	 *
+	 * @param stationNames 対象の駅名です。
+	 * @param currentLine 対象の路線名です。
+	 * @returns 文字列結果を返します。
+	 */
+	function buildStationListMeta(
+		stationNames: string[],
+		currentLine: string
+	): Record<string, StationListMeta> {
+		return buildStationDisplayMeta(stationNames, currentLine, {
+			executeSql,
+			getKanaByStation,
+			getLinesByStation,
+			getPrefectureByStation,
+			parseList: (raw) =>
+				parseList(raw, '所属路線の取得に失敗しました', undefined, {
+					suppressError: true
+				})
+		});
 	}
-	if (event.key === 'Escape') {
+
+	/**
+	 * `stationPrefecture` を処理します。
+	 *
+	 * @param station 対象の駅名です。
+	 * @param stationNames 対象の駅名です。
+	 * @param index 対象位置を表す数値です。
+	 * @returns 文字列結果を返します。
+	 */
+	function stationPrefecture(station: string, stationNames: string[], index: number): string {
+		const prefecture = stationListMeta[station]?.prefecture ?? '';
+		if (!prefecture) return '';
+		const previousStation = stationNames[index - 1];
+		if (!previousStation) return prefecture;
+		const previousPrefecture = stationListMeta[previousStation]?.prefecture ?? '';
+		return previousPrefecture === prefecture ? '' : prefecture;
+	}
+
+	/**
+	 * `searchResultPrefecture` を処理します。
+	 *
+	 * @param index 対象位置を表す数値です。
+	 * @returns 文字列結果を返します。
+	 */
+	function searchResultPrefecture(index: number): string {
+		const prefecture = searchResults[index]?.prefecture?.trim() ?? '';
+		if (!prefecture) return '';
+		const previousPrefecture = searchResults[index - 1]?.prefecture?.trim() ?? '';
+		return previousPrefecture === prefecture ? '' : prefecture;
+	}
+
+	/**
+	 * `stationMetaText` を処理します。
+	 *
+	 * @param station 対象の駅名です。
+	 * @returns 文字列結果を返します。
+	 */
+	function stationMetaText(station: string): string {
+		const meta = stationListMeta[station];
+		if (!meta) return '';
+		const parts: string[] = [];
+		if (meta.kana) {
+			parts.push(`（${meta.kana}）`);
+		}
+		if (meta.lines.length > 1) {
+			parts.push(meta.lines.join('/'));
+		}
+		return parts.join('/');
+	}
+
+	/**
+	 * `handleStationSelect` のイベント処理を行います。
+	 *
+	 * @param station 対象の駅名です。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	async function handleStationSelect(station: string): Promise<void> {
+		if (!station) return;
+		const selectedStation = stationListMeta[station]?.name ?? station;
+		if (screenMode === 'destination') {
+			pendingDestinationStation = selectedStation;
+			autoRouteDialogOpen = true;
+			return;
+		}
+		panelLoading = true;
+		try {
+			let route = routeRef;
+			if (!route) {
+				route = new Farert();
+			}
+			if (shouldConfirmRouteOverwrite(route) && !(await confirmRouteOverwrite())) {
+				return;
+			}
+			route.removeAll();
+			const result = route.addStartRoute(selectedStation);
+			if (result < 0) {
+				handleError('発駅の設定に失敗しました', new Error(`addStartRoute rc=${result}`));
+				return;
+			}
+			mainRoute.set(route);
+			routeRef = route;
+			addToStationHistory(selectedStation);
+			await goto(resolve('/'));
+		} catch (err) {
+			handleError('発駅の設定に失敗しました', err);
+		} finally {
+			panelLoading = false;
+		}
+	}
+
+	/**
+	 * `shouldConfirmRouteOverwrite` の判定結果を返します。
+	 *
+	 * @param route 対象の経路または経路文字列です。
+	 * @returns 判定結果を返します。
+	 */
+	function shouldConfirmRouteOverwrite(route: FaretClass): boolean {
+		try {
+			const count = route.getRouteCount ? route.getRouteCount() : 0;
+			return typeof count === 'number' && count >= 2;
+		} catch (err) {
+			console.warn('[TERMINAL_SELECTION] 経路数の取得に失敗しました', err);
+			return false;
+		}
+	}
+
+	/**
+	 * `confirmRouteOverwrite` を処理します。
+	 *
+	 * @returns 非同期処理の成否を返します。
+	 */
+	function confirmRouteOverwrite(): Promise<boolean> {
+		return confirmDialog.request('経路が消去されますがよろしいですか？');
+	}
+
+	/**
+	 * `cancelAutoRouteDialog` の判定結果を返します。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function cancelAutoRouteDialog(): void {
+		pendingDestinationStation = '';
+		autoRouteDialogOpen = false;
+	}
+
+	/**
+	 * `confirmAutoRoute` を処理します。
+	 *
+	 * @param useBulletTrain 処理に必要な入力値です。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function confirmAutoRoute(useBulletTrain: boolean): void {
+		const destination = pendingDestinationStation;
+		if (!destination) {
+			autoRouteDialogOpen = false;
+			return;
+		}
+		autoRouteDialogOpen = false;
+		pendingDestinationStation = '';
+		executeAutoRoute(useBulletTrain, destination);
+	}
+
+	/**
+	 * `executeAutoRoute` を処理します。
+	 *
+	 * @param useBulletTrain 処理に必要な入力値です。
+	 * @param destination 処理に必要な入力値です。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	async function executeAutoRoute(useBulletTrain: boolean, destination: string): Promise<void> {
+		const route = routeRef;
+		if (!route) {
+			errorMessage = '先に発駅を設定してください。';
+			return;
+		}
+		const start = (route.departureStationName?.() ?? '').trim();
+		if (!start) {
+			errorMessage = '先に発駅を設定してください。';
+			return;
+		}
+		panelLoading = true;
+		try {
+			route.removeAll();
+			const addResult = route.addStartRoute(start);
+			if (addResult < 0) {
+				handleError('発駅の再設定に失敗しました', new Error(`addStartRoute rc=${addResult}`));
+				return;
+			}
+			const autoRouteResult = route.autoRoute(useBulletTrain ? 1 : 0, destination);
+			if (!isRouteOperationSuccess(autoRouteResult)) {
+				mainScreenErrorMessage.set(`最短経路の計算に失敗しました: autoRoute rc=${autoRouteResult}`);
+				await goto(resolve('/'));
+				return;
+			}
+			mainRoute.set(route);
+			await goto(resolve('/'));
+		} catch {
+			mainScreenErrorMessage.set('最短経路の計算に失敗しました。');
+			await goto(resolve('/'));
+		} finally {
+			panelLoading = false;
+		}
+	}
+
+	/**
+	 * `removeHistoryItem` を処理します。
+	 *
+	 * @param station 対象の駅名です。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function removeHistoryItem(station: string): void {
+		if (!station) return;
+		updateSwipeOffset(station, 0);
+		stationHistory.update((items) => items.filter((item) => item !== station));
+	}
+
+	/**
+	 * `handleHistorySelect` のイベント処理を行います。
+	 *
+	 * @param station 対象の駅名です。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function handleHistorySelect(station: string): void {
+		resetSwipe(station);
+		handleStationSelect(station);
+	}
+
+	/**
+	 * `handleHistoryKeydown` のイベント処理を行います。
+	 *
+	 * @param station 対象の駅名です。
+	 * @param event 発生したイベントです。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function handleHistoryKeydown(station: string, event: KeyboardEvent): void {
+		if (event.key === 'Delete' || event.key === 'Backspace') {
+			updateSwipeOffset(station, -MAX_SWIPE_DISTANCE);
+			activeSwipeStation = station;
+			event.preventDefault();
+			return;
+		}
+		if (event.key === 'Escape') {
+			updateSwipeOffset(station, 0);
+			activeSwipeStation = null;
+		}
+	}
+
+	/**
+	 * `handleSearchInput` のイベント処理を行います。
+	 *
+	 * @param value 処理対象の値です。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function handleSearchInput(value: string): void {
+		searchQuery = value;
+		const keyword = value.trim();
+		searchMode = keyword.length > 0;
+		if (!searchMode) {
+			searchResults = [];
+			searchLoading = false;
+			return;
+		}
+		performSearch(keyword);
+	}
+
+	/**
+	 * `readStationMeta` を処理します。
+	 *
+	 * @param station 対象の駅名です。
+	 * @returns 処理結果を返します。
+	 */
+	function readStationMeta(station: string): SearchMeta {
+		try {
+			return {
+				kana: getKanaByStation(station) ?? '',
+				prefecture: getPrefectureByStation(station) ?? ''
+			};
+		} catch (err) {
+			const normalized = normalizeStationName(station);
+			if (normalized !== station) {
+				try {
+					return {
+						kana: getKanaByStation(normalized) ?? '',
+						prefecture: getPrefectureByStation(normalized) ?? ''
+					};
+				} catch {
+					// ベース名でも失敗した場合は空を返す
+				}
+			}
+			console.warn('[TERMINAL_SELECTION] 駅メタデータ取得失敗', err);
+			return { kana: '', prefecture: '' };
+		}
+	}
+
+	/**
+	 * `buildSearchDisplayName` を組み立てます。
+	 *
+	 * @param name 処理に必要な入力値です。
+	 * @param samename 処理に必要な入力値です。
+	 * @returns 文字列結果を返します。
+	 */
+	function buildSearchDisplayName(name: string, samename?: string[]): string {
+		return buildStationDisplayNameFromCandidates(name, samename);
+	}
+
+	/**
+	 * `dedupeSearchResults` を処理します。
+	 *
+	 * @param items 処理に必要な入力値です。
+	 * @returns 配列結果を返します。
+	 */
+	function dedupeSearchResults(items: SearchResultItem[]): SearchResultItem[] {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- local non-reactive collection
+		const seen = new Set<string>();
+		const result: SearchResultItem[] = [];
+		for (const item of items) {
+			const key = [
+				item.name.trim(),
+				item.displayName.trim(),
+				item.kana.trim(),
+				item.prefecture.trim()
+			].join('\u0000');
+			if (seen.has(key)) continue;
+			seen.add(key);
+			result.push(item);
+		}
+		return result;
+	}
+
+	/**
+	 * `parseFuzzySearchItems` の解析結果を返します。
+	 *
+	 * @param payload 処理対象の文字列です。
+	 * @returns 配列結果を返します。
+	 */
+	function parseFuzzySearchItems(payload: string): FuzzySearchItem[] {
+		try {
+			if (!payload) return [];
+			const parsed = JSON.parse(payload) as { results?: unknown };
+			if (!Array.isArray(parsed.results)) return [];
+			const items: FuzzySearchItem[] = [];
+			for (const entry of parsed.results) {
+				if (!entry || typeof entry !== 'object') continue;
+				const record = entry as Record<string, unknown>;
+				const name = typeof record.name === 'string' ? record.name.trim() : '';
+				if (!name) continue;
+				const kana = typeof record.kana === 'string' ? record.kana.trim() : '';
+				const samename = Array.isArray(record.samename)
+					? record.samename
+							.filter((value): value is string => typeof value === 'string')
+							.map((value) => value.trim())
+							.filter((value) => value.length > 0)
+					: [];
+				const score = typeof record.score === 'number' ? record.score : undefined;
+				items.push({ name, kana, samename, score });
+			}
+			return items;
+		} catch (err) {
+			console.warn('[TERMINAL_SELECTION] あいまい検索結果の解析に失敗しました', err);
+			return [];
+		}
+	}
+
+	/**
+	 * `performSearch` を処理します。
+	 *
+	 * @param keyword 処理に必要な入力値です。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	async function performSearch(keyword: string): Promise<void> {
+		const token = ++searchToken;
+		searchLoading = true;
+		try {
+			const fuzzyItems = parseFuzzySearchItems(searchStationFuzzy(keyword, 50));
+			const enriched = dedupeSearchResults(
+				fuzzyItems
+					.map((item) => {
+						const displayName = buildSearchDisplayName(item.name, item.samename);
+						const { kana, prefecture } = readStationMeta(displayName);
+						return {
+							name: item.name,
+							displayName,
+							kana: item.kana && item.kana.length > 0 ? item.kana : kana,
+							prefecture,
+							score: item.score ?? 99
+						};
+					})
+					.sort((a, b) => {
+						if (a.score !== b.score) return a.score - b.score;
+						return a.displayName.localeCompare(b.displayName, 'ja');
+					})
+					.slice(0, 50)
+					.map(({ name, displayName, kana, prefecture }) => ({
+						name,
+						displayName,
+						kana,
+						prefecture
+					}))
+			);
+			if (token === searchToken) {
+				searchResults = enriched;
+			}
+		} finally {
+			if (token === searchToken) {
+				searchLoading = false;
+			}
+		}
+	}
+
+	const MAX_SWIPE_DISTANCE = 110;
+	const OPEN_THRESHOLD = 50;
+
+	/**
+	 * `updateSwipeOffset` を処理します。
+	 *
+	 * @param station 対象の駅名です。
+	 * @param offset 対象位置を表す数値です。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function updateSwipeOffset(station: string, offset: number): void {
+		historySwipeOffsets = { ...historySwipeOffsets, [station]: offset };
+	}
+
+	/**
+	 * `getSwipeOffset` を取得します。
+	 *
+	 * @param station 対象の駅名です。
+	 * @returns 数値結果を返します。
+	 */
+	function getSwipeOffset(station: string): number {
+		return historySwipeOffsets[station] ?? 0;
+	}
+
+	/**
+	 * `resetSwipe` を処理します。
+	 *
+	 * @param station 対象の駅名です。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function resetSwipe(station: string): void {
+		if (historySwipeOffsets[station]) {
+			const clone = { ...historySwipeOffsets };
+			delete clone[station];
+			historySwipeOffsets = clone;
+		}
+		if (activeSwipeStation === station) {
+			activeSwipeStation = null;
+		}
+	}
+
+	/**
+	 * `handleSwipeStart` のイベント処理を行います。
+	 *
+	 * @param station 対象の駅名です。
+	 * @param event 発生したイベントです。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function handleSwipeStart(station: string, event: PointerEvent): void {
+		if (!event.isPrimary) return;
+		swipeSession = {
+			station,
+			startX: event.clientX,
+			pointerId: event.pointerId,
+			initialOffset: getSwipeOffset(station)
+		};
+		activeSwipeStation = station;
+	}
+
+	/**
+	 * `handleSwipeMove` のイベント処理を行います。
+	 *
+	 * @param station 対象の駅名です。
+	 * @param event 発生したイベントです。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function handleSwipeMove(station: string, event: PointerEvent): void {
+		if (!swipeSession || swipeSession.station !== station) return;
+		const delta = event.clientX - swipeSession.startX;
+		const offset = clampOffset(swipeSession.initialOffset + delta);
+		updateSwipeOffset(station, offset);
+		event.preventDefault();
+	}
+
+	/**
+	 * `handleSwipeEnd` のイベント処理を行います。
+	 *
+	 * @param station 対象の駅名です。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function handleSwipeEnd(station: string): void {
+		if (!swipeSession || swipeSession.station !== station) return;
+		const current = getSwipeOffset(station);
+		const shouldOpen = Math.abs(current) > OPEN_THRESHOLD;
+		updateSwipeOffset(station, shouldOpen ? -MAX_SWIPE_DISTANCE : 0);
+		if (!shouldOpen) {
+			activeSwipeStation = null;
+		}
+		swipeSession = null;
+	}
+
+	/**
+	 * `handleSwipeCancel` のイベント処理を行います。
+	 *
+	 * @param station 対象の駅名です。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function handleSwipeCancel(station: string): void {
+		if (!swipeSession || swipeSession.station !== station) return;
 		updateSwipeOffset(station, 0);
 		activeSwipeStation = null;
+		swipeSession = null;
 	}
-}
 
-
-/**
- * `handleSearchInput` のイベント処理を行います。
- *
- * @param value 処理対象の値です。
- * @returns この処理は戻り値を持ちません。
- */
-function handleSearchInput(value: string): void {
-	searchQuery = value;
-	const keyword = value.trim();
-	searchMode = keyword.length > 0;
-	if (!searchMode) {
-		searchResults = [];
-		searchLoading = false;
-		return;
+	/**
+	 * `clampOffset` を処理します。
+	 *
+	 * @param offset 対象位置を表す数値です。
+	 * @returns 数値結果を返します。
+	 */
+	function clampOffset(offset: number): number {
+		return Math.min(0, Math.max(-MAX_SWIPE_DISTANCE, offset));
 	}
-	performSearch(keyword);
-}
 
-/**
- * `readStationMeta` を処理します。
- *
- * @param station 対象の駅名です。
- * @returns 処理結果を返します。
- */
-function readStationMeta(station: string): SearchMeta {
-	try {
-		return {
-			kana: getKanaByStation(station) ?? '',
-			prefecture: getPrefectureByStation(station) ?? ''
-		};
-	} catch (err) {
-		const normalized = normalizeStationName(station);
-		if (normalized !== station) {
-			try {
-				return {
-					kana: getKanaByStation(normalized) ?? '',
-					prefecture: getPrefectureByStation(normalized) ?? ''
-				};
-			} catch {
-				// ベース名でも失敗した場合は空を返す
-			}
-		}
-		console.warn('[TERMINAL_SELECTION] 駅メタデータ取得失敗', err);
-		return { kana: '', prefecture: '' };
+	const historyEmptyMessage = '履歴がまだありません';
+
+	/**
+	 * `showCompanies` を処理します。
+	 *
+	 * @returns 判定結果を返します。
+	 */
+	function showCompanies(): boolean {
+		return tab === 'group' && stage === 'root';
 	}
-}
 
-/**
- * `buildSearchDisplayName` を組み立てます。
- *
- * @param name 処理に必要な入力値です。
- * @param samename 処理に必要な入力値です。
- * @returns 文字列結果を返します。
- */
-function buildSearchDisplayName(name: string, samename?: string[]): string {
-	return buildStationDisplayNameFromCandidates(name, samename);
-}
-
-/**
- * `dedupeSearchResults` を処理します。
- *
- * @param items 処理に必要な入力値です。
- * @returns 配列結果を返します。
- */
-function dedupeSearchResults(items: SearchResultItem[]): SearchResultItem[] {
-	const seen = new Set<string>();
-	const result: SearchResultItem[] = [];
-	for (const item of items) {
-		const key = [
-			item.name.trim(),
-			item.displayName.trim(),
-			item.kana.trim(),
-			item.prefecture.trim()
-		].join('\u0000');
-		if (seen.has(key)) continue;
-		seen.add(key);
-		result.push(item);
+	/**
+	 * `showPrefectures` を処理します。
+	 *
+	 * @returns 判定結果を返します。
+	 */
+	function showPrefectures(): boolean {
+		return tab === 'prefecture' && stage === 'root';
 	}
-	return result;
-}
 
-/**
- * `parseFuzzySearchItems` の解析結果を返します。
- *
- * @param payload 処理対象の文字列です。
- * @returns 配列結果を返します。
- */
-function parseFuzzySearchItems(payload: string): FuzzySearchItem[] {
-	try {
-		if (!payload) return [];
-		const parsed = JSON.parse(payload) as { results?: unknown };
-		if (!Array.isArray(parsed.results)) return [];
-		const items: FuzzySearchItem[] = [];
-		for (const entry of parsed.results) {
-			if (!entry || typeof entry !== 'object') continue;
-			const record = entry as Record<string, unknown>;
-			const name = typeof record.name === 'string' ? record.name.trim() : '';
-			if (!name) continue;
-			const kana = typeof record.kana === 'string' ? record.kana.trim() : '';
-			const samename = Array.isArray(record.samename)
-				? record.samename
-					.filter((value): value is string => typeof value === 'string')
-					.map((value) => value.trim())
-					.filter((value) => value.length > 0)
-				: [];
-			const score = typeof record.score === 'number' ? record.score : undefined;
-			items.push({ name, kana, samename, score });
-		}
-		return items;
-	} catch (err) {
-		console.warn('[TERMINAL_SELECTION] あいまい検索結果の解析に失敗しました', err);
-		return [];
+	/**
+	 * `showHistory` を処理します。
+	 *
+	 * @returns 判定結果を返します。
+	 */
+	function showHistory(): boolean {
+		return tab === 'history' && stage === 'root';
 	}
-}
 
-/**
- * `performSearch` を処理します。
- *
- * @param keyword 処理に必要な入力値です。
- * @returns この処理は戻り値を持ちません。
- */
-async function performSearch(keyword: string): Promise<void> {
-	const token = ++searchToken;
-	searchLoading = true;
-	try {
-		const fuzzyItems = parseFuzzySearchItems(searchStationFuzzy(keyword, 50));
-		const enriched = dedupeSearchResults(
-			fuzzyItems
-			.map((item) => {
-				const displayName = buildSearchDisplayName(item.name, item.samename);
-				const { kana, prefecture } = readStationMeta(displayName);
-				return {
-					name: item.name,
-					displayName,
-					kana: item.kana && item.kana.length > 0 ? item.kana : kana,
-					prefecture,
-					score: item.score ?? 99
-				};
-			})
-			.sort((a, b) => {
-				if (a.score !== b.score) return a.score - b.score;
-				return a.displayName.localeCompare(b.displayName, 'ja');
-			})
-			.slice(0, 50)
-			.map(({ name, displayName, kana, prefecture }) => ({ name, displayName, kana, prefecture }))
-		);
-		if (token === searchToken) {
-			searchResults = enriched;
-		}
-	} finally {
-		if (token === searchToken) {
-			searchLoading = false;
-		}
+	const showFloatingScrollButtons = $derived(
+		(tab === 'prefecture' && stage === 'root') ||
+			stage === 'stations' ||
+			(splitViewEnabled && stage === 'lines' && Boolean(selectedLine))
+	);
+
+	/**
+	 * `scrollToTop` を処理します。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function scrollToTop(): void {
+		scrollPageToTop();
 	}
-}
 
-const MAX_SWIPE_DISTANCE = 110;
-const OPEN_THRESHOLD = 50;
-
-/**
- * `updateSwipeOffset` を処理します。
- *
- * @param station 対象の駅名です。
- * @param offset 対象位置を表す数値です。
- * @returns この処理は戻り値を持ちません。
- */
-function updateSwipeOffset(station: string, offset: number): void {
-	historySwipeOffsets = { ...historySwipeOffsets, [station]: offset };
-}
-
-/**
- * `getSwipeOffset` を取得します。
- *
- * @param station 対象の駅名です。
- * @returns 数値結果を返します。
- */
-function getSwipeOffset(station: string): number {
-	return historySwipeOffsets[station] ?? 0;
-}
-
-/**
- * `resetSwipe` を処理します。
- *
- * @param station 対象の駅名です。
- * @returns この処理は戻り値を持ちません。
- */
-function resetSwipe(station: string): void {
-	if (historySwipeOffsets[station]) {
-		const clone = { ...historySwipeOffsets };
-		delete clone[station];
-		historySwipeOffsets = clone;
+	/**
+	 * `scrollToBottom` を処理します。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function scrollToBottom(): void {
+		scrollPageToBottom();
 	}
-	if (activeSwipeStation === station) {
-		activeSwipeStation = null;
-	}
-}
-
-/**
- * `handleSwipeStart` のイベント処理を行います。
- *
- * @param station 対象の駅名です。
- * @param event 発生したイベントです。
- * @returns この処理は戻り値を持ちません。
- */
-function handleSwipeStart(station: string, event: PointerEvent): void {
-	if (!event.isPrimary) return;
-	swipeSession = {
-		station,
-		startX: event.clientX,
-		pointerId: event.pointerId,
-		initialOffset: getSwipeOffset(station)
-	};
-	activeSwipeStation = station;
-}
-
-/**
- * `handleSwipeMove` のイベント処理を行います。
- *
- * @param station 対象の駅名です。
- * @param event 発生したイベントです。
- * @returns この処理は戻り値を持ちません。
- */
-function handleSwipeMove(station: string, event: PointerEvent): void {
-	if (!swipeSession || swipeSession.station !== station) return;
-	const delta = event.clientX - swipeSession.startX;
-	const offset = clampOffset(swipeSession.initialOffset + delta);
-	updateSwipeOffset(station, offset);
-	event.preventDefault();
-}
-
-/**
- * `handleSwipeEnd` のイベント処理を行います。
- *
- * @param station 対象の駅名です。
- * @param event 発生したイベントです。
- * @returns この処理は戻り値を持ちません。
- */
-function handleSwipeEnd(station: string, event: PointerEvent): void {
-	if (!swipeSession || swipeSession.station !== station) return;
-	const current = getSwipeOffset(station);
-	const shouldOpen = Math.abs(current) > OPEN_THRESHOLD;
-	updateSwipeOffset(station, shouldOpen ? -MAX_SWIPE_DISTANCE : 0);
-	if (!shouldOpen) {
-		activeSwipeStation = null;
-	}
-	swipeSession = null;
-}
-
-/**
- * `handleSwipeCancel` のイベント処理を行います。
- *
- * @param station 対象の駅名です。
- * @param event 発生したイベントです。
- * @returns この処理は戻り値を持ちません。
- */
-function handleSwipeCancel(station: string, event: PointerEvent): void {
-	if (!swipeSession || swipeSession.station !== station) return;
-	updateSwipeOffset(station, 0);
-	activeSwipeStation = null;
-	swipeSession = null;
-}
-
-/**
- * `clampOffset` を処理します。
- *
- * @param offset 対象位置を表す数値です。
- * @returns 数値結果を返します。
- */
-function clampOffset(offset: number): number {
-	return Math.min(0, Math.max(-MAX_SWIPE_DISTANCE, offset));
-}
-
-const historyEmptyMessage = '履歴がまだありません';
-
-/**
- * `showCompanies` を処理します。
- *
- * @returns 判定結果を返します。
- */
-function showCompanies(): boolean {
-	return tab === 'group' && stage === 'root';
-}
-
-/**
- * `showPrefectures` を処理します。
- *
- * @returns 判定結果を返します。
- */
-function showPrefectures(): boolean {
-	return tab === 'prefecture' && stage === 'root';
-}
-
-/**
- * `showHistory` を処理します。
- *
- * @returns 判定結果を返します。
- */
-function showHistory(): boolean {
-	return tab === 'history' && stage === 'root';
-}
-
-const showFloatingScrollButtons = $derived(
-	(tab === 'prefecture' && stage === 'root') || stage === 'stations' || (splitViewEnabled && stage === 'lines' && Boolean(selectedLine))
-);
-
-/**
- * `scrollToTop` を処理します。
- *
- * @returns この処理は戻り値を持ちません。
- */
-function scrollToTop(): void {
-	scrollPageToTop();
-}
-
-/**
- * `scrollToBottom` を処理します。
- *
- * @returns この処理は戻り値を持ちません。
- */
-function scrollToBottom(): void {
-	scrollPageToBottom();
-}
 </script>
 
 <div class="terminal-page">
@@ -1373,7 +1332,7 @@ function scrollToBottom(): void {
 			<span class="material-symbols-rounded nav-button-icon" aria-hidden="true">arrow_back</span>
 		</button>
 		<div class="title">
-		<h1>{screenTitle}</h1>
+			<h1>{screenTitle}</h1>
 			<p>{screenSubtitle}</p>
 		</div>
 	</header>
@@ -1433,15 +1392,17 @@ function scrollToBottom(): void {
 	{#if errorMessage}
 		<div class="error-banner" role="alert">
 			<p>{errorMessage}</p>
-			<button type="button" class="text-button" onclick={clearError}>
-				閉じる
-			</button>
+			<button type="button" class="text-button" onclick={clearError}> 閉じる </button>
 		</div>
 	{/if}
 
 	<p class="list-title">{getListTitle()}</p>
 
-	<section class:split-layout={splitViewEnabled && stage === 'lines'} class="list-panel" aria-busy={loading || panelLoading || searchLoading}>
+	<section
+		class:split-layout={splitViewEnabled && stage === 'lines'}
+		class="list-panel"
+		aria-busy={loading || panelLoading || searchLoading}
+	>
 		{#if loading && !initialFetchDone}
 			<p class="placeholder">一覧を読み込み中...</p>
 		{:else if searchMode}
@@ -1451,7 +1412,7 @@ function scrollToBottom(): void {
 				<p class="placeholder">該当する駅がありません</p>
 			{:else}
 				<ul>
-					{#each searchResults as result, index}
+					{#each searchResults as result, index (index)}
 						<li>
 							<button
 								type="button"
@@ -1482,28 +1443,28 @@ function scrollToBottom(): void {
 				<p class="placeholder">駅が見つかりません</p>
 			{:else}
 				<ul>
-					{#each stations as station, index}
+					{#each stations as station, index (station)}
 						<li>
-								<button
-									type="button"
-									class="list-item station"
-									aria-label={stationListMeta[station]?.name ?? station}
-									onclick={() => handleStationSelect(station)}
-								>
-									<span class="item-header">
-										<span class="primary">{stationListMeta[station]?.name ?? station}</span>
-										<span
-											class="item-prefecture"
-											data-testid={`station-prefecture-${station}`}
-											aria-hidden="true"
-										>
-											{stationPrefecture(station, stations, index)}
-										</span>
+							<button
+								type="button"
+								class="list-item station"
+								aria-label={stationListMeta[station]?.name ?? station}
+								onclick={() => handleStationSelect(station)}
+							>
+								<span class="item-header">
+									<span class="primary">{stationListMeta[station]?.name ?? station}</span>
+									<span
+										class="item-prefecture"
+										data-testid={`station-prefecture-${station}`}
+										aria-hidden="true"
+									>
+										{stationPrefecture(station, stations, index)}
 									</span>
-									{#if stationMetaText(station)}
-										<span class="secondary">{stationMetaText(station)}</span>
-									{/if}
-								</button>
+								</span>
+								{#if stationMetaText(station)}
+									<span class="secondary">{stationMetaText(station)}</span>
+								{/if}
+							</button>
 						</li>
 					{/each}
 				</ul>
@@ -1517,7 +1478,7 @@ function scrollToBottom(): void {
 						<p class="placeholder">路線が見つかりません</p>
 					{:else}
 						<ul>
-							{#each lines as line}
+							{#each lines as line (line)}
 								<li>
 									<button
 										type="button"
@@ -1543,7 +1504,7 @@ function scrollToBottom(): void {
 					{:else}
 						<p class="split-station-title">{selectedLine}</p>
 						<ul>
-							{#each stations as station, index}
+							{#each stations as station, index (station)}
 								<li>
 									<button
 										type="button"
@@ -1578,7 +1539,7 @@ function scrollToBottom(): void {
 				<p class="placeholder">路線が見つかりません</p>
 			{:else}
 				<ul>
-					{#each lines as line}
+					{#each lines as line (line)}
 						<li>
 							<button
 								type="button"
@@ -1597,7 +1558,7 @@ function scrollToBottom(): void {
 				<p class="placeholder">JRグループ情報がありません</p>
 			{:else}
 				<ul>
-					{#each companies as company}
+					{#each companies as company (company)}
 						<li>
 							<button
 								type="button"
@@ -1616,7 +1577,7 @@ function scrollToBottom(): void {
 				<p class="placeholder">都道府県情報がありません</p>
 			{:else}
 				<ul>
-					{#each prefectures as prefecture}
+					{#each prefectures as prefecture (prefecture)}
 						<li>
 							<button
 								type="button"
@@ -1635,14 +1596,14 @@ function scrollToBottom(): void {
 				<p class="placeholder">{historyEmptyMessage}</p>
 			{:else}
 				<ul>
-					{#each historyItems as item}
+					{#each historyItems as item (item)}
 						<li
 							class="history-item"
 							data-history-item={item}
 							onpointerdown={(event) => handleSwipeStart(item, event)}
 							onpointermove={(event) => handleSwipeMove(item, event)}
-							onpointerup={(event) => handleSwipeEnd(item, event)}
-							onpointercancel={(event) => handleSwipeCancel(item, event)}
+							onpointerup={() => handleSwipeEnd(item)}
+							onpointercancel={() => handleSwipeCancel(item)}
 						>
 							<div class="history-delete-zone" aria-hidden={getSwipeOffset(item) === 0}>
 								<button
@@ -1674,7 +1635,7 @@ function scrollToBottom(): void {
 					{/each}
 				</ul>
 			{/if}
-	{/if}
+		{/if}
 	</section>
 
 	{#if autoRouteDialogOpen}
@@ -1683,12 +1644,8 @@ function scrollToBottom(): void {
 				<h2>新幹線を利用しますか？</h2>
 				<p>選択した着駅: {pendingDestinationStation}</p>
 				<div class="dialog-actions">
-					<button type="button" onclick={() => confirmAutoRoute(true)}>
-						新幹線を使う
-					</button>
-					<button type="button" onclick={() => confirmAutoRoute(false)}>
-						在来線のみ
-					</button>
+					<button type="button" onclick={() => confirmAutoRoute(true)}> 新幹線を使う </button>
+					<button type="button" onclick={() => confirmAutoRoute(false)}> 在来線のみ </button>
 					<button type="button" class="secondary" onclick={cancelAutoRouteDialog}>
 						キャンセル
 					</button>
@@ -1697,27 +1654,28 @@ function scrollToBottom(): void {
 		</div>
 	{/if}
 
-	{#if confirmDialogOpen}
-		<div class="dialog-backdrop" role="dialog" aria-modal="true" aria-label="確認ダイアログ">
-			<div class="dialog-card">
-				<h2>確認</h2>
-				<p>{confirmDialogMessage}</p>
-				<div class="dialog-actions">
-					<button type="button" onclick={() => resolveConfirmDialog(true)}>はい</button>
-					<button type="button" class="secondary" onclick={() => resolveConfirmDialog(false)}>
-						いいえ
-					</button>
-				</div>
-			</div>
-		</div>
-	{/if}
+	<ConfirmDialog
+		open={confirmDialog.open}
+		message={confirmDialog.message}
+		onResolve={(result) => confirmDialog.resolve(result)}
+	/>
 
 	{#if showFloatingScrollButtons}
 		<div class="floating-scroll-buttons" aria-label="スクロール操作">
-			<button type="button" class="floating-scroll-button" aria-label="一覧の先頭へスクロール" onclick={scrollToTop}>
+			<button
+				type="button"
+				class="floating-scroll-button"
+				aria-label="一覧の先頭へスクロール"
+				onclick={scrollToTop}
+			>
 				<span class="material-symbols-rounded" aria-hidden="true">vertical_align_top</span>
 			</button>
-			<button type="button" class="floating-scroll-button" aria-label="一覧の末尾へスクロール" onclick={scrollToBottom}>
+			<button
+				type="button"
+				class="floating-scroll-button"
+				aria-label="一覧の末尾へスクロール"
+				onclick={scrollToBottom}
+			>
 				<span class="material-symbols-rounded" aria-hidden="true">vertical_align_bottom</span>
 			</button>
 		</div>
@@ -2075,5 +2033,4 @@ function scrollToBottom(): void {
 	.floating-scroll-button .material-symbols-rounded {
 		font-size: 1.5rem;
 	}
-
 </style>

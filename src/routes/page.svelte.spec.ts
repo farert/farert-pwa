@@ -81,7 +81,7 @@ class MockFarert implements FaretClass {
 			pairs.push(tokens[i + 1] ?? '');
 		}
 		const reversedStations: string[] = [];
-		let currentStation = tokens[tokens.length - 1] ?? start;
+		const currentStation = tokens[tokens.length - 1] ?? start;
 		reversedStations.push(currentStation);
 		for (let i = pairs.length - 2; i >= 0; i -= 2) {
 			reversedStations.push(pairs[i]);
@@ -299,18 +299,12 @@ describe('/+page.svelte', () => {
 		expect(get(mainScreenErrorMessageStore)).toBe('');
 	});
 
-it('hides fare summary card before route selection', async () => {
-	render(Page);
+	it('hides fare summary card before route selection', async () => {
+		render(Page);
 
-	const locator = page.getByRole('button', { name: '運賃サマリー' });
-	let isVisible = false;
-	try {
-		isVisible = await locator.isVisible();
-	} catch (err) {
-		isVisible = false;
-	}
-	expect(isVisible).toBe(false);
-});
+		const locator = page.getByRole('button', { name: '運賃サマリー' });
+		expect(locator.query()).toBeNull();
+	});
 
 	it('renders a material train icon on the start station card', async () => {
 		render(Page);
@@ -338,7 +332,8 @@ it('hides fare summary card before route selection', async () => {
 		seededRoute.addStartRoute('東京');
 		seededRoute.addRoute('山手線', '品川');
 		seededRoute.addRoute('東海道線', '横浜');
-		seededRoute.fareInfoJson = '{"fare":2000,"messages":["a",,"b",],"stockDiscounts":[{"stockDiscountTitle":"x","stockDiscountFare":500},,]}';
+		seededRoute.fareInfoJson =
+			'{"fare":2000,"messages":["a",,"b",],"stockDiscounts":[{"stockDiscountTitle":"x","stockDiscountFare":500},,]}';
 		mainRouteStore.set(seededRoute);
 
 		render(Page);

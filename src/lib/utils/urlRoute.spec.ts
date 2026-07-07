@@ -20,11 +20,14 @@ class FakeFarert implements FaretClass {
 		this.script = script;
 	}
 
-	addStartRoute(): number {
+	addStartRoute(station?: string): number {
+		void station;
 		return 0;
 	}
 
-	addRoute(): number {
+	addRoute(line?: string, station?: string): number {
+		void line;
+		void station;
 		return 0;
 	}
 
@@ -45,7 +48,7 @@ class FakeFarert implements FaretClass {
 		return fields[fields.length - 1] ?? '';
 	}
 
-	buildRoute(routeStr: string): number {
+	buildRoute(routeStr: string): number | string {
 		this.script = routeStr;
 		const result = this.nextBuildResult;
 		this.nextBuildResult = 0;
@@ -207,7 +210,7 @@ class CanonicalizingFarert extends FakeFarert {
 		return 0;
 	}
 
-	override buildRoute(routeStr: string): number {
+	override buildRoute(routeStr: string): number | string {
 		if (routeStr === '長崎,西九州新幹線,諫早,長崎線,長与') {
 			this.script = '長崎,西九州新幹線,諫早,長崎線(長与経由),長与';
 			return 0;
@@ -234,7 +237,7 @@ class CanonicalizingFarert extends FakeFarert {
 }
 
 class SameNameCanonicalizingFarert extends FakeFarert {
-	override buildRoute(routeStr: string): number {
+	override buildRoute(routeStr: string): number | string {
 		if (routeStr === '千歳 千歳線 白石 函館線 岩見沢 室蘭線 追分') {
 			this.script = '千歳(千),千歳線,白石(函),函館線,岩見沢,室蘭線,追分(室)';
 			return 0;
@@ -388,15 +391,10 @@ describe('urlRoute utilities', () => {
 	it('buildRoute成功後に同名駅を正式名へ正規化した場合も復元成功とみなす', () => {
 		const route = new SameNameCanonicalizingFarert();
 
-		const restored = restoreRouteFromScript(
-			route,
-			'千歳 千歳線 白石 函館線 岩見沢 室蘭線 追分'
-		);
+		const restored = restoreRouteFromScript(route, '千歳 千歳線 白石 函館線 岩見沢 室蘭線 追分');
 
 		expect(restored).toBe(true);
-		expect(route.routeScript()).toBe(
-			'千歳(千),千歳線,白石(函),函館線,岩見沢,室蘭線,追分(室)'
-		);
+		expect(route.routeScript()).toBe('千歳(千),千歳線,白石(函),函館線,岩見沢,室蘭線,追分(室)');
 	});
 
 	it('全角区切りを正規化してからbuildRouteへ渡す', () => {
@@ -442,7 +440,8 @@ describe('urlRoute utilities', () => {
 
 	it('falls back to window.location.origin when base URL is omitted', () => {
 		const route = new FakeFarert('東京,東海道線,新大阪');
-		globalThis.window = { location: { origin: 'https://farert.example' } } as Window;
+		globalThis.window = { location: { origin: 'https://farert.example' } } as unknown as Window &
+			typeof globalThis;
 
 		const url = generateShareUrl(route, -1, { ctor: FakeFarert });
 		expect(url.startsWith('https://farert.example/detail?r=')).toBe(true);

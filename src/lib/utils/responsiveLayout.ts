@@ -28,12 +28,12 @@ export function observeWideScreenViewport(callback: (isWide: boolean) => void): 
 		return () => {};
 	}
 
-		/**
+	/**
 	 * `sync` を処理します。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-const sync = () => callback(isWideScreenViewport());
+	const sync = () => callback(isWideScreenViewport());
 	sync();
 	window.addEventListener('resize', sync);
 	return () => {

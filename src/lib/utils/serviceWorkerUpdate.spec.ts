@@ -149,7 +149,9 @@ describe('serviceWorkerUpdate', () => {
 			}
 		});
 
-		await expect(serviceWorkerUpdate.getReadyServiceWorkerRegistration()).resolves.toBe(registration);
+		await expect(serviceWorkerUpdate.getReadyServiceWorkerRegistration()).resolves.toBe(
+			registration
+		);
 		expect(getRegistration).toHaveBeenCalledWith('/');
 		expect(register).toHaveBeenCalledWith('/service-worker.js', { scope: '/' });
 	});
@@ -167,7 +169,9 @@ describe('serviceWorkerUpdate', () => {
 			}
 		});
 
-		await expect(serviceWorkerUpdate.getReadyServiceWorkerRegistration('/farert-pwa')).resolves.toBe(registration);
+		await expect(
+			serviceWorkerUpdate.getReadyServiceWorkerRegistration('/farert-pwa')
+		).resolves.toBe(registration);
 		expect(getRegistration).toHaveBeenCalledWith('/farert-pwa/');
 		expect(register).toHaveBeenCalledWith('/farert-pwa/service-worker.js', {
 			scope: '/farert-pwa/'
@@ -243,11 +247,14 @@ describe('serviceWorkerUpdate', () => {
 		vi.stubGlobal('navigator', {
 			serviceWorker: {}
 		});
-		Object.assign((globalThis.navigator as { serviceWorker: Record<string, unknown> }).serviceWorker, {
-			ready: Promise.resolve(registrationWithUpdate),
-			getRegistration,
-			register: vi.fn().mockResolvedValue(registrationWithUpdate)
-		});
+		Object.assign(
+			(globalThis.navigator as unknown as { serviceWorker: Record<string, unknown> }).serviceWorker,
+			{
+				ready: Promise.resolve(registrationWithUpdate),
+				getRegistration,
+				register: vi.fn().mockResolvedValue(registrationWithUpdate)
+			}
+		);
 		vi.stubGlobal('window', {
 			addEventListener: vi.fn((event: string, listener: () => void) => {
 				listeners.set(event, listener);

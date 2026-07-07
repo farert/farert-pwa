@@ -34,6 +34,6 @@ describe('/+layout.svelte', () => {
 		const layoutPath = fileURLToPath(new URL('./+layout.svelte', import.meta.url));
 		const source = readFileSync(layoutPath, 'utf-8');
 
-		expect(source).not.toContain("if (!navigator.serviceWorker.controller)");
+		expect(source).not.toContain('if (!navigator.serviceWorker.controller)');
 	});
 });

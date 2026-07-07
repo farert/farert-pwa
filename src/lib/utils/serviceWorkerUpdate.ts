@@ -2,6 +2,8 @@
  * Service Worker 更新確認と適用待機を扱うユーティリティです。
  * 起動時チェックと pending worker の検知ロジックをまとめます。
  */
+import { normalizeBasePath } from './basePath';
+
 export interface PendingWorkerResult {
 	registration: ServiceWorkerRegistration;
 	worker: ServiceWorker | null;
@@ -14,21 +16,6 @@ export interface StartupServiceWorkerUpdateCheckOptions {
 }
 
 const READY_REGISTRATION_TIMEOUT_MS = 1500;
-
-/**
- * `normalizeBasePath` を正規化します。
- *
- * @param basePath 処理に必要な入力値です。
- * @returns 文字列結果を返します。
- */
-function normalizeBasePath(basePath = ''): string {
-	if (!basePath || basePath === '/') {
-		return '';
-	}
-
-	const prefixed = basePath.startsWith('/') ? basePath : `/${basePath}`;
-	return prefixed.endsWith('/') ? prefixed.slice(0, -1) : prefixed;
-}
 
 /**
  * `getReadyServiceWorkerRegistration` を取得します。
@@ -71,7 +58,7 @@ export async function getReadyServiceWorkerRegistration(
 	}
 
 	try {
-		return await navigator.serviceWorker.getRegistration(scope);
+		return (await navigator.serviceWorker.getRegistration(scope)) ?? null;
 	} catch {
 		return null;
 	}
@@ -101,13 +88,13 @@ export async function waitForPendingWorker(
 		let resolved = false;
 		let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-				/**
+		/**
 		 * `finish` を処理します。
 		 *
 		 * @param worker 処理に必要な入力値です。
 		 * @returns この処理は戻り値を持ちません。
 		 */
-const finish = (worker: ServiceWorker | null) => {
+		const finish = (worker: ServiceWorker | null) => {
 			if (resolved) return;
 			resolved = true;
 			if (timeoutId) clearTimeout(timeoutId);
@@ -115,12 +102,12 @@ const finish = (worker: ServiceWorker | null) => {
 			resolve(worker);
 		};
 
-				/**
+		/**
 		 * `onUpdateFound` を処理します。
 		 *
 		 * @returns この処理は戻り値を持ちません。
 		 */
-const onUpdateFound = () => {
+		const onUpdateFound = () => {
 			const nextInstalling = registration.installing;
 			if (!nextInstalling) {
 				finish(registration.waiting ?? null);
@@ -184,12 +171,12 @@ export function startStartupServiceWorkerUpdateCheck({
 	let disposed = false;
 	let checking = false;
 
-		/**
+	/**
 	 * `runCheck` を処理します。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-const runCheck = async () => {
+	const runCheck = async () => {
 		if (checking || disposed) return;
 		checking = true;
 
@@ -208,12 +195,12 @@ const runCheck = async () => {
 		}
 	};
 
-		/**
+	/**
 	 * `onOnline` を処理します。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-const onOnline = () => {
+	const onOnline = () => {
 		void runCheck();
 	};
 
@@ -252,12 +239,12 @@ async function waitForInstalledWorker(
 			resolve(registration.waiting ?? null);
 		}, timeoutMs);
 
-				/**
+		/**
 		 * `onStateChange` を処理します。
 		 *
 		 * @returns この処理は戻り値を持ちません。
 		 */
-const onStateChange = () => {
+		const onStateChange = () => {
 			if (resolved) return;
 			if (worker.state === 'installed') {
 				resolved = true;

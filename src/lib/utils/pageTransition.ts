@@ -2,18 +2,9 @@
  * 画面遷移時に使うアニメーション方向を判定するユーティリティです。
  * base path を吸収しつつ pathname の関係から遷移種別を返します。
  */
-export type PageTransitionKind = 'none' | 'main-detail-forward' | 'detail-main-back';
+import { normalizeBasePath } from './basePath';
 
-/**
- * `normalizeBasePath` を正規化します。
- *
- * @param basePath 処理に必要な入力値です。
- * @returns 文字列結果を返します。
- */
-function normalizeBasePath(basePath: string): string {
-	if (!basePath || basePath === '/') return '';
-	return basePath.endsWith('/') ? basePath.slice(0, -1) : basePath;
-}
+export type PageTransitionKind = 'none' | 'main-detail-forward' | 'detail-main-back';
 
 /**
  * `normalizePathname` を正規化します。

@@ -32,7 +32,9 @@
 				gaScript.src = 'https://www.googletagmanager.com/gtag/js?id=G-C8XXJQ6Y10';
 				gaScript.onload = () => {
 					window.dataLayer = window.dataLayer || [];
-					function gtag(){window.dataLayer.push(arguments);}
+					function gtag() {
+						window.dataLayer.push(arguments);
+					}
 					gtag('js', new Date());
 					gtag('config', 'G-C8XXJQ6Y10');
 				};

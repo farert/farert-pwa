@@ -3,384 +3,399 @@
 駅一覧の表示順、切替、追加実行とスクロール操作を扱います。
 -->
 <script lang="ts">
-import { goto } from '$app/navigation';
-import { base } from '$app/paths';
-import { onMount } from 'svelte';
-import { get } from 'svelte/store';
-import {
-	initFarert,
-	getBranchStationsByLine,
-	getStationsByLine,
-	getKanaByStation,
-	getLinesByStation,
-	getPrefectureByStation,
-	executeSql
-} from '$lib/wasm';
-import { mainRoute } from '$lib/stores';
-import { scrollPageToBottom, scrollPageToTop } from '$lib/utils/responsiveLayout';
-import { buildStationDisplayMeta, normalizeStationName } from '$lib/utils/stationDisplay';
-import type { FaretClass } from '$lib/wasm/types';
-
-type ScreenMode = 'branch' | 'destination';
-type ScreenSource = 'main' | 'start' | 'destination';
-
-interface StationSelectionParams {
-	from: ScreenSource;
-	station?: string;
-	line?: string;
-	prefecture?: string;
-	group?: string;
-}
-interface StationMetaInfo {
-	name: string;
-	kana: string;
-	lines: string[];
-	prefecture: string;
-}
-
-let loading = $state(true);
-let errorMessage = $state('');
-let params = $state<StationSelectionParams>({ from: 'main' });
-let mode = $state<ScreenMode>('branch');
-let branchStations = $state<string[]>([]);
-let destinationStations = $state<string[]>([]);
-let stationDetails = $state<Record<string, StationMetaInfo>>({});
-let routeRef = $state<FaretClass | null>(null);
-let {
-	presetParams = null,
-	embedded = false
-} = $props<{ presetParams?: Partial<StationSelectionParams> | null; embedded?: boolean }>();
-
-onMount(() => {
-	const unsubscribe = mainRoute.subscribe((value) => {
-		routeRef = value;
-	});
-
-	(async () => {
-		try {
-			await initFarert();
-			const resolved = resolveParams();
-			params = resolved;
-			await loadStations(resolved);
-		} catch (err) {
-			console.error('駅一覧の初期化に失敗しました', err);
-			errorMessage = '駅一覧の初期化に失敗しました。';
-		} finally {
-			loading = false;
-		}
-	})();
-
-	return () => {
-		unsubscribe();
-	};
-});
-
-/**
- * `resolveParams` の解決結果を返します。
- *
- * @returns 処理結果を返します。
- */
-function resolveParams(): StationSelectionParams {
-	if (presetParams) {
-		return {
-			from: presetParams.from ?? 'main',
-			station: presetParams.station,
-			line: presetParams.line,
-			prefecture: presetParams.prefecture,
-			group: presetParams.group
-		};
-	}
-
-	if (typeof window === 'undefined') {
-		return { from: 'main' };
-	}
-
-	const search = new URLSearchParams(window.location.search);
-	const fromParam = search.get('from');
-	const from: ScreenSource = fromParam === 'start' || fromParam === 'destination' ? fromParam : 'main';
-
-	return {
-		from,
-		station: search.get('station') ?? undefined,
-		line: search.get('line') ?? undefined,
-		prefecture: search.get('prefecture') ?? undefined,
-		group: search.get('group') ?? undefined
-	};
-}
-
-/**
- * `loadStations` の読み込み処理を行います。
- *
- * @param context 処理対象の文字列です。
- * @returns この処理は戻り値を持ちません。
- */
-function loadStations(context: StationSelectionParams): void {
-	try {
-		if (!context.line) {
-			throw new Error('line parameter is required');
-		}
-
-		destinationStations = parseList(getStationsByLine(context.line));
-
-		if (context.from === 'main' && context.station) {
-			const routeStartStation = routeRef?.departureStationName?.().trim() ?? '';
-			const branchBaseStation = routeStartStation || context.station;
-			const rawBranches = parseList(
-				getBranchStationsByLine(context.line, branchBaseStation)
-			);
-			const seen = new Set<string>();
-			const deduped = rawBranches.filter((name) => {
-				if (!name || name === context.station || seen.has(name)) return false;
-				seen.add(name);
-				return true;
-			});
-			const candidates = [context.station, ...deduped];
-			if (routeStartStation && destinationStations.includes(routeStartStation)) {
-				candidates.push(routeStartStation);
-			}
-			branchStations = sortStationsByLineOrder(candidates, destinationStations);
-		} else {
-			branchStations = destinationStations;
-		}
-		stationDetails = buildStationDetails([...new Set([...branchStations, ...destinationStations])], context.line);
-		errorMessage = '';
-	} catch (err) {
-		console.error('駅リストの取得に失敗しました', err);
-		errorMessage = '駅リストの取得に失敗しました。';
-		branchStations = [];
-		destinationStations = [];
-	}
-}
-
-/**
- * `parseList` の解析結果を返します。
- *
- * @param raw 処理対象の文字列です。
- * @returns 文字列結果を返します。
- */
-function parseList(raw: string): string[] {
-	try {
-		if (!raw) return [];
-		const parsed = JSON.parse(raw);
-		if (Array.isArray(parsed)) {
-			return parsed.filter((name): name is string => Boolean(name?.trim())).map((name) => name.trim());
-		}
-		if (parsed && typeof parsed === 'object' && Object.keys(parsed).length === 0) {
-			return [];
-		}
-		if (parsed && typeof parsed === 'object') {
-			const firstArrayKey = Object.keys(parsed).find((key) => Array.isArray((parsed as Record<string, unknown>)[key]));
-			if (firstArrayKey) {
-				return ((parsed as Record<string, string[]>)[firstArrayKey] ?? []).map((name) => name?.trim()).filter((name): name is string => Boolean(name));
-			}
-		}
-	} catch (err) {
-		console.warn('駅リストの解析に失敗しました', err);
-	}
-	return [];
-}
-
-/**
- * `sortStationsByLineOrder` を処理します。
- *
- * @param stations 対象の駅名です。
- * @param lineStations 対象の駅名です。
- * @returns 文字列結果を返します。
- */
-function sortStationsByLineOrder(stations: string[], lineStations: string[]): string[] {
-	const uniqueStations = [...new Set(stations.filter((station) => station.trim().length > 0))];
-	const orderMap = new Map<string, number>();
-	lineStations.forEach((station, index) => {
-		if (!orderMap.has(station)) {
-			orderMap.set(station, index);
-		}
-	});
-
-	return uniqueStations.sort((left, right) => {
-		const leftIndex = orderMap.get(left);
-		const rightIndex = orderMap.get(right);
-		if (leftIndex !== undefined && rightIndex !== undefined) {
-			return leftIndex - rightIndex;
-		}
-		if (leftIndex !== undefined) return -1;
-		if (rightIndex !== undefined) return 1;
-		return left.localeCompare(right, 'ja');
-	});
-}
-
-/**
- * `buildStationDetails` を組み立てます。
- *
- * @param stations 対象の駅名です。
- * @param lineName 対象の路線名です。
- * @returns 文字列結果を返します。
- */
-function buildStationDetails(stations: string[], lineName: string): Record<string, StationMetaInfo> {
-	return buildStationDisplayMeta(stations, lineName, {
-		executeSql,
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
+	import { onMount } from 'svelte';
+	import { get } from 'svelte/store';
+	import {
+		initFarert,
+		getBranchStationsByLine,
+		getStationsByLine,
 		getKanaByStation,
 		getLinesByStation,
 		getPrefectureByStation,
-		parseList
+		executeSql
+	} from '$lib/wasm';
+	import { mainRoute } from '$lib/stores';
+	import { scrollPageToBottom, scrollPageToTop } from '$lib/utils/responsiveLayout';
+	import { buildStationDisplayMeta, normalizeStationName } from '$lib/utils/stationDisplay';
+	import type { FaretClass } from '$lib/wasm/types';
+
+	type ScreenMode = 'branch' | 'destination';
+	type ScreenSource = 'main' | 'start' | 'destination';
+
+	interface StationSelectionParams {
+		from: ScreenSource;
+		station?: string;
+		line?: string;
+		prefecture?: string;
+		group?: string;
+	}
+	interface StationMetaInfo {
+		name: string;
+		kana: string;
+		lines: string[];
+		prefecture: string;
+	}
+
+	let loading = $state(true);
+	let errorMessage = $state('');
+	let params = $state<StationSelectionParams>({ from: 'main' });
+	let mode = $state<ScreenMode>('branch');
+	let branchStations = $state<string[]>([]);
+	let destinationStations = $state<string[]>([]);
+	let stationDetails = $state<Record<string, StationMetaInfo>>({});
+	let routeRef = $state<FaretClass | null>(null);
+	// eslint-disable-next-line svelte/valid-prop-names-in-kit-pages -- prop is injected by tests and embedding, not by the router
+	let { presetParams = null, embedded = false } = $props<{
+		presetParams?: Partial<StationSelectionParams> | null;
+		embedded?: boolean;
+	}>();
+
+	onMount(() => {
+		const unsubscribe = mainRoute.subscribe((value) => {
+			routeRef = value;
+		});
+
+		(async () => {
+			try {
+				await initFarert();
+				const resolved = resolveParams();
+				params = resolved;
+				await loadStations(resolved);
+			} catch (err) {
+				console.error('駅一覧の初期化に失敗しました', err);
+				errorMessage = '駅一覧の初期化に失敗しました。';
+			} finally {
+				loading = false;
+			}
+		})();
+
+		return () => {
+			unsubscribe();
+		};
 	});
-}
 
-/**
- * `stationPrefecture` を処理します。
- *
- * @param name 処理に必要な入力値です。
- * @param index 対象位置を表す数値です。
- * @returns 文字列結果を返します。
- */
-function stationPrefecture(name: string, index: number): string {
-	const prefecture = stationDetails[name]?.prefecture ?? '';
-	if (!prefecture) return '';
-	const previousStation = visibleStations[index - 1];
-	if (!previousStation) return prefecture;
-	const previousPrefecture = stationDetails[previousStation]?.prefecture ?? '';
-	return previousPrefecture === prefecture ? '' : prefecture;
-}
+	/**
+	 * `resolveParams` の解決結果を返します。
+	 *
+	 * @returns 処理結果を返します。
+	 */
+	function resolveParams(): StationSelectionParams {
+		if (presetParams) {
+			return {
+				from: presetParams.from ?? 'main',
+				station: presetParams.station,
+				line: presetParams.line,
+				prefecture: presetParams.prefecture,
+				group: presetParams.group
+			};
+		}
 
-/**
- * `toggleMode` の切替処理を行います。
- *
- * @returns この処理は戻り値を持ちません。
- */
-function toggleMode(): void {
-	mode = mode === 'branch' ? 'destination' : 'branch';
-}
+		if (typeof window === 'undefined') {
+			return { from: 'main' };
+		}
 
-/**
- * `goBack` を処理します。
- *
- * @returns この処理は戻り値を持ちません。
- */
-function goBack(): void {
-	if (typeof window !== 'undefined' && window.history.length > 1) {
-		window.history.back();
-		return;
-	}
-	goto(`${base}/`);
-}
+		const search = new URLSearchParams(window.location.search);
+		const fromParam = search.get('from');
+		const from: ScreenSource =
+			fromParam === 'start' || fromParam === 'destination' ? fromParam : 'main';
 
-/**
- * `isDisabledStation` の判定結果を返します。
- *
- * @param name 処理に必要な入力値です。
- * @returns 判定結果を返します。
- */
-function isDisabledStation(name: string): boolean {
-	if (!params.station) return false;
-	return normalizeStationName(params.station) === normalizeStationName(name);
-}
-
-/**
- * `handleSelectStation` のイベント処理を行います。
- *
- * @param name 処理に必要な入力値です。
- * @returns この処理は戻り値を持ちません。
- */
-function handleSelectStation(name: string): void {
-	const selected = stationDetails[name]?.name ?? name;
-	if (!params.line) {
-		errorMessage = '路線情報が不足しています。';
-		return;
-	}
-	if (isDisabledStation(name)) {
-		return;
+		return {
+			from,
+			station: search.get('station') ?? undefined,
+			line: search.get('line') ?? undefined,
+			prefecture: search.get('prefecture') ?? undefined,
+			group: search.get('group') ?? undefined
+		};
 	}
 
-	if (params.from === 'main') {
-		const route = routeRef ?? get(mainRoute);
-		if (!route) {
-			errorMessage = '発駅が設定されていません。';
-			return;
+	/**
+	 * `loadStations` の読み込み処理を行います。
+	 *
+	 * @param context 処理対象の文字列です。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function loadStations(context: StationSelectionParams): void {
+		try {
+			if (!context.line) {
+				throw new Error('line parameter is required');
+			}
+
+			destinationStations = parseList(getStationsByLine(context.line));
+
+			if (context.from === 'main' && context.station) {
+				const routeStartStation = routeRef?.departureStationName?.().trim() ?? '';
+				const branchBaseStation = routeStartStation || context.station;
+				const rawBranches = parseList(getBranchStationsByLine(context.line, branchBaseStation));
+				// eslint-disable-next-line svelte/prefer-svelte-reactivity -- local non-reactive collection
+				const seen = new Set<string>();
+				const deduped = rawBranches.filter((name) => {
+					if (!name || name === context.station || seen.has(name)) return false;
+					seen.add(name);
+					return true;
+				});
+				const candidates = [context.station, ...deduped];
+				if (routeStartStation && destinationStations.includes(routeStartStation)) {
+					candidates.push(routeStartStation);
+				}
+				branchStations = sortStationsByLineOrder(candidates, destinationStations);
+			} else {
+				branchStations = destinationStations;
+			}
+			stationDetails = buildStationDetails(
+				[...new Set([...branchStations, ...destinationStations])],
+				context.line
+			);
+			errorMessage = '';
+		} catch (err) {
+			console.error('駅リストの取得に失敗しました', err);
+			errorMessage = '駅リストの取得に失敗しました。';
+			branchStations = [];
+			destinationStations = [];
 		}
-		const result = route.addRoute(params.line, selected);
-		if (result === -1) {
-			errorMessage = '経路が重複しています';
-			return;
-		}
-		if (result === -4) {
-			errorMessage = '無効な会社線通過連絡運輸です';
-			return;
-		}
-		if (result < 0) {
-			errorMessage = '経路の追加に失敗しました。';
-			return;
-		}
-		mainRoute.set(route);
-		goto(`${base}/`);
-		return;
 	}
 
-	const search = new URLSearchParams();
+	/**
+	 * `parseList` の解析結果を返します。
+	 *
+	 * @param raw 処理対象の文字列です。
+	 * @returns 文字列結果を返します。
+	 */
+	function parseList(raw: string): string[] {
+		try {
+			if (!raw) return [];
+			const parsed = JSON.parse(raw);
+			if (Array.isArray(parsed)) {
+				return parsed
+					.filter((name): name is string => Boolean(name?.trim()))
+					.map((name) => name.trim());
+			}
+			if (parsed && typeof parsed === 'object' && Object.keys(parsed).length === 0) {
+				return [];
+			}
+			if (parsed && typeof parsed === 'object') {
+				const firstArrayKey = Object.keys(parsed).find((key) =>
+					Array.isArray((parsed as Record<string, unknown>)[key])
+				);
+				if (firstArrayKey) {
+					return ((parsed as Record<string, string[]>)[firstArrayKey] ?? [])
+						.map((name) => name?.trim())
+						.filter((name): name is string => Boolean(name));
+				}
+			}
+		} catch (err) {
+			console.warn('駅リストの解析に失敗しました', err);
+		}
+		return [];
+	}
+
+	/**
+	 * `sortStationsByLineOrder` を処理します。
+	 *
+	 * @param stations 対象の駅名です。
+	 * @param lineStations 対象の駅名です。
+	 * @returns 文字列結果を返します。
+	 */
+	function sortStationsByLineOrder(stations: string[], lineStations: string[]): string[] {
+		const uniqueStations = [...new Set(stations.filter((station) => station.trim().length > 0))];
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- local non-reactive collection
+		const orderMap = new Map<string, number>();
+		lineStations.forEach((station, index) => {
+			if (!orderMap.has(station)) {
+				orderMap.set(station, index);
+			}
+		});
+
+		return uniqueStations.sort((left, right) => {
+			const leftIndex = orderMap.get(left);
+			const rightIndex = orderMap.get(right);
+			if (leftIndex !== undefined && rightIndex !== undefined) {
+				return leftIndex - rightIndex;
+			}
+			if (leftIndex !== undefined) return -1;
+			if (rightIndex !== undefined) return 1;
+			return left.localeCompare(right, 'ja');
+		});
+	}
+
+	/**
+	 * `buildStationDetails` を組み立てます。
+	 *
+	 * @param stations 対象の駅名です。
+	 * @param lineName 対象の路線名です。
+	 * @returns 文字列結果を返します。
+	 */
+	function buildStationDetails(
+		stations: string[],
+		lineName: string
+	): Record<string, StationMetaInfo> {
+		return buildStationDisplayMeta(stations, lineName, {
+			executeSql,
+			getKanaByStation,
+			getLinesByStation,
+			getPrefectureByStation,
+			parseList
+		});
+	}
+
+	/**
+	 * `stationPrefecture` を処理します。
+	 *
+	 * @param name 処理に必要な入力値です。
+	 * @param index 対象位置を表す数値です。
+	 * @returns 文字列結果を返します。
+	 */
+	function stationPrefecture(name: string, index: number): string {
+		const prefecture = stationDetails[name]?.prefecture ?? '';
+		if (!prefecture) return '';
+		const previousStation = visibleStations[index - 1];
+		if (!previousStation) return prefecture;
+		const previousPrefecture = stationDetails[previousStation]?.prefecture ?? '';
+		return previousPrefecture === prefecture ? '' : prefecture;
+	}
+
+	/**
+	 * `toggleMode` の切替処理を行います。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function toggleMode(): void {
+		mode = mode === 'branch' ? 'destination' : 'branch';
+	}
+
+	/**
+	 * `goBack` を処理します。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function goBack(): void {
+		if (typeof window !== 'undefined' && window.history.length > 1) {
+			window.history.back();
+			return;
+		}
+		goto(resolve('/'));
+	}
+
+	/**
+	 * `isDisabledStation` の判定結果を返します。
+	 *
+	 * @param name 処理に必要な入力値です。
+	 * @returns 判定結果を返します。
+	 */
+	function isDisabledStation(name: string): boolean {
+		if (!params.station) return false;
+		return normalizeStationName(params.station) === normalizeStationName(name);
+	}
+
+	/**
+	 * `handleSelectStation` のイベント処理を行います。
+	 *
+	 * @param name 処理に必要な入力値です。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function handleSelectStation(name: string): void {
+		const selected = stationDetails[name]?.name ?? name;
+		if (!params.line) {
+			errorMessage = '路線情報が不足しています。';
+			return;
+		}
+		if (isDisabledStation(name)) {
+			return;
+		}
+
+		if (params.from === 'main') {
+			const route = routeRef ?? get(mainRoute);
+			if (!route) {
+				errorMessage = '発駅が設定されていません。';
+				return;
+			}
+			const result = route.addRoute(params.line, selected);
+			if (result === -1) {
+				errorMessage = '経路が重複しています';
+				return;
+			}
+			if (result === -4) {
+				errorMessage = '無効な会社線通過連絡運輸です';
+				return;
+			}
+			if (result < 0) {
+				errorMessage = '経路の追加に失敗しました。';
+				return;
+			}
+			mainRoute.set(route);
+			goto(resolve('/'));
+			return;
+		}
+
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- local non-reactive collection
+		const search = new URLSearchParams();
 		search.set('from', params.from);
 		search.set('station', selected);
 		search.set('line', params.line);
-	if (params.prefecture) search.set('prefecture', params.prefecture);
-	if (params.group) search.set('group', params.group);
-	goto(`${base}/terminal-selection?${search.toString()}`);
-}
-
-const visibleStations = $derived(mode === 'branch' ? branchStations : destinationStations);
-const headerTitle = $derived(
-	params.from === 'main'
-		? mode === 'branch'
-			? '分岐駅選択'
-			: '着駅選択'
-		: params.from === 'start'
-			? '発駅指定'
-			: '着駅指定'
-);
-
-/**
- * `isStartStation` の判定結果を返します。
- *
- * @param name 処理に必要な入力値です。
- * @returns 判定結果を返します。
- */
-function isStartStation(name: string): boolean {
-	const departure = routeRef?.departureStationName?.().trim() ?? '';
-	return Boolean(departure) && normalizeStationName(departure) === normalizeStationName(name);
-}
-
-/**
- * `stationMeta` を処理します。
- *
- * @param name 処理に必要な入力値です。
- * @returns 文字列結果を返します。
- */
-function stationMeta(name: string): string {
-	const kana = stationDetails[name]?.kana ?? '';
-	const lines = stationDetails[name]?.lines ?? [];
-	const metaParts: string[] = [];
-	if (kana) {
-		metaParts.push(`（${kana}）`);
+		if (params.prefecture) search.set('prefecture', params.prefecture);
+		if (params.group) search.set('group', params.group);
+		goto(resolve(`/terminal-selection?${search.toString()}` as '/terminal-selection'));
 	}
-	if (lines.length > 1) {
-		metaParts.push(lines.join('/'));
+
+	const visibleStations = $derived(mode === 'branch' ? branchStations : destinationStations);
+	const headerTitle = $derived(
+		params.from === 'main'
+			? mode === 'branch'
+				? '分岐駅選択'
+				: '着駅選択'
+			: params.from === 'start'
+				? '発駅指定'
+				: '着駅指定'
+	);
+
+	/**
+	 * `isStartStation` の判定結果を返します。
+	 *
+	 * @param name 処理に必要な入力値です。
+	 * @returns 判定結果を返します。
+	 */
+	function isStartStation(name: string): boolean {
+		const departure = routeRef?.departureStationName?.().trim() ?? '';
+		return Boolean(departure) && normalizeStationName(departure) === normalizeStationName(name);
 	}
-	return metaParts.join('/');
-}
 
-/**
- * `scrollToTop` を処理します。
- *
- * @returns この処理は戻り値を持ちません。
- */
-function scrollToTop(): void {
-	scrollPageToTop();
-}
+	/**
+	 * `stationMeta` を処理します。
+	 *
+	 * @param name 処理に必要な入力値です。
+	 * @returns 文字列結果を返します。
+	 */
+	function stationMeta(name: string): string {
+		const kana = stationDetails[name]?.kana ?? '';
+		const lines = stationDetails[name]?.lines ?? [];
+		const metaParts: string[] = [];
+		if (kana) {
+			metaParts.push(`（${kana}）`);
+		}
+		if (lines.length > 1) {
+			metaParts.push(lines.join('/'));
+		}
+		return metaParts.join('/');
+	}
 
-/**
- * `scrollToBottom` を処理します。
- *
- * @returns この処理は戻り値を持ちません。
- */
-function scrollToBottom(): void {
-	scrollPageToBottom();
-}
+	/**
+	 * `scrollToTop` を処理します。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function scrollToTop(): void {
+		scrollPageToTop();
+	}
+
+	/**
+	 * `scrollToBottom` を処理します。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function scrollToBottom(): void {
+		scrollPageToBottom();
+	}
 </script>
 
 <div class:embedded class="station-selection">
@@ -390,7 +405,10 @@ function scrollToBottom(): void {
 		{:else}
 			<span class="toolbar-spacer" aria-hidden="true"></span>
 		{/if}
-		<h1>{headerTitle}{#if params.line} - {params.line}{/if}</h1>
+		<h1>
+			{headerTitle}{#if params.line}
+				- {params.line}{/if}
+		</h1>
 		{#if params.from === 'main'}
 			<button type="button" class="text-button" onclick={toggleMode}>
 				{mode === 'branch' ? '着駅選択' : '分岐駅選択'}
@@ -453,10 +471,20 @@ function scrollToBottom(): void {
 	{/if}
 
 	<div class:embedded class="floating-scroll-buttons" aria-label="スクロール操作">
-		<button type="button" class="floating-scroll-button" aria-label="一覧の先頭へスクロール" onclick={scrollToTop}>
+		<button
+			type="button"
+			class="floating-scroll-button"
+			aria-label="一覧の先頭へスクロール"
+			onclick={scrollToTop}
+		>
 			<span class="material-symbols-rounded" aria-hidden="true">vertical_align_top</span>
 		</button>
-		<button type="button" class="floating-scroll-button" aria-label="一覧の末尾へスクロール" onclick={scrollToBottom}>
+		<button
+			type="button"
+			class="floating-scroll-button"
+			aria-label="一覧の末尾へスクロール"
+			onclick={scrollToBottom}
+		>
 			<span class="material-symbols-rounded" aria-hidden="true">vertical_align_bottom</span>
 		</button>
 	</div>
@@ -468,7 +496,12 @@ function scrollToBottom(): void {
 		padding: 1rem;
 		padding-bottom: 6.5rem;
 		background: var(--page-bg);
-		font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+		font-family:
+			system-ui,
+			-apple-system,
+			BlinkMacSystemFont,
+			'Segoe UI',
+			sans-serif;
 	}
 
 	.station-selection.embedded {

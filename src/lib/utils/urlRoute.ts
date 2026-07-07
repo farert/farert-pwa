@@ -6,6 +6,8 @@ import LZString from 'lz-string';
 import { Farert } from '$lib/wasm';
 import type { FaretClass } from '$lib/wasm/types';
 import { getSerializedRouteScript } from './routeScriptPersistence';
+import { isBuildRouteSuccess } from './routeResult';
+import { normalizeBasePath } from './basePath';
 
 export type FarertConstructor = new () => FaretClass;
 
@@ -34,6 +36,8 @@ export function compressRouteForUrl(
 	segmentCount = -1,
 	_ctor?: FarertConstructor
 ): string {
+	// ctor is kept so tests can keep injecting a Farert-compatible constructor.
+	void _ctor;
 	if (!route) {
 		throw new Error('routeが指定されていません');
 	}
@@ -68,7 +72,10 @@ export function decompressRouteFromUrl(
 
 		const script = LZString.decompressFromEncodedURIComponent(compressed);
 		if (!script) {
-			console.error('[URL_ROUTE] ルートの伸長に失敗しました。圧縮データ:', compressed.substring(0, 50));
+			console.error(
+				'[URL_ROUTE] ルートの伸長に失敗しました。圧縮データ:',
+				compressed.substring(0, 50)
+			);
 			return null;
 		}
 
@@ -84,45 +91,6 @@ export function decompressRouteFromUrl(
 		console.error('[URL_ROUTE] 圧縮データからの復元でエラーが発生しました', error);
 		return null;
 	}
-}
-
-/**
- * `isSuccessfulBuild` の判定結果を返します。
- *
- * @param result 処理対象の値です。
- * @returns 判定結果を返します。
- */
-function isSuccessfulBuild(result: unknown): boolean {
-	const successCodes = new Set([0, 1, 4, 5]);
-
-	if (typeof result === 'number') {
-		return successCodes.has(result);
-	}
-
-	if (typeof result === 'string') {
-		const trimmed = result.trim();
-		if (!trimmed) return false;
-		const sanitized = trimmed.replace(/\0/g, '');
-
-		const numeric = Number(sanitized);
-		if (!Number.isNaN(numeric)) {
-			return successCodes.has(numeric);
-		}
-
-		try {
-			const parsed = JSON.parse(sanitized) as { rc?: number };
-			return typeof parsed.rc === 'number' ? successCodes.has(parsed.rc) : false;
-		} catch (err) {
-			console.warn('[URL_ROUTE] buildRoute結果の解析に失敗しました', err);
-			const match = sanitized.match(/"rc"\s*:\s*(-?\d+)/);
-			if (match && match[1] !== undefined) {
-				return successCodes.has(Number(match[1]));
-			}
-			return false;
-		}
-	}
-
-	return result === undefined || result === null;
 }
 
 interface ShareUrlOptions {
@@ -154,19 +122,6 @@ export function generateShareUrl(
 	const normalizedOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
 	const normalizedBase = normalizeBasePath(options?.basePath);
 	return `${normalizedOrigin}${normalizedBase}/detail?r=${compressed}`;
-}
-
-/**
- * `normalizeBasePath` を正規化します。
- *
- * @param path 処理に必要な入力値です。
- * @returns 文字列結果を返します。
- */
-function normalizeBasePath(path: string | undefined): string {
-	if (!path) return '';
-	const prefixed = path.startsWith('/') ? path : `/${path}`;
-	if (prefixed === '/') return '';
-	return prefixed.endsWith('/') ? prefixed.slice(0, -1) : prefixed;
 }
 
 /**
@@ -212,8 +167,13 @@ function restoreRouteStrict(route: FaretClass, script: string): boolean {
 	}
 
 	const buildResult = route.buildRoute(script);
-	if (!isSuccessfulBuild(buildResult)) {
-		console.error('[URL_ROUTE] route.buildRouteが失敗しました:', buildResult, 'スクリプト:', script);
+	if (!isBuildRouteSuccess(buildResult)) {
+		console.error(
+			'[URL_ROUTE] route.buildRouteが失敗しました:',
+			buildResult,
+			'スクリプト:',
+			script
+		);
 		return false;
 	}
 

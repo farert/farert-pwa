@@ -24,37 +24,37 @@
 	let revealDelete = $state(false);
 	let startX: number | null = null;
 
-		/**
+	/**
 	 * `handleKeydown` のイベント処理を行います。
 	 *
 	 * @param event 発生したイベントです。
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function handleKeydown(event: KeyboardEvent): void {
+	function handleKeydown(event: KeyboardEvent): void {
 		if (event.key === 'Enter' || event.key === ' ') {
 			event.preventDefault();
 			handleSelect();
 		}
 	}
 
-		/**
+	/**
 	 * `handlePointerStart` のイベント処理を行います。
 	 *
 	 * @param event 発生したイベントです。
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function handlePointerStart(event: PointerEvent | TouchEvent): void {
+	function handlePointerStart(event: PointerEvent | TouchEvent): void {
 		const point = 'touches' in event ? event.touches[0] : event;
 		startX = point.clientX;
 	}
 
-		/**
+	/**
 	 * `handlePointerMove` のイベント処理を行います。
 	 *
 	 * @param event 発生したイベントです。
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function handlePointerMove(event: PointerEvent | TouchEvent): void {
+	function handlePointerMove(event: PointerEvent | TouchEvent): void {
 		if (startX === null) return;
 		const point = 'touches' in event ? event.touches[0] : event;
 		const delta = point.clientX - startX;
@@ -65,32 +65,32 @@ function handlePointerMove(event: PointerEvent | TouchEvent): void {
 		}
 	}
 
-		/**
+	/**
 	 * `handlePointerEnd` のイベント処理を行います。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function handlePointerEnd(): void {
+	function handlePointerEnd(): void {
 		startX = null;
 	}
 
-		/**
+	/**
 	 * `handleDelete` のイベント処理を行います。
 	 *
 	 * @param event 発生したイベントです。
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function handleDelete(event: Event): void {
+	function handleDelete(event: Event): void {
 		event.stopPropagation();
 		onDelete?.();
 	}
 
-		/**
+	/**
 	 * `handleSelect` のイベント処理を行います。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function handleSelect(): void {
+	function handleSelect(): void {
 		onSelect?.();
 	}
 

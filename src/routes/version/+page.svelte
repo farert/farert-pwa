@@ -4,13 +4,13 @@
 -->
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { base } from '$app/paths';
+	import { base, resolve } from '$app/paths';
 	import { onMount } from 'svelte';
 	import { initFarert, databaseInfo } from '$lib/wasm';
 	import { APP_VERSION, BUILD_AT, GIT_COMMIT_AT, GIT_SHA } from '$lib/version';
 	import {
 		detectPendingServiceWorkerUpdate,
-		getReadyServiceWorkerRegistration,
+		getReadyServiceWorkerRegistration
 	} from '$lib/utils/serviceWorkerUpdate';
 
 	interface DbMeta {
@@ -61,22 +61,18 @@
 		})();
 	});
 
-		/**
+	/**
 	 * `parseDatabaseInfo` の解析結果を返します。
 	 *
 	 * @param raw 処理対象の文字列です。
 	 * @returns 処理結果を返します。
 	 */
-function parseDatabaseInfo(raw: unknown): DbMeta {
+	function parseDatabaseInfo(raw: unknown): DbMeta {
 		if (typeof raw !== 'string') return { name: '', createDate: '', tax: null };
 		try {
 			const parsed = JSON.parse(raw) as DatabaseInfoPayload;
 			const name =
-				parsed.dbName ??
-				parsed.dbverInf?.dbName ??
-				parsed.name ??
-				parsed.dbverInf?.name ??
-				'';
+				parsed.dbName ?? parsed.dbverInf?.dbName ?? parsed.name ?? parsed.dbverInf?.name ?? '';
 			const createDate =
 				parsed.createdate ??
 				parsed.dbverInf?.createdate ??
@@ -85,10 +81,7 @@ function parseDatabaseInfo(raw: unknown): DbMeta {
 				parsed.dbverInf?.createdbdate ??
 				parsed.dbverInf?.create_date ??
 				'';
-			const rawTax =
-				parsed.tax ??
-				parsed.dbverInf?.tax ??
-				null;
+			const rawTax = parsed.tax ?? parsed.dbverInf?.tax ?? null;
 			const tax =
 				typeof rawTax === 'number'
 					? rawTax
@@ -102,62 +95,60 @@ function parseDatabaseInfo(raw: unknown): DbMeta {
 		}
 	}
 
-		/**
+	/**
 	 * `openSupport` を開始または表示します。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function openSupport(): void {
+	function openSupport(): void {
 		if (typeof window !== 'undefined') {
 			window.open('http://farert.blogspot.jp/', '_blank', 'noopener');
 		}
 	}
 
-		/**
+	/**
 	 * `close` を終了または非表示にします。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function close(): void {
-		goto(`${base}/`);
+	function close(): void {
+		goto(resolve('/'));
 	}
 
-		/**
+	/**
 	 * `registerPendingWorker` を処理します。
 	 *
 	 * @param worker 処理に必要な入力値です。
 	 * @returns 判定結果を返します。
 	 */
-function registerPendingWorker(worker: ServiceWorker | null): boolean {
+	function registerPendingWorker(worker: ServiceWorker | null): boolean {
 		if (!worker) return false;
 		updateWorker = worker;
 		updateMessage = '更新候補が見つかりました。反映して最新版を使えます。';
 		return true;
 	}
 
-		/**
+	/**
 	 * `applyUpdate` を適用します。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-async function applyUpdate(): Promise<void> {
+	async function applyUpdate(): Promise<void> {
 		if (!('serviceWorker' in navigator) || !updateWorker) {
 			updateMessage = '更新対象が見つかりません。';
 			return;
 		}
 
 		let hasReloaded = false;
-				/**
-		 * `onControllerChange` を処理します。
-		 *
-		 * @returns この処理は戻り値を持ちません。
-		 */
-const onControllerChange = () => {
+		// The controllerchange event fires on navigator.serviceWorker, not on window.
+		const onControllerChange = () => {
 			hasReloaded = true;
-			window.removeEventListener('controllerchange', onControllerChange);
+			navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
 			window.location.reload();
 		};
-		window.addEventListener('controllerchange', onControllerChange, { once: true });
+		navigator.serviceWorker.addEventListener('controllerchange', onControllerChange, {
+			once: true
+		});
 
 		window.setTimeout(() => {
 			if (!hasReloaded) {
@@ -175,12 +166,12 @@ const onControllerChange = () => {
 		}
 	}
 
-		/**
+	/**
 	 * `checkAndApplyUpdate` を処理します。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-async function checkAndApplyUpdate(): Promise<void> {
+	async function checkAndApplyUpdate(): Promise<void> {
 		if (!('serviceWorker' in navigator)) {
 			updateMessage = 'この環境ではService Workerを更新できません。';
 			return;
@@ -221,13 +212,13 @@ async function checkAndApplyUpdate(): Promise<void> {
 		dbMeta.tax === null || Number.isNaN(dbMeta.tax) ? '—%' : `${dbMeta.tax}%`
 	);
 
-		/**
+	/**
 	 * `formatDateTime` の整形結果を返します。
 	 *
 	 * @param value 処理対象の値です。
 	 * @returns 文字列結果を返します。
 	 */
-function formatDateTime(value: string): string {
+	function formatDateTime(value: string): string {
 		if (!value) return '—';
 		const date = new Date(value);
 		if (Number.isNaN(date.getTime())) return value;
@@ -277,7 +268,8 @@ function formatDateTime(value: string): string {
 			<p>
 				本アプリで表示される結果は必ずしも正確な情報ではないことがありえます。<br />
 				実際のご旅行での費用とは異なることがありえますことをご理解の上ご利用ください。<br />
-				複製・2次使用は許可なく利用できますが、アプリにより発生したあらゆる損害は作者は負いません。<br />
+				複製・2次使用は許可なく利用できますが、アプリにより発生したあらゆる損害は作者は負いません。<br
+				/>
 				免責・ライセンスの詳細は
 				<a
 					class="doc-link"
@@ -296,7 +288,7 @@ function formatDateTime(value: string): string {
 				>
 					<code>LICENSE</code>
 				</a>
-				をご確認ください。  
+				をご確認ください。
 			</p>
 			<p>
 				<a
@@ -316,7 +308,12 @@ function formatDateTime(value: string): string {
 		{#if updateMessage}
 			<p class="banner">{updateMessage}</p>
 		{/if}
-		<button type="button" class="close-button" onclick={checkAndApplyUpdate} disabled={checkingUpdate}>
+		<button
+			type="button"
+			class="close-button"
+			onclick={checkAndApplyUpdate}
+			disabled={checkingUpdate}
+		>
 			{#if checkingUpdate}
 				更新確認中...
 			{:else}

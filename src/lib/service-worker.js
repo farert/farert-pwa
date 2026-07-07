@@ -3,14 +3,20 @@
 /// <reference lib="esnext" />
 /// <reference lib="webworker" />
 
-import { shouldCacheNetworkResponse, shouldServeShellFallback } from './utils/serviceWorkerNavigation';
+import {
+	shouldCacheNetworkResponse,
+	shouldServeShellFallback
+} from './utils/serviceWorkerNavigation';
 
-/** @type {ServiceWorkerGlobalScope & { __WB_MANIFEST?: Array<{ url: string; revision?: string }> }} */
-const sw = self;
+const sw =
+	/** @type {ServiceWorkerGlobalScope & { __WB_MANIFEST?: Array<{ url: string; revision?: string }> }} */ (
+		/** @type {unknown} */ (self)
+	);
 
-const precacheManifest = self.__WB_MANIFEST ?? [];
+const precacheManifest = sw.__WB_MANIFEST ?? [];
 const manifestUrls = precacheManifest.map((entry) => entry.url);
-const scopeUrl = self.registration?.scope ?? new URL(import.meta.env.BASE_URL || '/', self.location.href).href;
+const scopeUrl =
+	sw.registration?.scope ?? new URL(import.meta.env.BASE_URL || '/', sw.location.href).href;
 const basePath = new URL(scopeUrl).pathname;
 const shellPath = basePath.endsWith('/') ? basePath : `${basePath}/`;
 
@@ -24,7 +30,7 @@ if (isDev) {
 	sw.addEventListener('activate', () => {
 		// 何もしない
 	});
-	sw.addEventListener('fetch', (event) => {
+	sw.addEventListener('fetch', () => {
 		// パススルー
 		return;
 	});
@@ -47,7 +53,8 @@ if (isDev) {
 	 */
 	function getPathCandidates(pathname) {
 		const candidates = new Set([pathname]);
-		const trimmed = pathname.endsWith('/') && pathname.length > 1 ? pathname.replace(/\/$/, '') : pathname;
+		const trimmed =
+			pathname.endsWith('/') && pathname.length > 1 ? pathname.replace(/\/$/, '') : pathname;
 		candidates.add(trimmed);
 
 		if (basePath !== '/' && pathname.startsWith(basePath)) {
@@ -237,7 +244,6 @@ if (isDev) {
 
 		event.respondWith(respond());
 	});
-
 } // end else (production mode)
 
 /**

@@ -3,282 +3,289 @@
 現在駅と文脈に応じた路線一覧の読み込みと分岐を扱います。
 -->
 <script lang="ts">
-import { goto } from '$app/navigation';
-import { base } from '$app/paths';
-import { onMount } from 'svelte';
-import { initFarert, getLinesByStation, getLinesByCompany, getLinesByPrefect } from '$lib/wasm';
-import {
-	extractLinesFromPrefecturePayload,
-	toWasmPrefecture
-} from '$lib/utils/prefectureSelection';
-import { observeWideScreenViewport } from '$lib/utils/responsiveLayout';
-import RouteStationSelectPage from '../route-station-select/+page.svelte';
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
+	import { onMount } from 'svelte';
+	import { initFarert, getLinesByStation, getLinesByCompany, getLinesByPrefect } from '$lib/wasm';
+	import {
+		extractLinesFromPrefecturePayload,
+		toWasmPrefecture
+	} from '$lib/utils/prefectureSelection';
+	import { observeWideScreenViewport } from '$lib/utils/responsiveLayout';
+	import RouteStationSelectPage from '../route-station-select/+page.svelte';
 
-type ScreenSource = 'main' | 'start' | 'destination';
+	type ScreenSource = 'main' | 'start' | 'destination';
 
-interface LineSelectionParams {
-	from: ScreenSource;
-	station?: string;
-	line?: string;
-	prefecture?: string;
-	group?: string;
-}
+	interface LineSelectionParams {
+		from: ScreenSource;
+		station?: string;
+		line?: string;
+		prefecture?: string;
+		group?: string;
+	}
 
-let loading = $state(true);
-let errorMessage = $state('');
-let lines = $state<string[]>([]);
-let params = $state<LineSelectionParams>({ from: 'main' });
-let listTitle = $state('');
-let selectedLine = $state('');
-let splitViewEnabled = $state(false);
-let { presetParams = null } = $props<{ presetParams?: Partial<LineSelectionParams> | null }>();
+	let loading = $state(true);
+	let errorMessage = $state('');
+	let lines = $state<string[]>([]);
+	let params = $state<LineSelectionParams>({ from: 'main' });
+	let listTitle = $state('');
+	let selectedLine = $state('');
+	let splitViewEnabled = $state(false);
+	// eslint-disable-next-line svelte/valid-prop-names-in-kit-pages -- prop is injected by tests and embedding, not by the router
+	let { presetParams = null } = $props<{ presetParams?: Partial<LineSelectionParams> | null }>();
 
-onMount(() => {
-	const stopObservingViewport = observeWideScreenViewport((isWide) => {
-		splitViewEnabled = isWide;
+	onMount(() => {
+		const stopObservingViewport = observeWideScreenViewport((isWide) => {
+			splitViewEnabled = isWide;
+		});
+
+		(async () => {
+			try {
+				await initFarert();
+				const resolved = resolveParams();
+				params = resolved;
+				await loadLines(resolved);
+			} catch (err) {
+				console.error('路線一覧の初期化に失敗しました', err);
+				errorMessage = '路線一覧の初期化に失敗しました。';
+				lines = [];
+			} finally {
+				loading = false;
+			}
+		})();
+
+		return () => {
+			stopObservingViewport();
+		};
 	});
 
-	(async () => {
-		try {
-			await initFarert();
-			const resolved = resolveParams();
-			params = resolved;
-			await loadLines(resolved);
-		} catch (err) {
-			console.error('路線一覧の初期化に失敗しました', err);
-			errorMessage = '路線一覧の初期化に失敗しました。';
-			lines = [];
-		} finally {
-			loading = false;
+	/**
+	 * `resolveParams` の解決結果を返します。
+	 *
+	 * @returns 処理結果を返します。
+	 */
+	function resolveParams(): LineSelectionParams {
+		if (presetParams) {
+			return {
+				from: presetParams.from ?? 'main',
+				station: presetParams.station,
+				line: presetParams.line,
+				prefecture: presetParams.prefecture,
+				group: presetParams.group
+			};
 		}
-	})();
 
-	return () => {
-		stopObservingViewport();
-	};
-});
+		if (typeof window === 'undefined') {
+			return { from: 'main' };
+		}
 
-/**
- * `resolveParams` の解決結果を返します。
- *
- * @returns 処理結果を返します。
- */
-function resolveParams(): LineSelectionParams {
-	if (presetParams) {
+		const search = new URLSearchParams(window.location.search);
+		const fromParam = search.get('from');
+		const from: ScreenSource =
+			fromParam === 'start' || fromParam === 'destination' ? fromParam : 'main';
+
 		return {
-			from: presetParams.from ?? 'main',
-			station: presetParams.station,
-			line: presetParams.line,
-			prefecture: presetParams.prefecture,
-			group: presetParams.group
+			from,
+			station: search.get('station') ?? undefined,
+			line: search.get('line') ?? undefined,
+			prefecture: search.get('prefecture') ?? undefined,
+			group: search.get('group') ?? undefined
 		};
 	}
 
-	if (typeof window === 'undefined') {
-		return { from: 'main' };
+	/**
+	 * `loadLines` の読み込み処理を行います。
+	 *
+	 * @param context 処理対象の文字列です。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function loadLines(context: LineSelectionParams): void {
+		try {
+			let payload = '';
+			if (context.station) {
+				payload = getLinesByStation(context.station);
+				listTitle = context.station;
+			} else if (context.prefecture) {
+				payload = fetchPrefectureLines(context.prefecture);
+				listTitle = context.prefecture;
+			} else if (context.group) {
+				payload = getLinesByCompany(context.group);
+				listTitle = context.group;
+			} else {
+				errorMessage = '表示対象の情報が不足しています。';
+				lines = [];
+				return;
+			}
+			let resolved = parseList(payload);
+			if (context.prefecture) {
+				const structured = extractLinesFromPrefecturePayload(payload, context.prefecture);
+				if (structured.length > 0) {
+					resolved = structured;
+				}
+			}
+			lines = resolved;
+			if (resolved.length === 0) {
+				errorMessage = '該当する路線が見つかりませんでした。';
+			} else {
+				errorMessage = '';
+			}
+		} catch (err) {
+			console.error('路線リストの取得に失敗しました', err);
+			errorMessage = '路線リストの取得に失敗しました。';
+			lines = [];
+		}
 	}
 
-	const search = new URLSearchParams(window.location.search);
-	const fromParam = search.get('from');
-	const from: ScreenSource = fromParam === 'start' || fromParam === 'destination' ? fromParam : 'main';
+	/**
+	 * `fetchPrefectureLines` を処理します。
+	 *
+	 * @param prefecture 処理に必要な入力値です。
+	 * @returns 文字列結果を返します。
+	 */
+	function fetchPrefectureLines(prefecture: string): string {
+		const normalized = toWasmPrefecture(prefecture);
+		const normalizedPayload = getLinesByPrefect(normalized);
+		if (
+			normalized === prefecture ||
+			extractLinesFromPrefecturePayload(normalizedPayload, prefecture).length > 0
+		) {
+			return normalizedPayload;
+		}
+		return getLinesByPrefect(prefecture);
+	}
 
-	return {
-		from,
-		station: search.get('station') ?? undefined,
-		line: search.get('line') ?? undefined,
-		prefecture: search.get('prefecture') ?? undefined,
-		group: search.get('group') ?? undefined
-	};
-}
+	/**
+	 * `parseList` の解析結果を返します。
+	 *
+	 * @param raw 処理対象の文字列です。
+	 * @returns 文字列結果を返します。
+	 */
+	function parseList(raw: string): string[] {
+		try {
+			if (!raw) return [];
+			const parsed = JSON.parse(raw);
+			if (Array.isArray(parsed)) {
+				return dedupe(normalizeStringList(parsed));
+			}
+			if (parsed && typeof parsed === 'object' && Object.keys(parsed).length === 0) {
+				return [];
+			}
+			if (parsed && typeof parsed === 'object') {
+				const firstArrayKey = Object.keys(parsed).find((key) =>
+					Array.isArray((parsed as Record<string, unknown>)[key])
+				);
+				if (firstArrayKey) {
+					return dedupe(normalizeStringList((parsed as Record<string, unknown>)[firstArrayKey]));
+				}
+			}
+		} catch (err) {
+			console.warn('路線リストの解析に失敗しました', err);
+		}
+		return [];
+	}
 
-/**
- * `loadLines` の読み込み処理を行います。
- *
- * @param context 処理対象の文字列です。
- * @returns この処理は戻り値を持ちません。
- */
-function loadLines(context: LineSelectionParams): void {
-	try {
-		let payload = '';
-		if (context.station) {
-			payload = getLinesByStation(context.station);
-			listTitle = context.station;
-	} else if (context.prefecture) {
-		payload = fetchPrefectureLines(context.prefecture);
-		listTitle = context.prefecture;
-	} else if (context.group) {
-			payload = getLinesByCompany(context.group);
-			listTitle = context.group;
-		} else {
-			errorMessage = '表示対象の情報が不足しています。';
-			lines = [];
+	/**
+	 * `normalizeStringList` を正規化します。
+	 *
+	 * @param value 処理対象の値です。
+	 * @returns 文字列結果を返します。
+	 */
+	function normalizeStringList(value: unknown): string[] {
+		if (!Array.isArray(value)) return [];
+		const result: string[] = [];
+		for (const entry of value) {
+			if (typeof entry !== 'string') continue;
+			const trimmed = entry.trim();
+			if (!trimmed) continue;
+			result.push(trimmed);
+		}
+		return result;
+	}
+
+	/**
+	 * `dedupe` を処理します。
+	 *
+	 * @param values 処理対象の値です。
+	 * @returns 文字列結果を返します。
+	 */
+	function dedupe(values: string[]): string[] {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- local non-reactive collection
+		const seen = new Set<string>();
+		const result: string[] = [];
+		for (const value of values) {
+			if (typeof value !== 'string') continue;
+			const trimmed = value.trim();
+			if (!trimmed || seen.has(trimmed)) continue;
+			seen.add(trimmed);
+			result.push(trimmed);
+		}
+		return result;
+	}
+
+	/**
+	 * `goBack` を処理します。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function goBack(): void {
+		if (typeof window !== 'undefined' && window.history.length > 1) {
+			window.history.back();
 			return;
 		}
-		let resolved = parseList(payload);
-		if (context.prefecture) {
-			const structured = extractLinesFromPrefecturePayload(payload, context.prefecture);
-			if (structured.length > 0) {
-				resolved = structured;
-			}
+		goto(resolve('/'));
+	}
+
+	/**
+	 * `handleAutoRoute` のイベント処理を行います。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function handleAutoRoute(): void {
+		goto(resolve('/terminal-selection?mode=destination' as '/terminal-selection'));
+	}
+
+	/**
+	 * `isDisabled` の判定結果を返します。
+	 *
+	 * @param lineName 対象の路線名です。
+	 * @returns 判定結果を返します。
+	 */
+	function isDisabled(lineName: string): boolean {
+		return Boolean(params.line && params.line === lineName);
+	}
+
+	/**
+	 * `handleLineSelect` のイベント処理を行います。
+	 *
+	 * @param lineName 対象の路線名です。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function handleLineSelect(lineName: string): void {
+		if (isDisabled(lineName)) return;
+		if (splitViewEnabled) {
+			selectedLine = lineName;
+			return;
 		}
-		lines = resolved;
-		if (resolved.length === 0) {
-			errorMessage = '該当する路線が見つかりませんでした。';
-		} else {
-			errorMessage = '';
-		}
-	} catch (err) {
-		console.error('路線リストの取得に失敗しました', err);
-		errorMessage = '路線リストの取得に失敗しました。';
-		lines = [];
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- local non-reactive collection
+		const search = new URLSearchParams();
+		search.set('from', params.from ?? 'main');
+		search.set('line', lineName);
+		if (params.station) search.set('station', params.station);
+		if (params.prefecture) search.set('prefecture', params.prefecture);
+		if (params.group) search.set('group', params.group);
+		goto(resolve(`/route-station-select?${search.toString()}` as '/route-station-select'));
 	}
-}
-
-/**
- * `fetchPrefectureLines` を処理します。
- *
- * @param prefecture 処理に必要な入力値です。
- * @returns 文字列結果を返します。
- */
-function fetchPrefectureLines(prefecture: string): string {
-	const normalized = toWasmPrefecture(prefecture);
-	const normalizedPayload = getLinesByPrefect(normalized);
-	if (normalized === prefecture || extractLinesFromPrefecturePayload(normalizedPayload, prefecture).length > 0) {
-		return normalizedPayload;
-	}
-	return getLinesByPrefect(prefecture);
-}
-
-/**
- * `parseList` の解析結果を返します。
- *
- * @param raw 処理対象の文字列です。
- * @returns 文字列結果を返します。
- */
-function parseList(raw: string): string[] {
-	try {
-		if (!raw) return [];
-		const parsed = JSON.parse(raw);
-		if (Array.isArray(parsed)) {
-			return dedupe(normalizeStringList(parsed));
-		}
-		if (parsed && typeof parsed === 'object' && Object.keys(parsed).length === 0) {
-			return [];
-		}
-		if (parsed && typeof parsed === 'object') {
-			const firstArrayKey = Object.keys(parsed).find((key) => Array.isArray((parsed as Record<string, unknown>)[key]));
-			if (firstArrayKey) {
-				return dedupe(normalizeStringList((parsed as Record<string, unknown>)[firstArrayKey]));
-			}
-		}
-	} catch (err) {
-		console.warn('路線リストの解析に失敗しました', err);
-	}
-	return [];
-}
-
-/**
- * `normalizeStringList` を正規化します。
- *
- * @param value 処理対象の値です。
- * @returns 文字列結果を返します。
- */
-function normalizeStringList(value: unknown): string[] {
-	if (!Array.isArray(value)) return [];
-	const result: string[] = [];
-	for (const entry of value) {
-		if (typeof entry !== 'string') continue;
-		const trimmed = entry.trim();
-		if (!trimmed) continue;
-		result.push(trimmed);
-	}
-	return result;
-}
-
-/**
- * `dedupe` を処理します。
- *
- * @param values 処理対象の値です。
- * @returns 文字列結果を返します。
- */
-function dedupe(values: string[]): string[] {
-	const seen = new Set<string>();
-	const result: string[] = [];
-	for (const value of values) {
-		if (typeof value !== 'string') continue;
-		const trimmed = value.trim();
-		if (!trimmed || seen.has(trimmed)) continue;
-		seen.add(trimmed);
-		result.push(trimmed);
-	}
-	return result;
-}
-
-
-/**
- * `goBack` を処理します。
- *
- * @returns この処理は戻り値を持ちません。
- */
-function goBack(): void {
-	if (typeof window !== 'undefined' && window.history.length > 1) {
-		window.history.back();
-		return;
-	}
-	goto(`${base}/`);
-}
-
-/**
- * `handleAutoRoute` のイベント処理を行います。
- *
- * @returns この処理は戻り値を持ちません。
- */
-function handleAutoRoute(): void {
-	goto(`${base}/terminal-selection?mode=destination`);
-}
-
-/**
- * `isDisabled` の判定結果を返します。
- *
- * @param lineName 対象の路線名です。
- * @returns 判定結果を返します。
- */
-function isDisabled(lineName: string): boolean {
-	return Boolean(params.line && params.line === lineName);
-}
-
-/**
- * `handleLineSelect` のイベント処理を行います。
- *
- * @param lineName 対象の路線名です。
- * @returns この処理は戻り値を持ちません。
- */
-function handleLineSelect(lineName: string): void {
-	if (isDisabled(lineName)) return;
-	if (splitViewEnabled) {
-		selectedLine = lineName;
-		return;
-	}
-	const search = new URLSearchParams();
-	search.set('from', params.from ?? 'main');
-	search.set('line', lineName);
-	if (params.station) search.set('station', params.station);
-	if (params.prefecture) search.set('prefecture', params.prefecture);
-	if (params.group) search.set('group', params.group);
-	goto(`${base}/route-station-select?${search.toString()}`);
-}
 </script>
 
 <div class:split-view={splitViewEnabled} class="line-selection">
 	<header class="toolbar">
-		<button type="button" class="text-button" onclick={goBack}>
-			戻る
-		</button>
-		<h1>路線選択{#if listTitle} - {listTitle}{/if}</h1>
+		<button type="button" class="text-button" onclick={goBack}> 戻る </button>
+		<h1>
+			路線選択{#if listTitle}
+				- {listTitle}{/if}
+		</h1>
 		{#if params.from === 'main'}
-			<button type="button" class="text-button" onclick={handleAutoRoute}>
-				最短経路
-			</button>
+			<button type="button" class="text-button" onclick={handleAutoRoute}> 最短経路 </button>
 		{:else}
 			<span class="toolbar-spacer" aria-hidden="true"></span>
 		{/if}
@@ -305,7 +312,8 @@ function handleLineSelect(lineName: string): void {
 							<li>
 								<button
 									type="button"
-									class:selected={isDisabled(lineName) || (splitViewEnabled && selectedLine === lineName)}
+									class:selected={isDisabled(lineName) ||
+										(splitViewEnabled && selectedLine === lineName)}
 									disabled={isDisabled(lineName)}
 									aria-disabled={isDisabled(lineName)}
 									onclick={() => handleLineSelect(lineName)}
@@ -349,7 +357,12 @@ function handleLineSelect(lineName: string): void {
 		min-height: 100vh;
 		padding: 1rem;
 		background: var(--page-bg);
-		font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+		font-family:
+			system-ui,
+			-apple-system,
+			BlinkMacSystemFont,
+			'Segoe UI',
+			sans-serif;
 	}
 
 	.toolbar {

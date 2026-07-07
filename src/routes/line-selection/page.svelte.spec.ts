@@ -15,15 +15,15 @@ vi.mock('$app/navigation', () => ({
 }));
 
 const wasmApi = {
-	initFarert: vi.fn<[], Promise<void>>(),
-	getLinesByStation: vi.fn<[string], string>(),
-	getLinesByPrefect: vi.fn<[string], string>(),
-	getLinesByCompany: vi.fn<[string], string>(),
-	getBranchStationsByLine: vi.fn<[string, string], string>(),
-	getStationsByLine: vi.fn<[string], string>(),
-	getKanaByStation: vi.fn<[string], string>(),
-	getPrefectureByStation: vi.fn<[string], string>(),
-	executeSql: vi.fn<[string], string>()
+	initFarert: vi.fn<() => Promise<void>>(),
+	getLinesByStation: vi.fn<(value: string) => string>(),
+	getLinesByPrefect: vi.fn<(value: string) => string>(),
+	getLinesByCompany: vi.fn<(value: string) => string>(),
+	getBranchStationsByLine: vi.fn<(first: string, second: string) => string>(),
+	getStationsByLine: vi.fn<(value: string) => string>(),
+	getKanaByStation: vi.fn<(value: string) => string>(),
+	getPrefectureByStation: vi.fn<(value: string) => string>(),
+	executeSql: vi.fn<(value: string) => string>()
 };
 
 vi.mock('$lib/wasm', () => ({
@@ -177,7 +177,9 @@ describe('/line-selection/+page.svelte', () => {
 
 		await page.getByRole('button', { name: '北上線' }).click();
 
-		await expect.element(page.getByRole('heading', { name: /分岐駅選択.*北上線/ })).toBeInTheDocument();
+		await expect
+			.element(page.getByRole('heading', { name: /分岐駅選択.*北上線/ }))
+			.toBeInTheDocument();
 		await expect.element(page.getByTestId('station-option-水沢')).toBeInTheDocument();
 		expect(gotoMock).not.toHaveBeenCalled();
 	});
@@ -203,9 +205,13 @@ describe('/line-selection/+page.svelte', () => {
 
 		await page.getByRole('button', { name: '釜石線' }).click();
 
-		await expect.element(page.getByRole('heading', { name: /発駅指定.*釜石線/ })).toBeInTheDocument();
+		await expect
+			.element(page.getByRole('heading', { name: /発駅指定.*釜石線/ }))
+			.toBeInTheDocument();
 		await expect.element(page.getByTestId('station-option-花巻')).toBeInTheDocument();
-		await expect.element(page.getByRole('button', { name: '一覧の先頭へスクロール' })).toBeInTheDocument();
+		await expect
+			.element(page.getByRole('button', { name: '一覧の先頭へスクロール' }))
+			.toBeInTheDocument();
 		expect(gotoMock).not.toHaveBeenCalled();
 	});
 
@@ -226,7 +232,9 @@ describe('/line-selection/+page.svelte', () => {
 
 		await page.getByRole('button', { name: '山手線' }).click();
 
-		await expect.element(page.getByRole('heading', { name: /着駅指定.*山手線/ })).toBeInTheDocument();
+		await expect
+			.element(page.getByRole('heading', { name: /着駅指定.*山手線/ }))
+			.toBeInTheDocument();
 		await expect.element(page.getByTestId('station-option-新宿')).toBeInTheDocument();
 		expect(gotoMock).not.toHaveBeenCalled();
 	});

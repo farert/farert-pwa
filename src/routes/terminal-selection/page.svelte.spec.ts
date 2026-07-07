@@ -10,7 +10,7 @@ import type { FaretClass } from '$lib/wasm/types';
 
 class MockFarert implements FaretClass {
 	script = '';
-	autoRouteMock = vi.fn<[number, string], number>();
+	autoRouteMock = vi.fn<(first: number, second: string) => number>();
 
 	addStartRoute(station: string): number {
 		this.script = station;
@@ -144,19 +144,19 @@ vi.mock('$app/navigation', () => ({
 }));
 
 const wasmApi = {
-	initFarert: vi.fn<[], Promise<void>>(),
-	getCompanys: vi.fn<[], string>(),
-	getPrefects: vi.fn<[], string>(),
-	getLinesByCompany: vi.fn<[string], string>(),
-	getLinesByPrefect: vi.fn<[string], string>(),
-	getStationsByLine: vi.fn<[string], string>(),
-	getStationsByCompanyAndLine: vi.fn<[string, string], string>(),
-	getStationsByPrefectureAndLine: vi.fn<[string, string], string>(),
-	searchStationFuzzy: vi.fn<[string, number], string>(),
-	getKanaByStation: vi.fn<[string], string>(),
-	getPrefectureByStation: vi.fn<[string], string>(),
-	getLinesByStation: vi.fn<[string], string>(),
-	executeSql: vi.fn<[string], string>()
+	initFarert: vi.fn<() => Promise<void>>(),
+	getCompanys: vi.fn<() => string>(),
+	getPrefects: vi.fn<() => string>(),
+	getLinesByCompany: vi.fn<(value: string) => string>(),
+	getLinesByPrefect: vi.fn<(value: string) => string>(),
+	getStationsByLine: vi.fn<(value: string) => string>(),
+	getStationsByCompanyAndLine: vi.fn<(first: string, second: string) => string>(),
+	getStationsByPrefectureAndLine: vi.fn<(first: string, second: string) => string>(),
+	searchStationFuzzy: vi.fn<(first: string, second: number) => string>(),
+	getKanaByStation: vi.fn<(value: string) => string>(),
+	getPrefectureByStation: vi.fn<(value: string) => string>(),
+	getLinesByStation: vi.fn<(value: string) => string>(),
+	executeSql: vi.fn<(value: string) => string>()
 };
 
 vi.mock('$lib/wasm', () => ({
@@ -171,7 +171,8 @@ vi.mock('$lib/wasm', () => ({
 		wasmApi.getStationsByCompanyAndLine(company, line),
 	getStationsByPrefectureAndLine: (prefecture: string, line: string) =>
 		wasmApi.getStationsByPrefectureAndLine(prefecture, line),
-	searchStationFuzzy: (keyword: string, limit: number) => wasmApi.searchStationFuzzy(keyword, limit),
+	searchStationFuzzy: (keyword: string, limit: number) =>
+		wasmApi.searchStationFuzzy(keyword, limit),
 	getKanaByStation: (station: string) => wasmApi.getKanaByStation(station),
 	getPrefectureByStation: (station: string) => wasmApi.getPrefectureByStation(station),
 	getLinesByStation: (station: string) => wasmApi.getLinesByStation(station),
@@ -253,14 +254,21 @@ describe('/terminal-selection/+page.svelte', () => {
 			}
 			return JSON.stringify(['姫路']);
 		});
-		wasmApi.getStationsByPrefectureAndLine.mockImplementation((prefecture: string, line: string) => {
-			if (prefecture === '宮城' && line === '仙山線') {
-				return JSON.stringify(['北仙台']);
+		wasmApi.getStationsByPrefectureAndLine.mockImplementation(
+			(prefecture: string, line: string) => {
+				if (prefecture === '宮城' && line === '仙山線') {
+					return JSON.stringify(['北仙台']);
+				}
+				return JSON.stringify(['立川']);
 			}
-			return JSON.stringify(['立川']);
-		});
+		);
 		wasmApi.searchStationFuzzy.mockReturnValue(
-			JSON.stringify({ results: [{ name: '東京', score: 0 }, { name: '品川', score: 1 }] })
+			JSON.stringify({
+				results: [
+					{ name: '東京', score: 0 },
+					{ name: '品川', score: 1 }
+				]
+			})
 		);
 		wasmApi.getKanaByStation.mockImplementation((station: string) => `${station}かな`);
 		wasmApi.getPrefectureByStation.mockImplementation((station: string) =>
@@ -310,14 +318,14 @@ describe('/terminal-selection/+page.svelte', () => {
 
 	it('matches prefectures whose payload omits suffix characters', async () => {
 		wasmApi.getPrefects.mockReturnValueOnce(JSON.stringify(['岩手県']));
-			wasmApi.getLinesByPrefect.mockImplementation((prefecture: string) => {
-				return JSON.stringify({
-					prefectures: [
-						{ prefecture: '北海道', lines: ['宗谷線'] },
-						{ prefecture: '岩手', lines: ['釜石線'] }
-					]
-				});
+		wasmApi.getLinesByPrefect.mockImplementation(() => {
+			return JSON.stringify({
+				prefectures: [
+					{ prefecture: '北海道', lines: ['宗谷線'] },
+					{ prefecture: '岩手', lines: ['釜石線'] }
+				]
 			});
+		});
 
 		render(TerminalSelectionPage);
 
@@ -327,11 +335,11 @@ describe('/terminal-selection/+page.svelte', () => {
 		const prefectButton = page.getByRole('button', { name: '岩手県' });
 		await prefectButton.click();
 
-			const lineButton = page.getByRole('button', { name: '釜石線' });
-			await expect.element(lineButton).toBeInTheDocument();
+		const lineButton = page.getByRole('button', { name: '釜石線' });
+		await expect.element(lineButton).toBeInTheDocument();
 
-			expect(wasmApi.getLinesByPrefect).toHaveBeenCalledWith('岩手');
-		});
+		expect(wasmApi.getLinesByPrefect).toHaveBeenCalledWith('岩手');
+	});
 
 	it('navigates to main view when pressing back on the root view', async () => {
 		render(TerminalSelectionPage);
@@ -389,7 +397,9 @@ describe('/terminal-selection/+page.svelte', () => {
 		await expect.element(page.getByText('路線を選ぶと駅候補を表示します')).not.toBeInTheDocument();
 		await expect.element(page.getByText('仙山線').nth(1)).toBeInTheDocument();
 		await expect.element(page.getByRole('button', { name: '北仙台' })).toBeInTheDocument();
-		await expect.element(page.getByRole('button', { name: '一覧の先頭へスクロール' })).toBeInTheDocument();
+		await expect
+			.element(page.getByRole('button', { name: '一覧の先頭へスクロール' }))
+			.toBeInTheDocument();
 	});
 
 	it('shows split line and station panes on wide screens in destination mode', async () => {
@@ -570,7 +580,9 @@ describe('/terminal-selection/+page.svelte', () => {
 
 		const kanaText = page.getByText('（東京かな）');
 		await expect.element(kanaText).toBeInTheDocument();
-		await expect.element(page.getByTestId('search-result-prefecture-東京')).toHaveTextContent('宮城県');
+		await expect
+			.element(page.getByTestId('search-result-prefecture-東京'))
+			.toHaveTextContent('宮城県');
 
 		const clearButton = page.getByRole('button', { name: '検索をクリア' });
 		await clearButton.click();
@@ -660,8 +672,12 @@ describe('/terminal-selection/+page.svelte', () => {
 		await expect.element(page.getByRole('button', { name: '柏原(関)' })).toBeInTheDocument();
 		await expect.element(page.getByText('（かしわばら）')).toBeInTheDocument();
 		await expect.element(page.getByText('（かしわら）')).toBeInTheDocument();
-		await expect.element(page.getByTestId('search-result-prefecture-柏原(東)')).toHaveTextContent('滋賀県');
-		await expect.element(page.getByTestId('search-result-prefecture-柏原(関)')).toHaveTextContent('大阪府');
+		await expect
+			.element(page.getByTestId('search-result-prefecture-柏原(東)'))
+			.toHaveTextContent('滋賀県');
+		await expect
+			.element(page.getByTestId('search-result-prefecture-柏原(関)'))
+			.toHaveTextContent('大阪府');
 
 		await page.getByRole('button', { name: '柏原(東)' }).click();
 
@@ -776,12 +792,14 @@ describe('/terminal-selection/+page.svelte', () => {
 	});
 
 	it('shows resolved same-name station labels with kana-only and multi-line variants', async () => {
-		wasmApi.getStationsByPrefectureAndLine.mockImplementation((prefecture: string, line: string) => {
-			if (prefecture === '宮城' && line === '仙山線') {
-				return JSON.stringify(['愛子', '追分', '千歳']);
+		wasmApi.getStationsByPrefectureAndLine.mockImplementation(
+			(prefecture: string, line: string) => {
+				if (prefecture === '宮城' && line === '仙山線') {
+					return JSON.stringify(['愛子', '追分', '千歳']);
+				}
+				return JSON.stringify(['立川']);
 			}
-			return JSON.stringify(['立川']);
-		});
+		);
 		wasmApi.getKanaByStation.mockImplementation((station: string) => {
 			if (station === '愛子') return 'あやし';
 			if (station === '追分(室)') return 'おいわけ';
@@ -841,12 +859,14 @@ describe('/terminal-selection/+page.svelte', () => {
 	});
 
 	it('omits prefecture on consecutive station rows within the same prefecture', async () => {
-		wasmApi.getStationsByPrefectureAndLine.mockImplementation((prefecture: string, line: string) => {
-			if (prefecture === '宮城' && line === '仙山線') {
-				return JSON.stringify(['北仙台', '愛子', '山寺']);
+		wasmApi.getStationsByPrefectureAndLine.mockImplementation(
+			(prefecture: string, line: string) => {
+				if (prefecture === '宮城' && line === '仙山線') {
+					return JSON.stringify(['北仙台', '愛子', '山寺']);
+				}
+				return JSON.stringify([]);
 			}
-			return JSON.stringify([]);
-		});
+		);
 		wasmApi.getKanaByStation.mockImplementation((station: string) => `${station}かな`);
 		wasmApi.getLinesByStation.mockReturnValue(JSON.stringify(['仙山線']));
 		wasmApi.getPrefectureByStation.mockImplementation((station: string) => {
@@ -926,5 +946,5 @@ describe('/terminal-selection/+page.svelte', () => {
 		scrollSpy.mockRestore();
 	});
 
-it.todo('allows deleting history entries via swipe gesture');
+	it.todo('allows deleting history entries via swipe gesture');
 });

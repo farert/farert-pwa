@@ -48,108 +48,108 @@
 		showDelete?: boolean;
 	}>();
 
-		/**
+	/**
 	 * `handleDelete` のイベント処理を行います。
 	 *
 	 * @param event 発生したイベントです。
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function handleDelete(event: Event): void {
+	function handleDelete(event: Event): void {
 		event.stopPropagation();
 		onDelete?.();
 	}
 
-		/**
+	/**
 	 * `handleSelect` のイベント処理を行います。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function handleSelect(): void {
+	function handleSelect(): void {
 		onSelect?.();
 	}
 
-		/**
+	/**
 	 * `handleDragStart` のイベント処理を行います。
 	 *
 	 * @param event 発生したイベントです。
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function handleDragStart(event: DragEvent): void {
+	function handleDragStart(event: DragEvent): void {
 		event.stopPropagation();
 		onMoveDragStart?.(event);
 	}
 
-		/**
+	/**
 	 * `handleDragOver` のイベント処理を行います。
 	 *
 	 * @param event 発生したイベントです。
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function handleDragOver(event: DragEvent): void {
+	function handleDragOver(event: DragEvent): void {
 		onMoveDragOver?.(event);
 	}
 
-		/**
+	/**
 	 * `handleDragEnter` のイベント処理を行います。
 	 *
 	 * @param event 発生したイベントです。
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function handleDragEnter(event: DragEvent): void {
+	function handleDragEnter(event: DragEvent): void {
 		onMoveDragEnter?.(event);
 	}
 
-		/**
+	/**
 	 * `handleDragLeave` のイベント処理を行います。
 	 *
 	 * @param event 発生したイベントです。
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function handleDragLeave(event: DragEvent): void {
+	function handleDragLeave(event: DragEvent): void {
 		onMoveDragLeave?.(event);
 	}
 
-		/**
+	/**
 	 * `handleDrop` のイベント処理を行います。
 	 *
 	 * @param event 発生したイベントです。
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function handleDrop(event: DragEvent): void {
+	function handleDrop(event: DragEvent): void {
 		event.preventDefault();
 		event.stopPropagation();
 		onMoveDrop?.(event);
 	}
 
-		/**
+	/**
 	 * `handleDragEnd` のイベント処理を行います。
 	 *
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function handleDragEnd(): void {
+	function handleDragEnd(): void {
 		onMoveDragEnd?.();
 	}
 
-		/**
+	/**
 	 * `handleKeydown` のイベント処理を行います。
 	 *
 	 * @param event 発生したイベントです。
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function handleKeydown(event: KeyboardEvent): void {
+	function handleKeydown(event: KeyboardEvent): void {
 		if (event.key === 'Enter' || event.key === ' ') {
 			event.preventDefault();
 			handleSelect();
 		}
 	}
 
-		/**
+	/**
 	 * `handleDragHandleClick` のイベント処理を行います。
 	 *
 	 * @param event 発生したイベントです。
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function handleDragHandleClick(event: Event): void {
+	function handleDragHandleClick(event: Event): void {
 		event.stopPropagation();
 	}
 </script>
@@ -231,7 +231,10 @@ function handleDragHandleClick(event: Event): void {
 		box-shadow: 0 10px 25px rgba(15, 23, 42, 0.3);
 		border: 2px solid transparent;
 		text-align: left;
-		transition: box-shadow 0.16s ease, outline 0.16s ease, border-color 0.16s ease;
+		transition:
+			box-shadow 0.16s ease,
+			outline 0.16s ease,
+			border-color 0.16s ease;
 	}
 
 	.card-header {
@@ -326,12 +329,22 @@ function handleDragHandleClick(event: Event): void {
 
 	.card.drop-insert-before::before {
 		top: 0;
-		background: linear-gradient(90deg, rgba(254, 240, 138, 0.85) 0%, rgba(245, 158, 11, 0.45) 50%, rgba(254, 240, 138, 0.85) 100%);
+		background: linear-gradient(
+			90deg,
+			rgba(254, 240, 138, 0.85) 0%,
+			rgba(245, 158, 11, 0.45) 50%,
+			rgba(254, 240, 138, 0.85) 100%
+		);
 	}
 
 	.card.drop-insert-after::after {
 		bottom: 0;
-		background: linear-gradient(90deg, rgba(254, 240, 138, 0.85) 0%, rgba(245, 158, 11, 0.45) 50%, rgba(254, 240, 138, 0.85) 100%);
+		background: linear-gradient(
+			90deg,
+			rgba(254, 240, 138, 0.85) 0%,
+			rgba(245, 158, 11, 0.45) 50%,
+			rgba(254, 240, 138, 0.85) 100%
+		);
 	}
 
 	.drop-banner {

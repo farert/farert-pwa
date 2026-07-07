@@ -18,9 +18,9 @@ describe('serviceWorkerNavigation', () => {
 
 	it('serves shell fallback for HTML document requests even when mode is not navigate', () => {
 		expect(shouldServeShellFallback('same-origin', undefined, 'document')).toBe(true);
-		expect(shouldServeShellFallback('same-origin', undefined, '', 'text/html,application/xhtml+xml')).toBe(
-			true
-		);
+		expect(
+			shouldServeShellFallback('same-origin', undefined, '', 'text/html,application/xhtml+xml')
+		).toBe(true);
 	});
 
 	it('serves shell fallback for navigate requests with 4xx/5xx responses', () => {

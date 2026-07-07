@@ -17,4 +17,3 @@ export function getSerializedRouteScript(route: FaretClass): string {
 		return '';
 	}
 }
-

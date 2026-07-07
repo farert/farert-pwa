@@ -22,53 +22,53 @@
 		onChange?: (fareType: FareType) => void;
 	}>();
 
-		/**
+	/**
 	 * `handleChange` のイベント処理を行います。
 	 *
 	 * @param event 発生したイベントです。
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function handleChange(event: Event): void {
+	function handleChange(event: Event): void {
 		const target = event.target as HTMLSelectElement;
 		const next = target.value as FareType;
 		onChange?.(next);
 	}
 
-		/**
+	/**
 	 * `stopInteractionPropagation` を処理します。
 	 *
 	 * @param event 発生したイベントです。
 	 * @returns この処理は戻り値を持ちません。
 	 */
-function stopInteractionPropagation(event: Event): void {
+	function stopInteractionPropagation(event: Event): void {
 		event.stopPropagation();
 	}
 
-		/**
+	/**
 	 * `labelFor` を処理します。
 	 *
 	 * @param type 処理対象の値です。
 	 * @returns 文字列結果を返します。
 	 */
-function labelFor(type: FareType): string {
+	function labelFor(type: FareType): string {
 		return FareTypeLabels[type];
 	}
 
 	const resolvedOptions = $derived(
-		options ?? availableTypes.map((type) => ({ value: type, label: labelFor(type) }))
+		options ?? availableTypes.map((type: FareType) => ({ value: type, label: labelFor(type) }))
 	);
 </script>
 
 <select
 	class="fare-picker"
-	value={value}
+	{value}
 	onchange={handleChange}
 	onclick={stopInteractionPropagation}
 	onpointerdown={stopInteractionPropagation}
 	onfocusin={stopInteractionPropagation}
 	aria-label="運賃タイプ選択"
 >
-	{#each resolvedOptions as option}
+	{#each resolvedOptions as option (option.value)}
 		<option value={option.value} selected={option.value === value}>{option.label}</option>
 	{/each}
 </select>

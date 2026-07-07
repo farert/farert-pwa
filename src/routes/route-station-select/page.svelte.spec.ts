@@ -4,13 +4,25 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import { page } from 'vitest/browser';
+
+/**
+ * Playwright プロバイダの実行時 Locator だけが持つ CSS セレクタ探索を型付けします。
+ *
+ * @param target - 親となる Locator
+ * @param selector - CSS セレクタ
+ * @returns セレクタで絞り込んだ Locator
+ */
+function locateBySelector(target: Locator, selector: string): Locator {
+	return (target as unknown as { locator: (selector: string) => Locator }).locator(selector);
+}
+
+import { page, type Locator } from 'vitest/browser';
 import { writable, type Writable } from 'svelte/store';
 import type { FaretClass } from '$lib/wasm/types';
 
 class MockFarert implements FaretClass {
 	script = '';
-	addRouteMock = vi.fn<[string, string], number>();
+	addRouteMock = vi.fn<(first: string, second: string) => number>();
 
 	addStartRoute(station: string): number {
 		this.script = station;
@@ -157,13 +169,13 @@ vi.mock('$app/navigation', () => ({
 }));
 
 const wasmApi = {
-	initFarert: vi.fn<[], Promise<void>>(),
-	getBranchStationsByLine: vi.fn<[string, string], string>(),
-	getStationsByLine: vi.fn<[string], string>(),
-	getKanaByStation: vi.fn<[string], string>(),
-	getLinesByStation: vi.fn<[string], string>(),
-	getPrefectureByStation: vi.fn<[string], string>(),
-	executeSql: vi.fn<[string], string>()
+	initFarert: vi.fn<() => Promise<void>>(),
+	getBranchStationsByLine: vi.fn<(first: string, second: string) => string>(),
+	getStationsByLine: vi.fn<(value: string) => string>(),
+	getKanaByStation: vi.fn<(value: string) => string>(),
+	getLinesByStation: vi.fn<(value: string) => string>(),
+	getPrefectureByStation: vi.fn<(value: string) => string>(),
+	executeSql: vi.fn<(value: string) => string>()
 };
 
 vi.mock('$lib/wasm', () => ({
@@ -201,12 +213,8 @@ describe('/route-station-select/+page.svelte', () => {
 	});
 
 	it('shows branch stations first and toggles to destination list', async () => {
-		wasmApi.getBranchStationsByLine.mockReturnValue(
-			JSON.stringify(['北上', '水沢', '一ノ関'])
-		);
-		wasmApi.getStationsByLine.mockReturnValue(
-			JSON.stringify(['北上', '水沢', '一ノ関', '盛岡'])
-		);
+		wasmApi.getBranchStationsByLine.mockReturnValue(JSON.stringify(['北上', '水沢', '一ノ関']));
+		wasmApi.getStationsByLine.mockReturnValue(JSON.stringify(['北上', '水沢', '一ノ関', '盛岡']));
 		wasmApi.getKanaByStation.mockImplementation((station: string) => `${station}かな`);
 		wasmApi.getLinesByStation.mockImplementation((station: string) =>
 			JSON.stringify(station === '水沢' ? ['東北本線', '北上線'] : ['東北新幹線'])
@@ -229,9 +237,7 @@ describe('/route-station-select/+page.svelte', () => {
 	});
 
 	it('shows a readable header with the selected line name', async () => {
-		wasmApi.getBranchStationsByLine.mockReturnValue(
-			JSON.stringify(['北上', '水沢'])
-		);
+		wasmApi.getBranchStationsByLine.mockReturnValue(JSON.stringify(['北上', '水沢']));
 		wasmApi.getStationsByLine.mockReturnValue(JSON.stringify(['北上', '水沢']));
 		wasmApi.getKanaByStation.mockReturnValue('きたかみ');
 		wasmApi.getLinesByStation.mockReturnValue(JSON.stringify(['東北新幹線']));
@@ -306,12 +312,8 @@ describe('/route-station-select/+page.svelte', () => {
 		seededRoute.buildRoute('伊香牛,石北線,新旭川');
 		mainRouteStore.set(seededRoute);
 
-		wasmApi.getBranchStationsByLine.mockReturnValue(
-			JSON.stringify(['新旭川', '網走', '旭川'])
-		);
-		wasmApi.getStationsByLine.mockReturnValue(
-			JSON.stringify(['旭川', '新旭川', '伊香牛', '網走'])
-		);
+		wasmApi.getBranchStationsByLine.mockReturnValue(JSON.stringify(['新旭川', '網走', '旭川']));
+		wasmApi.getStationsByLine.mockReturnValue(JSON.stringify(['旭川', '新旭川', '伊香牛', '網走']));
 		wasmApi.getKanaByStation.mockImplementation((station: string) => {
 			const names: Record<string, string> = {
 				旭川: 'あさひかわ',
@@ -328,11 +330,19 @@ describe('/route-station-select/+page.svelte', () => {
 		});
 
 		const stationList = page.getByTestId('station-list');
-		const stationButtons = stationList.locator('button');
-		await expect.element(stationButtons.nth(0)).toHaveAttribute('data-testid', 'station-option-旭川');
-		await expect.element(stationButtons.nth(1)).toHaveAttribute('data-testid', 'station-option-新旭川');
-		await expect.element(stationButtons.nth(2)).toHaveAttribute('data-testid', 'station-option-伊香牛');
-		await expect.element(stationButtons.nth(3)).toHaveAttribute('data-testid', 'station-option-網走');
+		const stationButtons = locateBySelector(stationList, 'button');
+		await expect
+			.element(stationButtons.nth(0))
+			.toHaveAttribute('data-testid', 'station-option-旭川');
+		await expect
+			.element(stationButtons.nth(1))
+			.toHaveAttribute('data-testid', 'station-option-新旭川');
+		await expect
+			.element(stationButtons.nth(2))
+			.toHaveAttribute('data-testid', 'station-option-伊香牛');
+		await expect
+			.element(stationButtons.nth(3))
+			.toHaveAttribute('data-testid', 'station-option-網走');
 		await expect.element(page.getByText('<発駅>')).toBeInTheDocument();
 		await expect.element(page.getByText('（いかうし）')).toBeInTheDocument();
 		expect(wasmApi.getBranchStationsByLine).toHaveBeenCalledWith('石北線', '伊香牛');
@@ -346,11 +356,13 @@ describe('/route-station-select/+page.svelte', () => {
 			return station === '金山' ? 'かなやま' : `${station}かな`;
 		});
 		wasmApi.getLinesByStation.mockReturnValue(JSON.stringify(['東海道本線']));
-		wasmApi.executeSql.mockReturnValue(JSON.stringify({
-			columns: ['samename'],
-			rows: [['中']],
-			rowCount: 1
-		}));
+		wasmApi.executeSql.mockReturnValue(
+			JSON.stringify({
+				columns: ['samename'],
+				rows: [['中']],
+				rowCount: 1
+			})
+		);
 
 		render(RouteStationSelectPage, {
 			presetParams: { from: 'main', station: '川崎', line: '東海道本線' }
@@ -373,11 +385,13 @@ describe('/route-station-select/+page.svelte', () => {
 			return station === '金山' ? 'かなやま' : `${station}かな`;
 		});
 		wasmApi.getLinesByStation.mockReturnValue(JSON.stringify(['東海道本線']));
-		wasmApi.executeSql.mockReturnValue(JSON.stringify({
-			columns: ['samename'],
-			rows: [['中']],
-			rowCount: 1
-		}));
+		wasmApi.executeSql.mockReturnValue(
+			JSON.stringify({
+				columns: ['samename'],
+				rows: [['中']],
+				rowCount: 1
+			})
+		);
 
 		render(RouteStationSelectPage, {
 			presetParams: { from: 'main', station: '柏木平', line: '東海道本線' }
@@ -401,16 +415,20 @@ describe('/route-station-select/+page.svelte', () => {
 			return JSON.stringify(['室蘭線']);
 		});
 		wasmApi.executeSql
-			.mockReturnValueOnce(JSON.stringify({
-				columns: ['samename'],
-				rows: [],
-				rowCount: 0
-			}))
-			.mockReturnValueOnce(JSON.stringify({
-				columns: ['samename'],
-				rows: [['室']],
-				rowCount: 1
-			}));
+			.mockReturnValueOnce(
+				JSON.stringify({
+					columns: ['samename'],
+					rows: [],
+					rowCount: 0
+				})
+			)
+			.mockReturnValueOnce(
+				JSON.stringify({
+					columns: ['samename'],
+					rows: [['室']],
+					rowCount: 1
+				})
+			);
 
 		render(RouteStationSelectPage, {
 			presetParams: { from: 'main', station: '追分', line: '室蘭線' }
@@ -459,9 +477,7 @@ describe('/route-station-select/+page.svelte', () => {
 
 		await page.getByTestId('station-option-品川').click();
 
-		await expect
-			.element(page.getByText('無効な会社線通過連絡運輸です'))
-			.toBeInTheDocument();
+		await expect.element(page.getByText('無効な会社線通過連絡運輸です')).toBeInTheDocument();
 		expect(gotoMock).not.toHaveBeenCalled();
 	});
 

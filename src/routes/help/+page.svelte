@@ -4,7 +4,7 @@
 -->
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { base } from '$app/paths';
+	import { base, resolve } from '$app/paths';
 
 	const blogUrl = 'https://farert.blogspot.jp/';
 	const inquiryUrl = 'https://nostalgic-wasabi-423.notion.site/28edffbd711a801ba33edaf258af9562';
@@ -281,7 +281,7 @@
 	 * @returns この処理は戻り値を持ちません。
 	 */
 	function close(): void {
-		goto(`${base}/`);
+		goto(resolve('/'));
 	}
 </script>
 
@@ -300,12 +300,13 @@
 	<section class="card">
 		<h2>基本的な使い方</h2>
 		<ol>
-			{#each usageSteps as step, index}
+			{#each usageSteps as step, index (index)}
+				<!-- eslint-disable-next-line svelte/no-at-html-tags -- renders trusted static help content -->
 				<li><span>{index + 1}.</span>{@html step.html}</li>
 			{/each}
 		</ol>
 		<div class="flow-diagrams" aria-label="基本的な使い方のフロー図">
-			{#each basicUsageFlowCharts as flow, flowIndex}
+			{#each basicUsageFlowCharts as flow, flowIndex (flowIndex)}
 				<section class="flow-card" aria-label={flow.title}>
 					<h3>{flow.title}</h3>
 					<div class="flow-chart-wrap">
@@ -328,14 +329,14 @@
 									<path d="M 0 0 L 10 5 L 0 10 z" />
 								</marker>
 							</defs>
-							{#each flow.edges as edge}
+							{#each flow.edges as edge, edgeIndex (edgeIndex)}
 								<path class="flow-edge" d={edge} marker-end={`url(#flow-arrow-${flowIndex})`} />
 							{/each}
-							{#each flow.edgeLabels ?? [] as edgeLabel}
+							{#each flow.edgeLabels ?? [] as edgeLabel, edgeLabelIndex (edgeLabelIndex)}
 								<text class="flow-edge-label" x={edgeLabel.x} y={edgeLabel.y}>{edgeLabel.text}</text
 								>
 							{/each}
-							{#each flow.nodes as node}
+							{#each flow.nodes as node (node.id)}
 								<g class="flow-node">
 									{#if node.kind === 'junction'}
 										<circle class="flow-junction" cx={node.x} cy={node.y} r="16" />
@@ -345,7 +346,7 @@
 									{:else}
 										<rect x={node.x} y={node.y} width="120" height="54" rx="14" />
 										<text x={node.x + 60} y={node.y + (node.label.length === 1 ? 33 : 24)}>
-											{#each node.label as line, lineIndex}
+											{#each node.label as line, lineIndex (lineIndex)}
 												<tspan x={node.x + 60} dy={lineIndex === 0 ? 0 : 17}>{line}</tspan>
 											{/each}
 										</text>
@@ -373,9 +374,11 @@
 			</div>
 			<div class="main-screen-details">
 				<ul class="plain-list">
-					{#each mainScreenParts as part}
+					{#each mainScreenParts as part, partIndex (partIndex)}
 						<li>
+							<!-- eslint-disable-next-line svelte/no-at-html-tags -- renders trusted static help content -->
 							<strong>{@html part.nameHtml}</strong>
+							<!-- eslint-disable-next-line svelte/no-at-html-tags -- renders trusted static help content -->
 							<p>{@html part.description}</p>
 						</li>
 					{/each}
@@ -390,7 +393,7 @@
 							</tr>
 						</thead>
 						<tbody>
-							{#each bottomToolbarItems as item}
+							{#each bottomToolbarItems as item, itemIndex (itemIndex)}
 								<tr>
 									<td>
 										<div class="icon-cell">
@@ -400,6 +403,7 @@
 											<span>{item.label}</span>
 										</div>
 									</td>
+									<!-- eslint-disable-next-line svelte/no-at-html-tags -- renders trusted static help content -->
 									<td>{@html item.description}</td>
 								</tr>
 							{/each}
@@ -413,12 +417,13 @@
 	<section class="card">
 		<h2>画面別の操作マニュアル</h2>
 		<div class="manual-grid">
-			{#each screenManuals as manual}
+			{#each screenManuals as manual, manualIndex (manualIndex)}
 				<section class="manual-card" id={manual.id}>
 					<h3>{manual.title}</h3>
 					<img class="manual-shot" src={manual.image} alt={manual.imageAlt} loading="lazy" />
 					<ul>
-						{#each manual.steps as step}
+						{#each manual.steps as step, stepIndex (stepIndex)}
+							<!-- eslint-disable-next-line svelte/no-at-html-tags -- renders trusted static help content -->
 							<li>{@html step.html}</li>
 						{/each}
 					</ul>
@@ -440,7 +445,7 @@
 			</div>
 			<div class="save-help-details">
 				<ul class="plain-list">
-					{#each saveScreenParts as part}
+					{#each saveScreenParts as part, partIndex (partIndex)}
 						<li>
 							<strong>{part.name}</strong>
 							<p>{part.description}</p>
@@ -460,7 +465,7 @@
 					loading="lazy"
 				/>
 				<ul>
-					{#each saveImportSteps as step}
+					{#each saveImportSteps as step, stepIndex (stepIndex)}
 						<li>{step}</li>
 					{/each}
 				</ul>
@@ -474,7 +479,7 @@
 					loading="lazy"
 				/>
 				<ul>
-					{#each saveExportSteps as step}
+					{#each saveExportSteps as step, stepIndex (stepIndex)}
 						<li>{step}</li>
 					{/each}
 				</ul>
@@ -488,7 +493,7 @@
 					loading="lazy"
 				/>
 				<ul>
-					{#each backupRestoreSteps as step}
+					{#each backupRestoreSteps as step, stepIndex (stepIndex)}
 						<li>{step}</li>
 					{/each}
 				</ul>

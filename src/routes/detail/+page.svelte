@@ -3,1024 +3,945 @@
 指標表示、共有、結果エクスポート、運賃オプション再計算を担います。
 -->
 <script lang="ts">
-import { goto } from '$app/navigation';
-import { base } from '$app/paths';
-import { onDestroy, onMount } from 'svelte';
-import { initFarert } from '$lib/wasm';
-import { decompressRouteFromUrl } from '$lib/utils/urlRoute';
-import type { FareInfo } from '$lib/types';
-import type { FaretClass } from '$lib/wasm/types';
+	import { goto } from '$app/navigation';
+	import { base, resolve } from '$app/paths';
+	import { onDestroy, onMount } from 'svelte';
+	import { initFarert } from '$lib/wasm';
+	import { decompressRouteFromUrl } from '$lib/utils/urlRoute';
+	import { normalizeBasePath } from '$lib/utils/basePath';
+	import { parseFareInfoJson } from '$lib/utils/fareInfo';
+	import type { FareInfo } from '$lib/types';
+	import type { FaretClass } from '$lib/wasm/types';
 
-interface RouteSegment {
-	line: string;
-	station: string;
-}
+	interface RouteSegment {
+		line: string;
+		station: string;
+	}
 
-interface MetricRow {
-	label: string;
-	value: string;
-	note?: string;
-	secondaryLabel?: string;
-	secondaryValue?: string;
-	layout?: 'pair' | 'grid';
-	hideSecondaryLabel?: boolean;
-}
+	interface MetricRow {
+		label: string;
+		value: string;
+		note?: string;
+		secondaryLabel?: string;
+		secondaryValue?: string;
+		layout?: 'pair' | 'grid';
+		hideSecondaryLabel?: boolean;
+	}
 
-let loading = $state(true);
-let errorMessage = $state('');
-let shareFeedback = $state('');
-let exportFeedback = $state('');
-let menuOpen = $state(false);
-let startStation = $state('');
-let endStation = $state('');
-let routeSegments = $state<RouteSegment[]>([]);
-let fareInfo = $state<FareInfo | null>(null);
-let shareUrl = $state('');
-let routeRef = $state<FaretClass | null>(null);
-let fareExportText = $state('');
-let exportDialogOpen = $state(false);
-let { initialCompressedRoute = null } = $props<{ initialCompressedRoute?: string | null }>();
+	let loading = $state(true);
+	let errorMessage = $state('');
+	let shareFeedback = $state('');
+	let exportFeedback = $state('');
+	let menuOpen = $state(false);
+	let startStation = $state('');
+	let endStation = $state('');
+	let routeSegments = $state<RouteSegment[]>([]);
+	let fareInfo = $state<FareInfo | null>(null);
+	let shareUrl = $state('');
+	let routeRef = $state<FaretClass | null>(null);
+	let fareExportText = $state('');
+	let exportDialogOpen = $state(false);
+	// eslint-disable-next-line svelte/valid-prop-names-in-kit-pages -- prop is injected by tests and embedding, not by the router
+	let { initialCompressedRoute = null } = $props<{ initialCompressedRoute?: string | null }>();
 
-const routeTitle = $derived(
-	startStation && endStation ? `${startStation} → ${endStation}` : '経路詳細'
-);
-const routeIntervalTitle = $derived(resolveRouteTitle());
-const routeHeaderTitle = $derived(
-	startStation && endStation ? `${startStation} → ${endStation}` : '発駅未設定 → 到着駅未設定'
-);
-const kilometerRows = $derived(buildKilometerRows(fareInfo));
-const fareRows = $derived(buildFareRows(fareInfo));
-const validityText = $derived(formatValidDays(fareInfo?.ticketAvailDays));
-const validityMessage = $derived(buildValidityMessage(fareInfo));
-let detailMessages = $state<string[]>([]);
-$effect(() => {
-	detailMessages = extractMessages(fareInfo);
-});
-const routeText = $derived(resolveRouteString(fareInfo, routeSegments));
-const icRouteText = $derived(resolveIcRouteString(fareInfo, routeText));
-const fareResultHint = $derived(resolveFareResultMessage(fareInfo?.fareResultCode));
-const shareEnabled = $derived(Boolean(shareUrl));
+	const routeTitle = $derived(
+		startStation && endStation ? `${startStation} → ${endStation}` : '経路詳細'
+	);
+	const routeIntervalTitle = $derived(resolveRouteTitle());
+	const routeHeaderTitle = $derived(
+		startStation && endStation ? `${startStation} → ${endStation}` : '発駅未設定 → 到着駅未設定'
+	);
+	const kilometerRows = $derived(buildKilometerRows(fareInfo));
+	const fareRows = $derived(buildFareRows(fareInfo));
+	const validityText = $derived(formatValidDays(fareInfo?.ticketAvailDays));
+	const validityMessage = $derived(buildValidityMessage(fareInfo));
+	const detailMessages = $derived(extractMessages(fareInfo));
+	const routeText = $derived(resolveRouteString(fareInfo, routeSegments));
+	const icRouteText = $derived(resolveIcRouteString(fareInfo, routeText));
+	const fareResultHint = $derived(resolveFareResultMessage(fareInfo?.fareResultCode));
+	const shareEnabled = $derived(Boolean(shareUrl));
 
-/**
- * `toBoolean` を処理します。
- *
- * @param value 処理対象の値です。
- * @param fallback 処理に必要な入力値です。
- * @returns 判定結果を返します。
- */
-function toBoolean(value: unknown, fallback: boolean = false): boolean {
-	if (value === undefined || value === null) {
+	/**
+	 * `toBoolean` を処理します。
+	 *
+	 * @param value 処理対象の値です。
+	 * @param fallback 処理に必要な入力値です。
+	 * @returns 判定結果を返します。
+	 */
+	function toBoolean(value: unknown, fallback: boolean = false): boolean {
+		if (value === undefined || value === null) {
+			return fallback;
+		}
+		if (typeof value === 'boolean') return value;
+		if (typeof value === 'number') return value !== 0;
+		if (typeof value === 'string') {
+			const normalized = value.trim().toLowerCase();
+			if (
+				normalized === 'true' ||
+				normalized === '1' ||
+				normalized === 'yes' ||
+				normalized === 'on'
+			) {
+				return true;
+			}
+			if (
+				normalized === 'false' ||
+				normalized === '0' ||
+				normalized === 'no' ||
+				normalized === 'off'
+			) {
+				return false;
+			}
+		}
+		return Boolean(value);
+	}
+
+	/**
+	 * `pickBoolean` を処理します。
+	 *
+	 * @param obj 処理に必要な入力値です。
+	 * @param keys 処理に必要な入力値です。
+	 * @param fallback 処理に必要な入力値です。
+	 * @returns 判定結果を返します。
+	 */
+	function pickBoolean(obj: unknown, keys: string[], fallback: boolean = false): boolean {
+		if (!obj || typeof obj !== 'object') {
+			return fallback;
+		}
+		const source = obj as Record<string, unknown>;
+		for (const key of keys) {
+			if (Object.prototype.hasOwnProperty.call(source, key)) {
+				return toBoolean(source[key], fallback);
+			}
+		}
 		return fallback;
 	}
-	if (typeof value === 'boolean') return value;
-	if (typeof value === 'number') return value !== 0;
-	if (typeof value === 'string') {
-		const normalized = value.trim().toLowerCase();
-		if (normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on') {
-			return true;
-		}
-		if (normalized === 'false' || normalized === '0' || normalized === 'no' || normalized === 'off') {
-			return false;
-		}
-	}
-	return Boolean(value);
-}
 
-/**
- * `pickBoolean` を処理します。
- *
- * @param obj 処理に必要な入力値です。
- * @param keys 処理に必要な入力値です。
- * @param fallback 処理に必要な入力値です。
- * @returns 判定結果を返します。
- */
-function pickBoolean(
-	obj: unknown,
-	keys: string[],
-	fallback: boolean = false
-): boolean {
-	if (!obj || typeof obj !== 'object') {
-		return fallback;
-	}
-	const source = obj as Record<string, unknown>;
-	for (const key of keys) {
-		if (Object.prototype.hasOwnProperty.call(source, key)) {
-			return toBoolean(source[key], fallback);
-		}
-	}
-	return fallback;
-}
+	type FareOptionMenuItem = {
+		label: string;
+		state: boolean;
+		setOption: () => void;
+		clearOption: () => void;
+	};
+	let fareOptionMenus = $state<FareOptionMenuItem[]>([]);
 
-type FareOptionMenuItem = {
-	label: string;
-	state: boolean;
-	setOption: () => void;
-	clearOption: () => void;
-};
-let fareOptionMenus = $state<FareOptionMenuItem[]>([]);
-
-/**
- * `buildFareOptionMenus` を組み立てます。
- *
- * @param info 処理に必要な入力値です。
- * @param route 対象の経路または経路文字列です。
- * @returns 配列結果を返します。
- */
-function buildFareOptionMenus(info: FareInfo | null, route: FaretClass | null): FareOptionMenuItem[] {
-	if (!route || !info) return [];
-
-	const isFareOptEnabled = pickBoolean(info, ['isFareOptEnabled'], true);
-	const isMeihanCityStartTerminalEnable = pickBoolean(
-		info,
-		[
-			'isMeihanCityStartTerminalEnable',
-			'isMeihanCityStartTerminal',
-			'isMeihanCityEnable',
-			'isMeihanCityStart',
-			'isMeihanCity'
-		],
-		false
-	);
-	const isRuleAppliedEnable = pickBoolean(info, ['isRuleAppliedEnable', 'isRuleApplied'], false);
-	const isEnableLongRoute = pickBoolean(info, ['isEnableLongRoute'], false);
-	const isEnableRule115 = pickBoolean(info, ['isEnableRule115', 'enableRule115'], false);
-	const isJRCentralStockEnable = pickBoolean(
-		info,
-		['isJRCentralStockEnable', 'isEnableTokaiStockSelect'],
-		false
-	);
-	const isRuleApplied = pickBoolean(info, ['isRuleApplied'], false);
-	const isMeihanCityTerminal = pickBoolean(
-		info,
-		['isMeihanCityTerminal', 'isMeihanCityEnd', 'isArrivalAsCity', 'isMeihanCityAsArrival'],
-		false
-	);
-	const isLongRoute = pickBoolean(info, ['isLongRoute'], false);
-	const isRule115specificTerm = pickBoolean(info, ['isRule115specificTerm', 'rule115SpecificTerm'], false);
-	const isJRCentralStock = pickBoolean(info, ['isJRCentralStock'], false);
-
-	if (!isFareOptEnabled) return [];
-
-	const options: FareOptionMenuItem[] = [];
-	if (isRuleAppliedEnable) {
-		options.push({
-			label: isRuleApplied ? '特例を適用しない' : '特例を適用する',
-			state: isRuleApplied,
-			setOption: () => route.setNoRule(false),
-			clearOption: () => route.setNoRule(true)
-		});
-	}
-	if (isMeihanCityStartTerminalEnable) {
-		options.push({
-			label: isMeihanCityTerminal ? '着駅を単駅指定' : '発駅を単駅指定',
-			state: isMeihanCityTerminal,
-			setOption: () => route.setArrivalAsCity(),
-			clearOption: () => route.setStartAsCity()
-		});
-	}
-	if (isEnableLongRoute) {
-		options.push({
-			label: isLongRoute ? '最安経路で運賃計算' : '指定した経路で運賃計算',
-			state: isLongRoute,
-			setOption: () => route.setLongRoute(false),
-			clearOption: () => route.setLongRoute(true)
-		});
-	}
-	if (isEnableRule115) {
-		options.push({
-			label: isRule115specificTerm
-				? '旅客営業取扱基準規程115条(単駅最安)'
-				: '旅客営業取扱基準規程115条(特定都区市内発着)',
-			state: isRule115specificTerm,
-			setOption: () => route.setSpecificTermRule115(true),
-			clearOption: () => route.setSpecificTermRule115(false)
-		});
-	}
-	if (isJRCentralStockEnable) {
-		options.push({
-			label: isJRCentralStock ? 'JR東海株主優待券を適用しない' : 'JR東海株主優待券を適用する',
-			state: isJRCentralStock,
-			setOption: () => route.setJrTokaiStockApply(true),
-			clearOption: () => route.setJrTokaiStockApply(false)
-		});
-	}
-
-	console.log(
-		'[debug] fareOptionMenus',
-		options.map((option) => option.label)
-	);
-	if (typeof window !== 'undefined') {
-		(window as Window & { __fareOptionMenusDebug?: string[] }).__fareOptionMenusDebug = options.map(
-			(option) => option.label
-		);
-	}
-
-	return options;
-}
-
-let shareFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
-let exportFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
-
-onMount(() => {
-	(async () => {
-		try {
-			await initFarert();
-			const encoded = resolveCompressedRoute();
-			if (!encoded) {
-				errorMessage = '経路データが指定されていません。';
-				return;
-			}
-			const route = decompressRouteFromUrl(encoded);
-			if (!route) {
-				errorMessage = '経路データの復元に失敗しました。';
-				return;
-			}
-			routeRef = route;
-			refreshResult(route);
-			shareUrl = buildShareUrl(encoded);
-		} catch (err) {
-			console.error('詳細画面の初期化に失敗しました', err);
-			errorMessage = '詳細情報の初期化に失敗しました。';
-		} finally {
-			loading = false;
-		}
-	})();
-});
-
-onDestroy(() => {
-	if (shareFeedbackTimer) {
-		clearTimeout(shareFeedbackTimer);
-	}
-	if (exportFeedbackTimer) {
-		clearTimeout(exportFeedbackTimer);
-	}
-});
-
-/**
- * `resolveCompressedRoute` の解決結果を返します。
- *
- * @returns 文字列結果を返します。
- */
-function resolveCompressedRoute(): string | null {
-	if (initialCompressedRoute?.trim()) {
-		return initialCompressedRoute.trim();
-	}
-	if (typeof window === 'undefined') {
-		return null;
-	}
-	const search = new URLSearchParams(window.location.search);
-	const param = search.get('r');
-	return param?.trim() || null;
-}
-
-/**
- * `parseRouteSegments` の解析結果を返します。
- *
- * @param route 対象の経路または経路文字列です。
- * @returns 配列結果を返します。
- */
-function parseRouteSegments(route: FaretClass): RouteSegment[] {
-	try {
-		const raw = route.getRoutesJson ? route.getRoutesJson() : '';
-		if (!raw) return [];
-		const parsed = JSON.parse(raw);
-		if (!Array.isArray(parsed)) return [];
-		return parsed
-			.filter((item) => item && typeof item.line === 'string' && typeof item.station === 'string')
-			.map((item) => ({
-				line: item.line.trim(),
-				station: item.station.trim()
-			}));
-	} catch (err) {
-		console.warn('経路リストの解析に失敗しました', err);
-		return [];
-	}
-}
-
-/**
- * `parseFareInfo` の解析結果を返します。
- *
- * @param route 対象の経路または経路文字列です。
- * @returns 解決結果を返します。
- */
-function parseFareInfo(route: FaretClass): FareInfo | null {
-	const raw = route.getFareInfoObjectJson ? route.getFareInfoObjectJson() : '';
-	if (!raw) return null;
-	const cleaned = raw.replace(/\u0000/g, '').trim();
-	if (!cleaned) return null;
-
-		/**
-	 * `normalizeKilometers` を正規化します。
+	/**
+	 * `buildFareOptionMenus` を組み立てます。
 	 *
 	 * @param info 処理に必要な入力値です。
-	 * @returns 処理結果を返します。
+	 * @param route 対象の経路または経路文字列です。
+	 * @returns 配列結果を返します。
 	 */
-const normalizeKilometers = (info: FareInfo): FareInfo => {
-		const kmKeys: Array<keyof FareInfo> = [
-			'totalSalesKm',
-			'jrSalesKm',
-			'jrCalcKm',
-			'companySalesKm',
-			'brtSalesKm',
-			'salesKmForHokkaido',
-			'calcKmForHokkaido',
-			'salesKmForEast',
-			'calcKmForEast',
-			'salesKmForShikoku',
-			'calcKmForShikoku',
-			'salesKmForKyusyu',
-			'calcKmForKyusyu',
-			'rule114SalesKm',
-			'rule114CalcKm'
-		];
-		const kmValues = kmKeys
-			.map((key) => info[key])
-			.filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
-		if (!kmValues.length) return info;
-		if (!kmValues.every((value) => Number.isInteger(value))) return info;
-		const normalized = { ...info } as FareInfo;
-		for (const key of kmKeys) {
-			const value = normalized[key];
-			if (typeof value === 'number' && Number.isFinite(value)) {
-				(normalized as Record<string, unknown>)[key] = value / 10;
-			}
+	function buildFareOptionMenus(
+		info: FareInfo | null,
+		route: FaretClass | null
+	): FareOptionMenuItem[] {
+		if (!route || !info) return [];
+
+		const isFareOptEnabled = pickBoolean(info, ['isFareOptEnabled'], true);
+		const isMeihanCityStartTerminalEnable = pickBoolean(
+			info,
+			[
+				'isMeihanCityStartTerminalEnable',
+				'isMeihanCityStartTerminal',
+				'isMeihanCityEnable',
+				'isMeihanCityStart',
+				'isMeihanCity'
+			],
+			false
+		);
+		const isRuleAppliedEnable = pickBoolean(info, ['isRuleAppliedEnable', 'isRuleApplied'], false);
+		const isEnableLongRoute = pickBoolean(info, ['isEnableLongRoute'], false);
+		const isEnableRule115 = pickBoolean(info, ['isEnableRule115', 'enableRule115'], false);
+		const isJRCentralStockEnable = pickBoolean(
+			info,
+			['isJRCentralStockEnable', 'isEnableTokaiStockSelect'],
+			false
+		);
+		const isRuleApplied = pickBoolean(info, ['isRuleApplied'], false);
+		const isMeihanCityTerminal = pickBoolean(
+			info,
+			['isMeihanCityTerminal', 'isMeihanCityEnd', 'isArrivalAsCity', 'isMeihanCityAsArrival'],
+			false
+		);
+		const isLongRoute = pickBoolean(info, ['isLongRoute'], false);
+		const isRule115specificTerm = pickBoolean(
+			info,
+			['isRule115specificTerm', 'rule115SpecificTerm'],
+			false
+		);
+		const isJRCentralStock = pickBoolean(info, ['isJRCentralStock'], false);
+
+		if (!isFareOptEnabled) return [];
+
+		const options: FareOptionMenuItem[] = [];
+		if (isRuleAppliedEnable) {
+			options.push({
+				label: isRuleApplied ? '特例を適用しない' : '特例を適用する',
+				state: isRuleApplied,
+				setOption: () => route.setNoRule(false),
+				clearOption: () => route.setNoRule(true)
+			});
 		}
-		return normalized;
-	};
-		/**
-	 * `collapseCommas` を処理します。
+		if (isMeihanCityStartTerminalEnable) {
+			options.push({
+				label: isMeihanCityTerminal ? '着駅を単駅指定' : '発駅を単駅指定',
+				state: isMeihanCityTerminal,
+				setOption: () => route.setArrivalAsCity(),
+				clearOption: () => route.setStartAsCity()
+			});
+		}
+		if (isEnableLongRoute) {
+			options.push({
+				label: isLongRoute ? '最安経路で運賃計算' : '指定した経路で運賃計算',
+				state: isLongRoute,
+				setOption: () => route.setLongRoute(false),
+				clearOption: () => route.setLongRoute(true)
+			});
+		}
+		if (isEnableRule115) {
+			options.push({
+				label: isRule115specificTerm
+					? '旅客営業取扱基準規程115条(単駅最安)'
+					: '旅客営業取扱基準規程115条(特定都区市内発着)',
+				state: isRule115specificTerm,
+				setOption: () => route.setSpecificTermRule115(true),
+				clearOption: () => route.setSpecificTermRule115(false)
+			});
+		}
+		if (isJRCentralStockEnable) {
+			options.push({
+				label: isJRCentralStock ? 'JR東海株主優待券を適用しない' : 'JR東海株主優待券を適用する',
+				state: isJRCentralStock,
+				setOption: () => route.setJrTokaiStockApply(true),
+				clearOption: () => route.setJrTokaiStockApply(false)
+			});
+		}
+
+		return options;
+	}
+
+	let shareFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
+	let exportFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
+
+	onMount(() => {
+		(async () => {
+			try {
+				await initFarert();
+				const encoded = resolveCompressedRoute();
+				if (!encoded) {
+					errorMessage = '経路データが指定されていません。';
+					return;
+				}
+				const route = decompressRouteFromUrl(encoded);
+				if (!route) {
+					errorMessage = '経路データの復元に失敗しました。';
+					return;
+				}
+				routeRef = route;
+				refreshResult(route);
+				shareUrl = buildShareUrl(encoded);
+			} catch (err) {
+				console.error('詳細画面の初期化に失敗しました', err);
+				errorMessage = '詳細情報の初期化に失敗しました。';
+			} finally {
+				loading = false;
+			}
+		})();
+	});
+
+	onDestroy(() => {
+		if (shareFeedbackTimer) {
+			clearTimeout(shareFeedbackTimer);
+		}
+		if (exportFeedbackTimer) {
+			clearTimeout(exportFeedbackTimer);
+		}
+	});
+
+	/**
+	 * `resolveCompressedRoute` の解決結果を返します。
 	 *
-	 * @param input 処理に必要な入力値です。
 	 * @returns 文字列結果を返します。
 	 */
-const collapseCommas = (input: string): string => {
-		let output = input.replace(/,\s*([}\]])/g, '$1').replace(/([\[{])\s*,/g, '$1');
-		while (/,(\s*,)+/.test(output)) {
-			output = output.replace(/,\s*,+/g, ',');
+	function resolveCompressedRoute(): string | null {
+		if (initialCompressedRoute?.trim()) {
+			return initialCompressedRoute.trim();
 		}
-		return output;
-	};
+		if (typeof window === 'undefined') {
+			return null;
+		}
+		const search = new URLSearchParams(window.location.search);
+		const param = search.get('r');
+		return param?.trim() || null;
+	}
 
-	const candidates = [
-		cleaned,
-		collapseCommas(cleaned),
-		collapseCommas(collapseCommas(cleaned))
-	];
-	for (const candidate of candidates) {
+	/**
+	 * `parseRouteSegments` の解析結果を返します。
+	 *
+	 * @param route 対象の経路または経路文字列です。
+	 * @returns 配列結果を返します。
+	 */
+	function parseRouteSegments(route: FaretClass): RouteSegment[] {
 		try {
-			const parsed = JSON.parse(candidate) as FareInfo;
-			const normalized = normalizeKilometers(parsed);
-			normalized.messages = Array.isArray(normalized.messages) ? [...normalized.messages] : [];
-			return normalized;
-		} catch (repairErr) {
-			continue;
+			const raw = route.getRoutesJson ? route.getRoutesJson() : '';
+			if (!raw) return [];
+			const parsed = JSON.parse(raw);
+			if (!Array.isArray(parsed)) return [];
+			return parsed
+				.filter((item) => item && typeof item.line === 'string' && typeof item.station === 'string')
+				.map((item) => ({
+					line: item.line.trim(),
+					station: item.station.trim()
+				}));
+		} catch (err) {
+			console.warn('経路リストの解析に失敗しました', err);
+			return [];
 		}
 	}
-	console.warn('運賃情報の復元に失敗しました（修復不可）');
-	return null;
-}
 
-/**
- * `buildFareExportString` を組み立てます。
- *
- * @param route 対象の経路または経路文字列です。
- * @returns 文字列結果を返します。
- */
-function buildFareExportString(route: FaretClass): string {
-	try {
-		const fareText = route.showFare ? route.showFare() : '';
-		const fareTextValue = typeof fareText === 'string' ? fareText : '';
-		const routeText = route.routeScript ? route.routeScript() : '';
-		return `${fareTextValue}[指定経路]\n${routeText}`;
-	} catch (err) {
-		console.warn('結果エクスポート文字列の生成に失敗しました', err);
-		return '';
+	/**
+	 * `parseFareInfo` の解析結果を返します。
+	 *
+	 * @param route 対象の経路または経路文字列です。
+	 * @returns 解決結果を返します。
+	 */
+	function parseFareInfo(route: FaretClass): FareInfo | null {
+		const raw = route.getFareInfoObjectJson ? route.getFareInfoObjectJson() : '';
+		if (!raw) return null;
+		const parsed = parseFareInfoJson(raw);
+		if (!parsed) {
+			console.warn('運賃情報の復元に失敗しました（修復不可）');
+		}
+		return parsed;
 	}
-}
 
-/**
- * `refreshResult` を処理します。
- *
- * @param route 対象の経路または経路文字列です。
- * @returns この処理は戻り値を持ちません。
- */
-function refreshResult(route: FaretClass): void {
-	startStation = safeStationName(() => route.departureStationName());
-	endStation = safeStationName(() => route.arrivevalStationName());
-	routeSegments = parseRouteSegments(route);
-	const parsedFareInfo = parseFareInfo(route);
-	fareInfo = parsedFareInfo;
-	fareOptionMenus = buildFareOptionMenus(parsedFareInfo, route);
-	fareExportText = buildFareExportString(route);
-	console.log('[debug] fareInfo', parsedFareInfo);
-	if (typeof window !== 'undefined') {
-		(window as Window & { __fareInfoDebug?: typeof parsedFareInfo }).__fareInfoDebug = parsedFareInfo;
-	}
-}
-
-/**
- * `buildShareUrl` を組み立てます。
- *
- * @param token 処理に必要な入力値です。
- * @returns 文字列結果を返します。
- */
-function buildShareUrl(token: string): string {
-	if (!token) return '';
-	const origin =
-		typeof window !== 'undefined' && window.location?.origin ? window.location.origin : '';
-	const normalizedOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
-	const normalizedBase = normalizeBasePath(base);
-	return `${normalizedOrigin}${normalizedBase}/detail?r=${token}`;
-}
-
-/**
- * `normalizeBasePath` を正規化します。
- *
- * @param path 処理に必要な入力値です。
- * @returns 文字列結果を返します。
- */
-function normalizeBasePath(path: string): string {
-	if (!path) return '';
-	const prefixed = path.startsWith('/') ? path : `/${path}`;
-	if (prefixed === '/') return '';
-	return prefixed.endsWith('/') ? prefixed.slice(0, -1) : prefixed;
-}
-
-/**
- * `safeStationName` を処理します。
- *
- * @param resolver 処理に必要な入力値です。
- * @returns 文字列結果を返します。
- */
-function safeStationName(resolver: () => string): string {
-	try {
-		return resolver()?.trim() ?? '';
-	} catch (err) {
-		console.warn('駅名の取得に失敗しました', err);
-		return '';
-	}
-}
-
-/**
- * `resolveRouteTitle` の解決結果を返します。
- *
- * @returns 文字列結果を返します。
- */
-function resolveRouteTitle(): string {
-	const begin = (fareInfo?.beginStation ?? '').trim();
-	const end = (fareInfo?.endStation ?? '').trim();
-	if (begin || end) {
-		const from = begin || '発駅未設定';
-		const to = end || '到着駅未設定';
-		return `${from} → ${to}`;
-	}
-	if (startStation && endStation) {
-		return `${startStation} → ${endStation}`;
-	}
-	return '経路詳細';
-}
-
-/**
- * `formatCurrency` の整形結果を返します。
- *
- * @param value 処理対象の値です。
- * @returns 文字列結果を返します。
- */
-function formatCurrency(value?: number | null): string {
-	if (typeof value !== 'number' || Number.isNaN(value)) return '¥—';
-	return `¥${value.toLocaleString('ja-JP')}`;
-}
-
-/**
- * `formatKilometer` の整形結果を返します。
- *
- * @param value 処理対象の値です。
- * @returns 文字列結果を返します。
- */
-function formatKilometer(value?: number | null): string {
-	if (typeof value !== 'number' || Number.isNaN(value)) return '— km';
-	return `${value.toLocaleString('ja-JP', {
-		minimumFractionDigits: 1,
-		maximumFractionDigits: 1
-	})}km`;
-}
-
-/**
- * `hasPositiveKilometer` の判定結果を返します。
- *
- * @param value 処理対象の値です。
- * @returns 判定結果を返します。
- */
-function hasPositiveKilometer(value?: number | null): boolean {
-	return typeof value === 'number' && Number.isFinite(value) && value > 0;
-}
-
-/**
- * `kilometersMatch` を処理します。
- *
- * @param left 処理に必要な入力値です。
- * @param right 処理に必要な入力値です。
- * @returns 判定結果を返します。
- */
-function kilometersMatch(left?: number | null, right?: number | null): boolean {
-	return hasPositiveKilometer(left) && hasPositiveKilometer(right) && left === right;
-}
-
-/**
- * `buildKilometerPairValue` を組み立てます。
- *
- * @param primary 処理に必要な入力値です。
- * @param secondary 処理に必要な入力値です。
- * @returns 文字列結果を返します。
- */
-function buildKilometerPairValue(primary?: number | null, secondary?: number | null): string {
-	if (kilometersMatch(primary, secondary)) {
-		return formatKilometer(primary);
-	}
-	return `${formatKilometer(primary)} / ${formatKilometer(secondary)}`;
-}
-
-/**
- * `buildRegionKilometerRow` を組み立てます。
- *
- * @param regionName 処理に必要な入力値です。
- * @param salesKm 処理に必要な入力値です。
- * @param calcKm 処理に必要な入力値です。
- * @returns 解決結果を返します。
- */
-function buildRegionKilometerRow(
-	regionName: string,
-	salesKm?: number | null,
-	calcKm?: number | null
-): MetricRow | null {
-	if (!hasPositiveKilometer(salesKm) && !hasPositiveKilometer(calcKm)) {
-		return null;
-	}
-	if (kilometersMatch(salesKm, calcKm) || !hasPositiveKilometer(calcKm)) {
-		return { label: `${regionName} 営業キロ`, value: formatKilometer(salesKm) };
-	}
-	if (!hasPositiveKilometer(salesKm)) {
-		return { label: `${regionName} 計算キロ`, value: formatKilometer(calcKm) };
-	}
-	return {
-		label: `${regionName} 営業キロ/計算キロ`,
-		value: buildKilometerPairValue(salesKm, calcKm)
-	};
-}
-
-/**
- * `formatRoundtripCompanyFare` の整形結果を返します。
- *
- * @param info 処理に必要な入力値です。
- * @returns 文字列結果を返します。
- */
-function formatRoundtripCompanyFare(info: FareInfo): string {
-	return formatCurrency((info.fareForCompanyline ?? 0) * 2);
-}
-
-/**
- * `formatFareWithICFare` の整形結果を返します。
- *
- * @param fare 処理に必要な入力値です。
- * @param icFare 処理に必要な入力値です。
- * @returns 文字列結果を返します。
- */
-function formatFareWithICFare(fare?: number | null, icFare?: number | null): string {
-	const baseFare = formatCurrency(fare);
-	if ((icFare ?? 0) <= 0) return baseFare;
-	return `${baseFare} (${formatCurrency(icFare)})`;
-}
-
-/**
- * `buildInlineFareRow` を組み立てます。
- *
- * @param label 処理に必要な入力値です。
- * @param value 処理対象の値です。
- * @param secondaryLabel 処理に必要な入力値です。
- * @param secondaryValue 処理対象の値です。
- * @param layout 処理に必要な入力値です。
- * @param hideSecondaryLabel 処理に必要な入力値です。
- * @returns 処理結果を返します。
- */
-function buildInlineFareRow(
-	label: string,
-	value: string,
-	secondaryLabel?: string,
-	secondaryValue?: string,
-	layout: 'pair' | 'grid' = 'pair',
-	hideSecondaryLabel: boolean = false
-): MetricRow {
-	return {
-		label,
-		value,
-		secondaryLabel,
-		secondaryValue,
-		layout,
-		hideSecondaryLabel
-	};
-}
-
-/**
- * `formatValidDays` の整形結果を返します。
- *
- * @param value 処理対象の値です。
- * @returns 文字列結果を返します。
- */
-function formatValidDays(value?: number | null): string {
-	if (typeof value !== 'number' || Number.isNaN(value)) return '— 日';
-	return `${value}日間`;
-}
-
-/**
- * `buildKilometerRows` を組み立てます。
- *
- * @param info 処理に必要な入力値です。
- * @returns 配列結果を返します。
- */
-function buildKilometerRows(info: FareInfo | null): MetricRow[] {
-	if (!info) return [];
-	const rows: MetricRow[] = [];
-	const hasCompanyOrBrt = hasPositiveKilometer(info.companySalesKm) || hasPositiveKilometer(info.brtSalesKm);
-	if (kilometersMatch(info.totalSalesKm, info.jrCalcKm)) {
-		rows.push({ label: '営業キロ', value: formatKilometer(info.totalSalesKm) });
-	} else {
-		rows.push({
-			label: hasCompanyOrBrt ? '営業キロ / 計算キロ(JR)' : '営業キロ / 計算キロ',
-			value: buildKilometerPairValue(info.totalSalesKm, info.jrCalcKm)
-		});
-	}
-	const hokkaidoRow = buildRegionKilometerRow(
-		'JR北海道',
-		info.salesKmForHokkaido,
-		info.calcKmForHokkaido
-	);
-	if (hokkaidoRow) {
-		rows.push(hokkaidoRow);
-	}
-	if (hasPositiveKilometer(info.companySalesKm)) {
-		rows.push({
-			label: 'JR線 / 会社線',
-			value: `${formatKilometer(info.jrSalesKm)} / ${formatKilometer(info.companySalesKm)}`
-		});
-	} else if (hasPositiveKilometer(info.brtSalesKm)) {
-		rows.push({ label: 'JR営業キロ', value: formatKilometer(info.jrSalesKm) });
-	}
-	if ((info.brtSalesKm ?? 0) > 0) {
-		rows.push({ label: 'BRT営業キロ', value: formatKilometer(info.brtSalesKm) });
-	}
-	const regionMetrics = [
-		buildRegionKilometerRow('JR東日本', info.salesKmForEast, info.calcKmForEast),
-		buildRegionKilometerRow('JR四国', info.salesKmForShikoku, info.calcKmForShikoku),
-		buildRegionKilometerRow('JR九州', info.salesKmForKyusyu, info.calcKmForKyusyu)
-	];
-	for (const metric of regionMetrics) {
-		if (metric) {
-			rows.push(metric);
+	/**
+	 * `buildFareExportString` を組み立てます。
+	 *
+	 * @param route 対象の経路または経路文字列です。
+	 * @returns 文字列結果を返します。
+	 */
+	function buildFareExportString(route: FaretClass): string {
+		try {
+			const fareText = route.showFare ? route.showFare() : '';
+			const fareTextValue = typeof fareText === 'string' ? fareText : '';
+			const routeText = route.routeScript ? route.routeScript() : '';
+			return `${fareTextValue}[指定経路]\n${routeText}`;
+		} catch (err) {
+			console.warn('結果エクスポート文字列の生成に失敗しました', err);
+			return '';
 		}
 	}
-	if (info.isRule114Applied) {
-		rows.push({
-			label: '規程114条適用 営業キロ / 計算キロ',
-			value: `${formatKilometer(info.rule114SalesKm)} / ${formatKilometer(info.rule114CalcKm)}`,
-			note: info.rule114ApplyTerminal ? `${info.rule114ApplyTerminal}で計算` : undefined
-		});
-	}
-	return rows;
-}
 
-/**
- * `buildFareRows` を組み立てます。
- *
- * @param info 処理に必要な入力値です。
- * @returns 配列結果を返します。
- */
-function buildFareRows(info: FareInfo | null): MetricRow[] {
-	if (!info) return [];
-	const rows: MetricRow[] = [];
-	const normalFareLabel = (info.fareForIC ?? 0) > 0 ? '普通運賃（IC運賃）' : '普通運賃';
-	const normalFareValue = formatFareWithICFare(info.fare, info.fareForIC);
-	if ((info.fareForCompanyline ?? 0) > 0) {
-		rows.push(
-			buildInlineFareRow(
-				normalFareLabel,
-				normalFareValue,
-				'うち会社線',
-				formatCurrency(info.fareForCompanyline)
-			)
-		);
-	} else {
-		rows.push({ label: normalFareLabel, value: normalFareValue });
+	/**
+	 * `refreshResult` を処理します。
+	 *
+	 * @param route 対象の経路または経路文字列です。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function refreshResult(route: FaretClass): void {
+		startStation = safeStationName(() => route.departureStationName());
+		endStation = safeStationName(() => route.arrivevalStationName());
+		routeSegments = parseRouteSegments(route);
+		const parsedFareInfo = parseFareInfo(route);
+		fareInfo = parsedFareInfo;
+		fareOptionMenus = buildFareOptionMenus(parsedFareInfo, route);
+		fareExportText = buildFareExportString(route);
 	}
-	if ((info.fareForBRT ?? 0) > 0) {
-		rows.push({ label: 'BRT運賃', value: formatCurrency(info.fareForBRT) });
+
+	/**
+	 * `buildShareUrl` を組み立てます。
+	 *
+	 * @param token 処理に必要な入力値です。
+	 * @returns 文字列結果を返します。
+	 */
+	function buildShareUrl(token: string): string {
+		if (!token) return '';
+		const origin =
+			typeof window !== 'undefined' && window.location?.origin ? window.location.origin : '';
+		const normalizedOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
+		const normalizedBase = normalizeBasePath(base);
+		return `${normalizedOrigin}${normalizedBase}/detail?r=${token}`;
 	}
-	if (info.isRoundtripDiscount || (info.roundTripFareWithCompanyLine ?? 0) > 0) {
-		rows.push(
-			buildInlineFareRow(
-				'往復',
-				formatCurrency(info.roundTripFareWithCompanyLine),
-				'うち会社線',
-				(info.fareForCompanyline ?? 0) > 0 ? formatRoundtripCompanyFare(info) : undefined,
-				'pair',
-				true
-			)
-		);
-		if (info.isRoundtripDiscount) {
-			rows[rows.length - 1].note = '往復割引適用';
+
+	/**
+	 * `safeStationName` を処理します。
+	 *
+	 * @param resolver 処理に必要な入力値です。
+	 * @returns 文字列結果を返します。
+	 */
+	function safeStationName(resolver: () => string): string {
+		try {
+			return resolver()?.trim() ?? '';
+		} catch (err) {
+			console.warn('駅名の取得に失敗しました', err);
+			return '';
 		}
 	}
-	if ((info.childFare ?? 0) > 0 || (info.roundtripChildFare ?? 0) > 0) {
-		rows.push(
-			buildInlineFareRow(
-				'小児運賃',
-				formatCurrency(info.childFare),
-				'往復',
-				(info.roundtripChildFare ?? 0) > 0 ? formatCurrency(info.roundtripChildFare) : undefined,
-				'pair'
-			)
-		);
-	}
-	if (
-		info.isAcademicFare &&
-		((info.academicFare ?? 0) > 0 || (info.roundtripAcademicFare ?? 0) > 0)
-	) {
-		rows.push(
-			buildInlineFareRow(
-				'学割運賃',
-				formatCurrency(info.academicFare),
-				'往復',
-				(info.roundtripAcademicFare ?? 0) > 0
-					? formatCurrency(info.roundtripAcademicFare)
-					: undefined,
-				'pair'
-			)
-		);
-	}
-	const stockDiscounts = Array.isArray(info.stockDiscounts) ? info.stockDiscounts : [];
-	for (const stock of stockDiscounts) {
-		if (!stock || typeof stock.stockDiscountFare !== 'number' || stock.stockDiscountFare <= 0) {
-			continue;
+
+	/**
+	 * `resolveRouteTitle` の解決結果を返します。
+	 *
+	 * @returns 文字列結果を返します。
+	 */
+	function resolveRouteTitle(): string {
+		const begin = (fareInfo?.beginStation ?? '').trim();
+		const end = (fareInfo?.endStation ?? '').trim();
+		if (begin || end) {
+			const from = begin || '発駅未設定';
+			const to = end || '到着駅未設定';
+			return `${from} → ${to}`;
 		}
-		const title = typeof stock.stockDiscountTitle === 'string' ? stock.stockDiscountTitle.trim() : '';
-		rows.push({
-			label: title ? `株主優待運賃（${title}）` : '株主優待運賃',
-			value: formatCurrency(stock.stockDiscountFare),
-			note:
-				typeof stock.rule114StockFare === 'number' && stock.rule114StockFare > 0
-					? `規程114条適用前: ${formatCurrency(stock.rule114StockFare)}`
-					: undefined
-		});
-	}
-	if (info.isRule114Applied && (info.farePriorRule114 ?? 0) > 0) {
-		rows.push({ label: '規程114条適用前', value: formatCurrency(info.farePriorRule114) });
-	}
-	if (info.isRule114Applied && (info.roundTripFareWithCompanyLinePriorRule114 ?? 0) > 0) {
-		rows.push({
-			label: '規程114条適用前（往復運賃）',
-			value: formatCurrency(info.roundTripFareWithCompanyLinePriorRule114)
-		});
-	}
-	return rows;
-}
-
-/**
- * `buildValidityMessage` を組み立てます。
- *
- * @param info 処理に必要な入力値です。
- * @returns 文字列結果を返します。
- */
-function buildValidityMessage(info: FareInfo | null): string {
-	if (!info) return '';
-	if (info.isSpecificFare) {
-		return '近郊区間内ですので最安運賃の経路にしました（途中下車不可、有効日数当日限り）';
-	}
-	const distance = info.totalSalesKm ?? 0;
-	if (distance < 101) {
-		return '途中下車前途無効';
-	}
-	if (info.isBeginInCity || info.isEndInCity) {
-		return '発着駅の都区市内を除き途中下車できます';
-	}
-	return '途中下車できます';
-}
-
-/**
- * `extractMessages` を処理します。
- *
- * @param info 処理に必要な入力値です。
- * @returns 文字列結果を返します。
- */
-function extractMessages(info: FareInfo | null): string[] {
-	if (!info) return [];
-	return info.messages
-		.map((message) => (typeof message === 'string' ? message.trim() : ''))
-		.filter((message): message is string => message.length > 0);
-}
-
-/**
- * `resolveRouteString` の解決結果を返します。
- *
- * @param info 処理に必要な入力値です。
- * @param segments 処理に必要な入力値です。
- * @returns 文字列結果を返します。
- */
-function resolveRouteString(info: FareInfo | null, segments: RouteSegment[]): string {
-	const fromInfo = info?.routeList?.trim();
-	if (fromInfo) return fromInfo;
-	if (!segments.length) return '';
-	return segments.map((segment) => `[${segment.line}]${segment.station}`).join('');
-}
-
-/**
- * `resolveIcRouteString` の解決結果を返します。
- *
- * @param info 処理に必要な入力値です。
- * @param base 処理に必要な入力値です。
- * @returns 文字列結果を返します。
- */
-function resolveIcRouteString(info: FareInfo | null, base: string): string {
-	const icRoute = info?.routeListForTOICA?.trim();
-	if (!icRoute) return '';
-	const normalizedBase = (info?.routeList?.trim() || base || '').trim();
-	return icRoute === normalizedBase ? '' : icRoute;
-}
-
-/**
- * `resolveFareResultMessage` の解決結果を返します。
- *
- * @param code 処理に必要な入力値です。
- * @returns 文字列結果を返します。
- */
-function resolveFareResultMessage(code?: number | null): string {
-	if (code === 0 || code === undefined || code === null) return '';
-	if (code === 1) return '経路が不完全です。続けて指定してください。';
-	if (code === -2) return '会社線のみの経路は運賃を表示できません。';
-	return '運賃計算でエラーが発生しました。';
-}
-
-/**
- * `handleBack` のイベント処理を行います。
- *
- * @returns この処理は戻り値を持ちません。
- */
-function handleBack(): void {
-	if (typeof window !== 'undefined' && window.history.length > 1) {
-		window.history.back();
-		return;
-	}
-	goto(`${base}/`);
-}
-
-/**
- * `handleShare` のイベント処理を行います。
- *
- * @returns この処理は戻り値を持ちません。
- */
-async function handleShare(): Promise<void> {
-	if (!shareEnabled || !shareUrl) return;
-	try {
-		if (navigator?.share) {
-			await navigator.share({ title: routeTitle, url: shareUrl });
-			showShareMessage('共有しました');
-			return;
+		if (startStation && endStation) {
+			return `${startStation} → ${endStation}`;
 		}
-	} catch (err) {
-		console.warn('Web Share APIでの共有に失敗しました', err);
+		return '経路詳細';
 	}
-	try {
-		if (navigator?.clipboard?.writeText) {
-			await navigator.clipboard.writeText(shareUrl);
-			showShareMessage('共有リンクをコピーしました');
-			return;
+
+	/**
+	 * `formatCurrency` の整形結果を返します。
+	 *
+	 * @param value 処理対象の値です。
+	 * @returns 文字列結果を返します。
+	 */
+	function formatCurrency(value?: number | null): string {
+		if (typeof value !== 'number' || Number.isNaN(value)) return '¥—';
+		return `¥${value.toLocaleString('ja-JP')}`;
+	}
+
+	/**
+	 * `formatKilometer` の整形結果を返します。
+	 *
+	 * @param value 処理対象の値です。
+	 * @returns 文字列結果を返します。
+	 */
+	function formatKilometer(value?: number | null): string {
+		if (typeof value !== 'number' || Number.isNaN(value)) return '— km';
+		return `${value.toLocaleString('ja-JP', {
+			minimumFractionDigits: 1,
+			maximumFractionDigits: 1
+		})}km`;
+	}
+
+	/**
+	 * `hasPositiveKilometer` の判定結果を返します。
+	 *
+	 * @param value 処理対象の値です。
+	 * @returns 判定結果を返します。
+	 */
+	function hasPositiveKilometer(value?: number | null): boolean {
+		return typeof value === 'number' && Number.isFinite(value) && value > 0;
+	}
+
+	/**
+	 * `kilometersMatch` を処理します。
+	 *
+	 * @param left 処理に必要な入力値です。
+	 * @param right 処理に必要な入力値です。
+	 * @returns 判定結果を返します。
+	 */
+	function kilometersMatch(left?: number | null, right?: number | null): boolean {
+		return hasPositiveKilometer(left) && hasPositiveKilometer(right) && left === right;
+	}
+
+	/**
+	 * `buildKilometerPairValue` を組み立てます。
+	 *
+	 * @param primary 処理に必要な入力値です。
+	 * @param secondary 処理に必要な入力値です。
+	 * @returns 文字列結果を返します。
+	 */
+	function buildKilometerPairValue(primary?: number | null, secondary?: number | null): string {
+		if (kilometersMatch(primary, secondary)) {
+			return formatKilometer(primary);
 		}
-	} catch (err) {
-		console.warn('共有リンクのコピーに失敗しました', err);
+		return `${formatKilometer(primary)} / ${formatKilometer(secondary)}`;
 	}
-	showShareMessage('このブラウザでは共有に対応していません');
-}
 
-/**
- * `showShareMessage` を処理します。
- *
- * @param message 表示または処理に使うメッセージです。
- * @returns この処理は戻り値を持ちません。
- */
-function showShareMessage(message: string): void {
-	shareFeedback = message;
-	if (shareFeedbackTimer) {
-		clearTimeout(shareFeedbackTimer);
+	/**
+	 * `buildRegionKilometerRow` を組み立てます。
+	 *
+	 * @param regionName 処理に必要な入力値です。
+	 * @param salesKm 処理に必要な入力値です。
+	 * @param calcKm 処理に必要な入力値です。
+	 * @returns 解決結果を返します。
+	 */
+	function buildRegionKilometerRow(
+		regionName: string,
+		salesKm?: number | null,
+		calcKm?: number | null
+	): MetricRow | null {
+		if (!hasPositiveKilometer(salesKm) && !hasPositiveKilometer(calcKm)) {
+			return null;
+		}
+		if (kilometersMatch(salesKm, calcKm) || !hasPositiveKilometer(calcKm)) {
+			return { label: `${regionName} 営業キロ`, value: formatKilometer(salesKm) };
+		}
+		if (!hasPositiveKilometer(salesKm)) {
+			return { label: `${regionName} 計算キロ`, value: formatKilometer(calcKm) };
+		}
+		return {
+			label: `${regionName} 営業キロ/計算キロ`,
+			value: buildKilometerPairValue(salesKm, calcKm)
+		};
 	}
-	shareFeedbackTimer = setTimeout(() => {
-		shareFeedback = '';
-	}, 4000);
-}
 
-/**
- * `showExportMessage` を処理します。
- *
- * @param message 表示または処理に使うメッセージです。
- * @returns この処理は戻り値を持ちません。
- */
-function showExportMessage(message: string): void {
-	exportFeedback = message;
-	if (exportFeedbackTimer) {
-		clearTimeout(exportFeedbackTimer);
+	/**
+	 * `formatRoundtripCompanyFare` の整形結果を返します。
+	 *
+	 * @param info 処理に必要な入力値です。
+	 * @returns 文字列結果を返します。
+	 */
+	function formatRoundtripCompanyFare(info: FareInfo): string {
+		return formatCurrency((info.fareForCompanyline ?? 0) * 2);
 	}
-	exportFeedbackTimer = setTimeout(() => {
-		exportFeedback = '';
-	}, 4000);
-}
 
-/**
- * `toggleMenu` の切替処理を行います。
- *
- * @returns この処理は戻り値を持ちません。
- */
-function toggleMenu(): void {
-	menuOpen = !menuOpen;
-}
+	/**
+	 * `formatFareWithICFare` の整形結果を返します。
+	 *
+	 * @param fare 処理に必要な入力値です。
+	 * @param icFare 処理に必要な入力値です。
+	 * @returns 文字列結果を返します。
+	 */
+	function formatFareWithICFare(fare?: number | null, icFare?: number | null): string {
+		const baseFare = formatCurrency(fare);
+		if ((icFare ?? 0) <= 0) return baseFare;
+		return `${baseFare} (${formatCurrency(icFare)})`;
+	}
 
-/**
- * `closeMenu` を終了または非表示にします。
- *
- * @returns この処理は戻り値を持ちません。
- */
-function closeMenu(): void {
-	menuOpen = false;
-}
+	/**
+	 * `buildInlineFareRow` を組み立てます。
+	 *
+	 * @param label 処理に必要な入力値です。
+	 * @param value 処理対象の値です。
+	 * @param secondaryLabel 処理に必要な入力値です。
+	 * @param secondaryValue 処理対象の値です。
+	 * @param layout 処理に必要な入力値です。
+	 * @param hideSecondaryLabel 処理に必要な入力値です。
+	 * @returns 処理結果を返します。
+	 */
+	function buildInlineFareRow(
+		label: string,
+		value: string,
+		secondaryLabel?: string,
+		secondaryValue?: string,
+		layout: 'pair' | 'grid' = 'pair',
+		hideSecondaryLabel: boolean = false
+	): MetricRow {
+		return {
+			label,
+			value,
+			secondaryLabel,
+			secondaryValue,
+			layout,
+			hideSecondaryLabel
+		};
+	}
 
-/**
- * `openVersionInfo` を開始または表示します。
- *
- * @returns この処理は戻り値を持ちません。
- */
-function openVersionInfo(): void {
-	closeMenu();
-	goto(`${base}/version`);
-}
+	/**
+	 * `formatValidDays` の整形結果を返します。
+	 *
+	 * @param value 処理対象の値です。
+	 * @returns 文字列結果を返します。
+	 */
+	function formatValidDays(value?: number | null): string {
+		if (typeof value !== 'number' || Number.isNaN(value)) return '— 日';
+		return `${value}日間`;
+	}
 
-/**
- * `applyFareOption` を適用します。
- *
- * @param option 処理に必要な入力値です。
- * @returns この処理は戻り値を持ちません。
- */
-function applyFareOption(option: FareOptionMenuItem): void {
-	const route = routeRef;
-	if (!route) return;
-	try {
-		if (option.state) {
-			option.clearOption();
+	/**
+	 * `buildKilometerRows` を組み立てます。
+	 *
+	 * @param info 処理に必要な入力値です。
+	 * @returns 配列結果を返します。
+	 */
+	function buildKilometerRows(info: FareInfo | null): MetricRow[] {
+		if (!info) return [];
+		const rows: MetricRow[] = [];
+		const hasCompanyOrBrt =
+			hasPositiveKilometer(info.companySalesKm) || hasPositiveKilometer(info.brtSalesKm);
+		if (kilometersMatch(info.totalSalesKm, info.jrCalcKm)) {
+			rows.push({ label: '営業キロ', value: formatKilometer(info.totalSalesKm) });
 		} else {
-			option.setOption();
+			rows.push({
+				label: hasCompanyOrBrt ? '営業キロ / 計算キロ(JR)' : '営業キロ / 計算キロ',
+				value: buildKilometerPairValue(info.totalSalesKm, info.jrCalcKm)
+			});
 		}
-		refreshResult(route);
-		errorMessage = '';
-	} catch (err) {
-		console.warn('オプション設定の適用に失敗しました', err);
-		errorMessage = 'オプション設定の適用に失敗しました。';
+		const hokkaidoRow = buildRegionKilometerRow(
+			'JR北海道',
+			info.salesKmForHokkaido,
+			info.calcKmForHokkaido
+		);
+		if (hokkaidoRow) {
+			rows.push(hokkaidoRow);
+		}
+		if (hasPositiveKilometer(info.companySalesKm)) {
+			rows.push({
+				label: 'JR線 / 会社線',
+				value: `${formatKilometer(info.jrSalesKm)} / ${formatKilometer(info.companySalesKm)}`
+			});
+		} else if (hasPositiveKilometer(info.brtSalesKm)) {
+			rows.push({ label: 'JR営業キロ', value: formatKilometer(info.jrSalesKm) });
+		}
+		if ((info.brtSalesKm ?? 0) > 0) {
+			rows.push({ label: 'BRT営業キロ', value: formatKilometer(info.brtSalesKm) });
+		}
+		const regionMetrics = [
+			buildRegionKilometerRow('JR東日本', info.salesKmForEast, info.calcKmForEast),
+			buildRegionKilometerRow('JR四国', info.salesKmForShikoku, info.calcKmForShikoku),
+			buildRegionKilometerRow('JR九州', info.salesKmForKyusyu, info.calcKmForKyusyu)
+		];
+		for (const metric of regionMetrics) {
+			if (metric) {
+				rows.push(metric);
+			}
+		}
+		if (info.isRule114Applied) {
+			rows.push({
+				label: '規程114条適用 営業キロ / 計算キロ',
+				value: `${formatKilometer(info.rule114SalesKm)} / ${formatKilometer(info.rule114CalcKm)}`,
+				note: info.rule114ApplyTerminal ? `${info.rule114ApplyTerminal}で計算` : undefined
+			});
+		}
+		return rows;
 	}
-	closeMenu();
-}
 
-/**
- * `copyFareExport` を処理します。
- *
- * @returns この処理は戻り値を持ちません。
- */
-async function copyFareExport(): Promise<void> {
-	if (!fareExportText) return;
-	try {
-		if (navigator?.clipboard?.writeText) {
-			await navigator.clipboard.writeText(fareExportText);
-			showExportMessage('結果文字列をコピーしました');
+	/**
+	 * `buildFareRows` を組み立てます。
+	 *
+	 * @param info 処理に必要な入力値です。
+	 * @returns 配列結果を返します。
+	 */
+	function buildFareRows(info: FareInfo | null): MetricRow[] {
+		if (!info) return [];
+		const rows: MetricRow[] = [];
+		const normalFareLabel = (info.fareForIC ?? 0) > 0 ? '普通運賃（IC運賃）' : '普通運賃';
+		const normalFareValue = formatFareWithICFare(info.fare, info.fareForIC);
+		if ((info.fareForCompanyline ?? 0) > 0) {
+			rows.push(
+				buildInlineFareRow(
+					normalFareLabel,
+					normalFareValue,
+					'うち会社線',
+					formatCurrency(info.fareForCompanyline)
+				)
+			);
+		} else {
+			rows.push({ label: normalFareLabel, value: normalFareValue });
+		}
+		if ((info.fareForBRT ?? 0) > 0) {
+			rows.push({ label: 'BRT運賃', value: formatCurrency(info.fareForBRT) });
+		}
+		if (info.isRoundtripDiscount || (info.roundTripFareWithCompanyLine ?? 0) > 0) {
+			rows.push(
+				buildInlineFareRow(
+					'往復',
+					formatCurrency(info.roundTripFareWithCompanyLine),
+					'うち会社線',
+					(info.fareForCompanyline ?? 0) > 0 ? formatRoundtripCompanyFare(info) : undefined,
+					'pair',
+					true
+				)
+			);
+			if (info.isRoundtripDiscount) {
+				rows[rows.length - 1].note = '往復割引適用';
+			}
+		}
+		if ((info.childFare ?? 0) > 0 || (info.roundtripChildFare ?? 0) > 0) {
+			rows.push(
+				buildInlineFareRow(
+					'小児運賃',
+					formatCurrency(info.childFare),
+					'往復',
+					(info.roundtripChildFare ?? 0) > 0 ? formatCurrency(info.roundtripChildFare) : undefined,
+					'pair'
+				)
+			);
+		}
+		if (
+			info.isAcademicFare &&
+			((info.academicFare ?? 0) > 0 || (info.roundtripAcademicFare ?? 0) > 0)
+		) {
+			rows.push(
+				buildInlineFareRow(
+					'学割運賃',
+					formatCurrency(info.academicFare),
+					'往復',
+					(info.roundtripAcademicFare ?? 0) > 0
+						? formatCurrency(info.roundtripAcademicFare)
+						: undefined,
+					'pair'
+				)
+			);
+		}
+		const stockDiscounts = Array.isArray(info.stockDiscounts) ? info.stockDiscounts : [];
+		for (const stock of stockDiscounts) {
+			if (!stock || typeof stock.stockDiscountFare !== 'number' || stock.stockDiscountFare <= 0) {
+				continue;
+			}
+			const title =
+				typeof stock.stockDiscountTitle === 'string' ? stock.stockDiscountTitle.trim() : '';
+			rows.push({
+				label: title ? `株主優待運賃（${title}）` : '株主優待運賃',
+				value: formatCurrency(stock.stockDiscountFare),
+				note:
+					typeof stock.rule114StockFare === 'number' && stock.rule114StockFare > 0
+						? `規程114条適用前: ${formatCurrency(stock.rule114StockFare)}`
+						: undefined
+			});
+		}
+		if (info.isRule114Applied && (info.farePriorRule114 ?? 0) > 0) {
+			rows.push({ label: '規程114条適用前', value: formatCurrency(info.farePriorRule114) });
+		}
+		if (info.isRule114Applied && (info.roundTripFareWithCompanyLinePriorRule114 ?? 0) > 0) {
+			rows.push({
+				label: '規程114条適用前（往復運賃）',
+				value: formatCurrency(info.roundTripFareWithCompanyLinePriorRule114)
+			});
+		}
+		return rows;
+	}
+
+	/**
+	 * `buildValidityMessage` を組み立てます。
+	 *
+	 * @param info 処理に必要な入力値です。
+	 * @returns 文字列結果を返します。
+	 */
+	function buildValidityMessage(info: FareInfo | null): string {
+		if (!info) return '';
+		if (info.isSpecificFare) {
+			return '近郊区間内ですので最安運賃の経路にしました（途中下車不可、有効日数当日限り）';
+		}
+		const distance = info.totalSalesKm ?? 0;
+		if (distance < 101) {
+			return '途中下車前途無効';
+		}
+		if (info.isBeginInCity || info.isEndInCity) {
+			return '発着駅の都区市内を除き途中下車できます';
+		}
+		return '途中下車できます';
+	}
+
+	/**
+	 * `extractMessages` を処理します。
+	 *
+	 * @param info 処理に必要な入力値です。
+	 * @returns 文字列結果を返します。
+	 */
+	function extractMessages(info: FareInfo | null): string[] {
+		if (!info) return [];
+		return info.messages
+			.map((message) => (typeof message === 'string' ? message.trim() : ''))
+			.filter((message): message is string => message.length > 0);
+	}
+
+	/**
+	 * `resolveRouteString` の解決結果を返します。
+	 *
+	 * @param info 処理に必要な入力値です。
+	 * @param segments 処理に必要な入力値です。
+	 * @returns 文字列結果を返します。
+	 */
+	function resolveRouteString(info: FareInfo | null, segments: RouteSegment[]): string {
+		const fromInfo = info?.routeList?.trim();
+		if (fromInfo) return fromInfo;
+		if (!segments.length) return '';
+		return segments.map((segment) => `[${segment.line}]${segment.station}`).join('');
+	}
+
+	/**
+	 * `resolveIcRouteString` の解決結果を返します。
+	 *
+	 * @param info 処理に必要な入力値です。
+	 * @param base 処理に必要な入力値です。
+	 * @returns 文字列結果を返します。
+	 */
+	function resolveIcRouteString(info: FareInfo | null, base: string): string {
+		const icRoute = info?.routeListForTOICA?.trim();
+		if (!icRoute) return '';
+		const normalizedBase = (info?.routeList?.trim() || base || '').trim();
+		return icRoute === normalizedBase ? '' : icRoute;
+	}
+
+	/**
+	 * `resolveFareResultMessage` の解決結果を返します。
+	 *
+	 * @param code 処理に必要な入力値です。
+	 * @returns 文字列結果を返します。
+	 */
+	function resolveFareResultMessage(code?: number | null): string {
+		if (code === 0 || code === undefined || code === null) return '';
+		if (code === 1) return '経路が不完全です。続けて指定してください。';
+		if (code === -2) return '会社線のみの経路は運賃を表示できません。';
+		return '運賃計算でエラーが発生しました。';
+	}
+
+	/**
+	 * `handleBack` のイベント処理を行います。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function handleBack(): void {
+		if (typeof window !== 'undefined' && window.history.length > 1) {
+			window.history.back();
 			return;
 		}
-	} catch (err) {
-		console.warn('結果文字列のコピーに失敗しました', err);
+		goto(resolve('/'));
 	}
-	showExportMessage('このブラウザではコピーに対応していません');
-}
 
-/**
- * `openExportDialog` を開始または表示します。
- *
- * @returns この処理は戻り値を持ちません。
- */
-async function openExportDialog(): Promise<void> {
-	exportDialogOpen = Boolean(fareExportText);
-	if (!exportDialogOpen) return;
-	await copyFareExport();
-}
+	/**
+	 * `handleShare` のイベント処理を行います。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	async function handleShare(): Promise<void> {
+		if (!shareEnabled || !shareUrl) return;
+		try {
+			if (navigator?.share) {
+				await navigator.share({ title: routeTitle, url: shareUrl });
+				showShareMessage('共有しました');
+				return;
+			}
+		} catch (err) {
+			console.warn('Web Share APIでの共有に失敗しました', err);
+		}
+		try {
+			if (navigator?.clipboard?.writeText) {
+				await navigator.clipboard.writeText(shareUrl);
+				showShareMessage('共有リンクをコピーしました');
+				return;
+			}
+		} catch (err) {
+			console.warn('共有リンクのコピーに失敗しました', err);
+		}
+		showShareMessage('このブラウザでは共有に対応していません');
+	}
 
-/**
- * `closeExportDialog` を終了または非表示にします。
- *
- * @returns この処理は戻り値を持ちません。
- */
-function closeExportDialog(): void {
-	exportDialogOpen = false;
-}
+	/**
+	 * `showShareMessage` を処理します。
+	 *
+	 * @param message 表示または処理に使うメッセージです。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function showShareMessage(message: string): void {
+		shareFeedback = message;
+		if (shareFeedbackTimer) {
+			clearTimeout(shareFeedbackTimer);
+		}
+		shareFeedbackTimer = setTimeout(() => {
+			shareFeedback = '';
+		}, 4000);
+	}
+
+	/**
+	 * `showExportMessage` を処理します。
+	 *
+	 * @param message 表示または処理に使うメッセージです。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function showExportMessage(message: string): void {
+		exportFeedback = message;
+		if (exportFeedbackTimer) {
+			clearTimeout(exportFeedbackTimer);
+		}
+		exportFeedbackTimer = setTimeout(() => {
+			exportFeedback = '';
+		}, 4000);
+	}
+
+	/**
+	 * `toggleMenu` の切替処理を行います。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function toggleMenu(): void {
+		menuOpen = !menuOpen;
+	}
+
+	/**
+	 * `closeMenu` を終了または非表示にします。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function closeMenu(): void {
+		menuOpen = false;
+	}
+
+	/**
+	 * `openVersionInfo` を開始または表示します。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function openVersionInfo(): void {
+		closeMenu();
+		goto(resolve('/version'));
+	}
+
+	/**
+	 * `applyFareOption` を適用します。
+	 *
+	 * @param option 処理に必要な入力値です。
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function applyFareOption(option: FareOptionMenuItem): void {
+		const route = routeRef;
+		if (!route) return;
+		try {
+			if (option.state) {
+				option.clearOption();
+			} else {
+				option.setOption();
+			}
+			refreshResult(route);
+			errorMessage = '';
+		} catch (err) {
+			console.warn('オプション設定の適用に失敗しました', err);
+			errorMessage = 'オプション設定の適用に失敗しました。';
+		}
+		closeMenu();
+	}
+
+	/**
+	 * `copyFareExport` を処理します。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	async function copyFareExport(): Promise<void> {
+		if (!fareExportText) return;
+		try {
+			if (navigator?.clipboard?.writeText) {
+				await navigator.clipboard.writeText(fareExportText);
+				showExportMessage('結果文字列をコピーしました');
+				return;
+			}
+		} catch (err) {
+			console.warn('結果文字列のコピーに失敗しました', err);
+		}
+		showExportMessage('このブラウザではコピーに対応していません');
+	}
+
+	/**
+	 * `openExportDialog` を開始または表示します。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	async function openExportDialog(): Promise<void> {
+		exportDialogOpen = Boolean(fareExportText);
+		if (!exportDialogOpen) return;
+		await copyFareExport();
+	}
+
+	/**
+	 * `closeExportDialog` を終了または非表示にします。
+	 *
+	 * @returns この処理は戻り値を持ちません。
+	 */
+	function closeExportDialog(): void {
+		exportDialogOpen = false;
+	}
 </script>
 
 <div class="detail-page">
@@ -1079,32 +1000,75 @@ function closeExportDialog(): void {
 
 	{#if loading}
 		<p class="info-banner">運賃情報を読み込み中です...</p>
+	{:else if errorMessage}
+		<div class="error-banner" role="alert">
+			<p>{errorMessage}</p>
+		</div>
 	{:else}
-		{#if errorMessage}
-			<div class="error-banner" role="alert">
-				<p>{errorMessage}</p>
+		{#if fareResultHint}
+			<div class="warning-banner" role="status">
+				<p>{fareResultHint}</p>
 			</div>
-		{:else}
-			{#if fareResultHint}
-				<div class="warning-banner" role="status">
-					<p>{fareResultHint}</p>
-				</div>
-			{/if}
+		{/if}
 
-			<section class="card route-header-card">
-					<p class="label">区間</p>
-				<p class="route-title">{routeIntervalTitle}</p>
+		<section class="card route-header-card">
+			<p class="label">区間</p>
+			<p class="route-title">{routeIntervalTitle}</p>
+		</section>
+
+		{#if fareInfo}
+			<section class="card metric-card">
+				<h3>キロ程</h3>
+				{#if kilometerRows.length === 0}
+					<p class="placeholder">キロ程情報がありません。</p>
+				{:else}
+					<ul class="metric-list">
+						{#each kilometerRows as row, rowIndex (rowIndex)}
+							<li class="metric-row">
+								<div>
+									<p class="metric-label">{row.label}</p>
+									{#if row.note}
+										<p class="metric-note">{row.note}</p>
+									{/if}
+								</div>
+								<p class="metric-value">{row.value}</p>
+							</li>
+						{/each}
+					</ul>
+				{/if}
 			</section>
 
-			{#if fareInfo}
-				<section class="card metric-card">
-					<h3>キロ程</h3>
-					{#if kilometerRows.length === 0}
-						<p class="placeholder">キロ程情報がありません。</p>
-					{:else}
-						<ul class="metric-list">
-							{#each kilometerRows as row}
-								<li class="metric-row">
+			<section class="card fare-card">
+				<h3>運賃</h3>
+				{#if fareRows.length === 0}
+					<p class="placeholder">運賃情報がありません。</p>
+				{:else}
+					<ul class="metric-list">
+						{#each fareRows as row, rowIndex (rowIndex)}
+							<li class={`metric-row ${row.layout ? `metric-row-${row.layout}` : ''}`}>
+								{#if row.layout}
+									<div class="metric-inline-block">
+										<div
+											class={`metric-inline-pair ${!row.secondaryValue ? 'metric-inline-pair-full' : ''}`}
+										>
+											<p class="metric-label">{row.label}</p>
+											<p class="metric-value">{row.value}</p>
+										</div>
+										{#if row.secondaryValue}
+											<div class="metric-inline-pair secondary">
+												{#if row.hideSecondaryLabel}
+													<span class="metric-label-spacer" aria-hidden="true"></span>
+												{:else}
+													<p class="metric-label">{row.secondaryLabel}</p>
+												{/if}
+												<p class="metric-value">{row.secondaryValue}</p>
+											</div>
+										{/if}
+										{#if row.note}
+											<p class="metric-note metric-inline-note">{row.note}</p>
+										{/if}
+									</div>
+								{:else}
 									<div>
 										<p class="metric-label">{row.label}</p>
 										{#if row.note}
@@ -1112,96 +1076,52 @@ function closeExportDialog(): void {
 										{/if}
 									</div>
 									<p class="metric-value">{row.value}</p>
-								</li>
-							{/each}
-						</ul>
-					{/if}
-				</section>
-
-				<section class="card fare-card">
-					<h3>運賃</h3>
-					{#if fareRows.length === 0}
-						<p class="placeholder">運賃情報がありません。</p>
-					{:else}
-						<ul class="metric-list">
-							{#each fareRows as row}
-								<li class={`metric-row ${row.layout ? `metric-row-${row.layout}` : ''}`}>
-									{#if row.layout}
-										<div class="metric-inline-block">
-											<div
-												class={`metric-inline-pair ${!row.secondaryValue ? 'metric-inline-pair-full' : ''}`}
-											>
-												<p class="metric-label">{row.label}</p>
-												<p class="metric-value">{row.value}</p>
-											</div>
-											{#if row.secondaryValue}
-												<div class="metric-inline-pair secondary">
-													{#if row.hideSecondaryLabel}
-														<span class="metric-label-spacer" aria-hidden="true"></span>
-													{:else}
-														<p class="metric-label">{row.secondaryLabel}</p>
-													{/if}
-													<p class="metric-value">{row.secondaryValue}</p>
-												</div>
-											{/if}
-											{#if row.note}
-												<p class="metric-note metric-inline-note">{row.note}</p>
-											{/if}
-										</div>
-									{:else}
-										<div>
-											<p class="metric-label">{row.label}</p>
-											{#if row.note}
-												<p class="metric-note">{row.note}</p>
-											{/if}
-										</div>
-										<p class="metric-value">{row.value}</p>
-									{/if}
-								</li>
-							{/each}
-						</ul>
-					{/if}
-				</section>
-
-				{#if detailMessages.length}
-					<section class="card note-card">
-						<h3>備考</h3>
-						<ul>
-							{#each detailMessages as message}
-								<li>{message}</li>
-							{/each}
-						</ul>
-					</section>
+								{/if}
+							</li>
+						{/each}
+					</ul>
 				{/if}
+			</section>
 
-				<section class="card validity-card">
-					<h3>有効日数</h3>
-					<p class="valid-days">{validityText}</p>
-					{#if validityMessage}
-						<p class="metric-note">{validityMessage}</p>
-					{/if}
+			{#if detailMessages.length}
+				<section class="card note-card">
+					<h3>備考</h3>
+					<ul>
+						{#each detailMessages as message, messageIndex (messageIndex)}
+							<li>{message}</li>
+						{/each}
+					</ul>
 				</section>
-
-				<section class="card route-detail-card">
-					<h3>経由</h3>
-					{#if routeText}
-						<p class="route-string">{routeText}</p>
-					{:else}
-						<p class="placeholder">経路情報がありません。</p>
-					{/if}
-					{#if icRouteText}
-						<p class="metric-label">IC運賃計算経路</p>
-						<p class="route-string">{icRouteText}</p>
-					{/if}
-				</section>
-			{:else}
-				<p class="info-banner">運賃情報を取得できませんでした。</p>
 			{/if}
+
+			<section class="card validity-card">
+				<h3>有効日数</h3>
+				<p class="valid-days">{validityText}</p>
+				{#if validityMessage}
+					<p class="metric-note">{validityMessage}</p>
+				{/if}
+			</section>
+
+			<section class="card route-detail-card">
+				<h3>経由</h3>
+				{#if routeText}
+					<p class="route-string">{routeText}</p>
+				{:else}
+					<p class="placeholder">経路情報がありません。</p>
+				{/if}
+				{#if icRouteText}
+					<p class="metric-label">IC運賃計算経路</p>
+					<p class="route-string">{icRouteText}</p>
+				{/if}
+			</section>
+		{:else}
+			<p class="info-banner">運賃情報を取得できませんでした。</p>
 		{/if}
 	{/if}
 
 	{#if menuOpen}
-		<button type="button" class="menu-overlay" aria-label="メニューを閉じる" onclick={closeMenu}></button>
+		<button type="button" class="menu-overlay" aria-label="メニューを閉じる" onclick={closeMenu}
+		></button>
 	{/if}
 
 	{#if exportDialogOpen}
@@ -1209,7 +1129,12 @@ function closeExportDialog(): void {
 			<section class="card export-card">
 				<div class="export-card-header">
 					<h3>結果エクスポート</h3>
-					<button type="button" class="icon-button small" aria-label="閉じる" onclick={closeExportDialog}>
+					<button
+						type="button"
+						class="icon-button small"
+						aria-label="閉じる"
+						onclick={closeExportDialog}
+					>
 						<span class="material-symbols-rounded" aria-hidden="true">close</span>
 					</button>
 				</div>
@@ -1246,6 +1171,7 @@ function closeExportDialog(): void {
 		justify-content: center;
 		white-space: nowrap;
 		-webkit-font-feature-settings: 'liga';
+		font-feature-settings: 'liga';
 		-webkit-font-smoothing: antialiased;
 	}
 

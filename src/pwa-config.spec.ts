@@ -35,7 +35,10 @@ describe('PWA config', () => {
 	});
 
 	it('provides a static manifest for development requests', () => {
-		const source = readFileSync(new URL('../static/manifest.webmanifest', import.meta.url), 'utf-8');
+		const source = readFileSync(
+			new URL('../static/manifest.webmanifest', import.meta.url),
+			'utf-8'
+		);
 
 		expect(source).toContain('"short_name": "Farert"');
 		expect(source).toContain('"start_url": "/"');
