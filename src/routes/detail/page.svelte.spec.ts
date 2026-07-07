@@ -98,7 +98,7 @@ describe('/detail/+page.svelte', () => {
 			getFareInfoObjectJson: () =>
 				JSON.stringify({
 					fare: 1980,
-					totalSalesKm: 1200,
+					totalSalesKm: 120,
 					ticketAvailDays: 2,
 					beginStation: '都区内',
 					endStation: '勝田',
@@ -124,17 +124,17 @@ describe('/detail/+page.svelte', () => {
 			getFareInfoObjectJson: () =>
 				JSON.stringify({
 					fareResultCode: 0,
-					totalSalesKm: 2183,
-					jrSalesKm: 2183,
-					jrCalcKm: 2264,
-					companySalesKm: 244,
-					salesKmForHokkaido: 4055,
-					calcKmForHokkaido: 200,
-					salesKmForEast: 955,
-					calcKmForEast: 1245,
+					totalSalesKm: 218.3,
+					jrSalesKm: 218.3,
+					jrCalcKm: 226.4,
+					companySalesKm: 24.4,
+					salesKmForHokkaido: 405.5,
+					calcKmForHokkaido: 20,
+					salesKmForEast: 95.5,
+					calcKmForEast: 124.5,
 					isRule114Applied: true,
-					rule114SalesKm: 2005,
-					rule114CalcKm: 2088,
+					rule114SalesKm: 200.5,
+					rule114CalcKm: 208.8,
 					rule114ApplyTerminal: '甲斐住吉',
 					fare: 3810,
 					fareForCompanyline: 520,
@@ -240,13 +240,13 @@ describe('/detail/+page.svelte', () => {
 			getFareInfoObjectJson: () =>
 				JSON.stringify({
 					fareResultCode: 0,
-					totalSalesKm: 1045,
-					jrSalesKm: 1045,
-					jrCalcKm: 1045,
+					totalSalesKm: 104.5,
+					jrSalesKm: 104.5,
+					jrCalcKm: 104.5,
 					companySalesKm: 0,
 					brtSalesKm: 0,
-					salesKmForHokkaido: 300,
-					calcKmForHokkaido: 300,
+					salesKmForHokkaido: 30,
+					calcKmForHokkaido: 30,
 					fare: 1980,
 					childFare: 990,
 					roundtripChildFare: 1980,
@@ -293,13 +293,13 @@ describe('/detail/+page.svelte', () => {
 			getFareInfoObjectJson: () =>
 				JSON.stringify({
 					fareResultCode: 0,
-					totalSalesKm: 1045,
-					jrSalesKm: 1045,
-					jrCalcKm: 1100,
+					totalSalesKm: 104.5,
+					jrSalesKm: 104.5,
+					jrCalcKm: 110,
 					companySalesKm: 0,
 					brtSalesKm: 0,
-					salesKmForEast: 1234000,
-					calcKmForEast: 1234000,
+					salesKmForEast: 123400,
+					calcKmForEast: 123400,
 					fare: 1980,
 					ticketAvailDays: 2,
 					messages: []
@@ -343,9 +343,9 @@ describe('/detail/+page.svelte', () => {
 			getFareInfoObjectJson: () =>
 				JSON.stringify({
 					fareResultCode: 0,
-					totalSalesKm: 1200,
-					jrSalesKm: 1200,
-					jrCalcKm: 1200,
+					totalSalesKm: 120,
+					jrSalesKm: 120,
+					jrCalcKm: 120,
 					fare: 1980,
 					ticketAvailDays: 2,
 					routeList: '[東海道線]熱海',
@@ -387,7 +387,7 @@ describe('/detail/+page.svelte', () => {
 				JSON.stringify({
 					fareResultCode: 0,
 					fare: 1980,
-					totalSalesKm: 1200,
+					totalSalesKm: 120,
 					ticketAvailDays: 2,
 					isFareOptEnabled: false,
 					isMeihanCityStartTerminalEnable: true,
@@ -423,7 +423,7 @@ describe('/detail/+page.svelte', () => {
 				JSON.stringify({
 					fareResultCode: 0,
 					fare: 1980,
-					totalSalesKm: 1200,
+					totalSalesKm: 120,
 					ticketAvailDays: 2,
 					isMeihanCityStartTerminalEnable: true,
 					isMeihanCityTerminal: false,
@@ -465,7 +465,7 @@ describe('/detail/+page.svelte', () => {
 				JSON.stringify({
 					fareResultCode: 0,
 					fare: 3740,
-					totalSalesKm: 2028,
+					totalSalesKm: 202.8,
 					ticketAvailDays: 3,
 					isMeihanCityStartTerminalEnable: true,
 					isMeihanCityTerminal: true,
@@ -511,7 +511,7 @@ describe('/detail/+page.svelte', () => {
 				JSON.stringify({
 					fareResultCode: 0,
 					fare: 1980,
-					totalSalesKm: 1045,
+					totalSalesKm: 104.5,
 					ticketAvailDays: 2,
 					messages: []
 				})
@@ -539,7 +539,7 @@ describe('/detail/+page.svelte', () => {
 				JSON.stringify({
 					fareResultCode: 0,
 					fare: 1980,
-					totalSalesKm: 1045,
+					totalSalesKm: 104.5,
 					ticketAvailDays: 2,
 					messages: []
 				})

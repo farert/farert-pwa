@@ -13,7 +13,7 @@ import type { FaretClass } from '$lib/wasm/types';
 class MockFarert implements FaretClass {
 	static defaultFareInfoJson = JSON.stringify({
 		fare: 1520,
-		totalSalesKm: 1200,
+		totalSalesKm: 120,
 		ticketAvailDays: 3
 	});
 
@@ -225,7 +225,7 @@ describe('/+page.svelte', () => {
 		vi.unstubAllGlobals();
 		MockFarert.defaultFareInfoJson = JSON.stringify({
 			fare: 1520,
-			totalSalesKm: 1200,
+			totalSalesKm: 120,
 			ticketAvailDays: 3
 		});
 		mainRouteStore.set(null);
@@ -485,7 +485,7 @@ describe('/+page.svelte', () => {
 		seededRoute.buildRoute('小倉,鹿児島本線,博多,大阪環状線,大阪');
 		seededRoute.fareInfoJson = JSON.stringify({
 			fare: 1520,
-			totalSalesKm: 1200,
+			totalSalesKm: 120,
 			ticketAvailDays: 3,
 			isFareOptEnabled: true
 		});
@@ -603,7 +603,7 @@ describe('/+page.svelte', () => {
 		MockFarert.defaultFareInfoJson = JSON.stringify({
 			fare: 1520,
 			childFare: 760,
-			totalSalesKm: 1200,
+			totalSalesKm: 120,
 			ticketAvailDays: 3,
 			stockDiscounts: []
 		});
@@ -631,7 +631,7 @@ describe('/+page.svelte', () => {
 		MockFarert.defaultFareInfoJson = JSON.stringify({
 			fare: 1520,
 			childFare: 760,
-			totalSalesKm: 1200,
+			totalSalesKm: 120,
 			ticketAvailDays: 3,
 			stockDiscounts: []
 		});
@@ -653,7 +653,7 @@ describe('/+page.svelte', () => {
 	it('does not show stock discount x2 for non-Tokai shareholder discount routes', async () => {
 		MockFarert.defaultFareInfoJson = JSON.stringify({
 			fare: 10000,
-			totalSalesKm: 1200,
+			totalSalesKm: 120,
 			ticketAvailDays: 3,
 			stockDiscounts: [
 				{
@@ -685,7 +685,7 @@ describe('/+page.svelte', () => {
 	it('calculates Tokai stock discount x2 as 20 percent off the normal fare', async () => {
 		MockFarert.defaultFareInfoJson = JSON.stringify({
 			fare: 3810,
-			totalSalesKm: 1200,
+			totalSalesKm: 120,
 			ticketAvailDays: 3,
 			stockDiscounts: [
 				{
@@ -716,7 +716,7 @@ describe('/+page.svelte', () => {
 	it('uses the non-double stock discount fare for the regular stock discount option on Tokai routes', async () => {
 		MockFarert.defaultFareInfoJson = JSON.stringify({
 			fare: 1980,
-			totalSalesKm: 1200,
+			totalSalesKm: 120,
 			ticketAvailDays: 3,
 			stockDiscounts: [
 				{
@@ -747,7 +747,7 @@ describe('/+page.svelte', () => {
 	it('prefers structured stock discount metadata over title parsing', async () => {
 		MockFarert.defaultFareInfoJson = JSON.stringify({
 			fare: 1980,
-			totalSalesKm: 1200,
+			totalSalesKm: 120,
 			ticketAvailDays: 3,
 			stockDiscounts: [
 				{
@@ -794,7 +794,7 @@ describe('/+page.svelte', () => {
 	it('falls back to discountRate when discountKind is not a supported string', async () => {
 		MockFarert.defaultFareInfoJson = JSON.stringify({
 			fare: 1980,
-			totalSalesKm: 1200,
+			totalSalesKm: 120,
 			ticketAvailDays: 3,
 			stockDiscounts: [
 				{

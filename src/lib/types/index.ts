@@ -130,6 +130,7 @@ export interface ExportData {
  */
 export interface FareInfo {
 	fareResultCode: 0 | 1 | -2;
+	/** 距離系フィールドの単位は km（0.1km 精度の小数。例: 104.6） */
 	totalSalesKm: number;
 	jrSalesKm: number;
 	jrCalcKm: number;

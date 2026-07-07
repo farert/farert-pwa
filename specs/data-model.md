@@ -118,7 +118,7 @@ interface AppBackup {
 - 発着表示
   - `beginStation`
   - `endStation`
-- キロ
+- キロ（単位: km、0.1km 精度の小数。例: `104.6`）
   - `totalSalesKm`
   - `jrSalesKm`
   - `jrCalcKm`
