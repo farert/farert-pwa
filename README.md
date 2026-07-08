@@ -54,7 +54,7 @@
 
 ### 前提条件
 
-- Node.js 20+
+- Node.js 24+
 - pnpm
 - farert-wasmプロジェクトがビルド済み（`../farert-wasm/`）
 - Docker Desktop (Optional)
@@ -180,7 +180,7 @@ git push
 
 - **Build command**: `pnpm build`
 - **Publish directory**: `build`
-- **Node version**: 20
+- **Node version**: 24
 - **Base path**: `/farert-pwa/`（本番ビルド時のみ）
 
 ## プロジェクト構造

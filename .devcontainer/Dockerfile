@@ -1,5 +1,5 @@
 # Node.js LTS版を使用
-FROM node:20-bullseye
+FROM node:24-bookworm
 
 # 必要なパッケージをインストール
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
