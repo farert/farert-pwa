@@ -129,14 +129,14 @@
 手作業で直す対象はこのあたりです。
 
 **最小で直すファイル**
-- Android ホームアイコン: [static/maskable-icon-192.png](/Users/ntake/priv/farert.repos/farert-pwa/static/maskable-icon-192.png), [static/maskable-icon-512.png](/Users/ntake/priv/farert.repos/farert-pwa/static/maskable-icon-512.png)
-- macOS PWA ホーム / Dock アイコン: [static/icon-512.png](/Users/ntake/priv/farert.repos/farert-pwa/static/icon-512.png), 念のため [static/icon-192.png](/Users/ntake/priv/farert.repos/farert-pwa/static/icon-192.png)
-- iPhone ホームアイコン: [static/apple-touch-icon.png](/Users/ntake/priv/farert.repos/farert-pwa/static/apple-touch-icon.png)
+- Android ホームアイコン: [static/maskable-icon-192.png](../static/maskable-icon-192.png), [static/maskable-icon-512.png](../static/maskable-icon-512.png)
+- macOS PWA ホーム / Dock アイコン: [static/icon-512.png](../static/icon-512.png), 念のため [static/icon-192.png](../static/icon-192.png)
+- iPhone ホームアイコン: [static/apple-touch-icon.png](../static/apple-touch-icon.png)
 
 **ついでに揃えるとよいもの**
-- ブラウザ favicon: [static/favicon.png](/Users/ntake/priv/farert.repos/farert-pwa/static/favicon.png)
-- アプリ内で使っている小さいアイコン: [static/mipmap-hdpi/ic_launcher.png](/Users/ntake/priv/farert.repos/farert-pwa/static/mipmap-hdpi/ic_launcher.png)
+- ブラウザ favicon: [static/favicon.png](../static/favicon.png)
+- アプリ内で使っている小さいアイコン: [static/mipmap-hdpi/ic_launcher.png](../static/mipmap-hdpi/ic_launcher.png)
 
-参照関係は、iPhone は [src/app.html](/Users/ntake/priv/farert.repos/farert-pwa/src/app.html:11) の `apple-touch-icon`、Android/macOS PWA は [static/manifest.webmanifest](/Users/ntake/priv/farert.repos/farert-pwa/static/manifest.webmanifest:9) と [vite.config.ts](/Users/ntake/priv/farert.repos/farert-pwa/vite.config.ts:53) の manifest icons です。
+参照関係は、iPhone は [src/app.html](../src/app.html:11) の `apple-touch-icon`、Android/macOS PWA は [static/manifest.webmanifest](../static/manifest.webmanifest:9) と [vite.config.ts](../vite.config.ts:53) の manifest icons です。
 
 `static/pwa-icon.svg` は元絵っぽいですが、現在は直接参照されていません。再生成する運用にするならこれも直す候補ですが、手作業で即直すなら上の PNG 5 個が本命です。

@@ -31,3 +31,8 @@ vite.config.ts.timestamp-*
 .mcp.json
 .serena/
 CLAUDE.md.backup
+
+# Local-only files (machine-specific, never commit)
+.claude/settings.local.json
+.playwright-mcp/
+memo.txt
