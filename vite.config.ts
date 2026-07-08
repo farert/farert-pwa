@@ -25,11 +25,11 @@ export default defineConfig({
 	base,
 	server: {
 		host: localHost,
-		port: 5173
+		port: 9893
 	},
 	preview: {
 		host: localHost,
-		port: 4173
+		port: 9894
 	},
 	plugins: [
 		sveltekit(),

@@ -121,7 +121,7 @@ pnpm update:wasm
 pnpm dev
 ```
 
-ブラウザで http://localhost:5173/ を開きます。
+ブラウザで http://localhost:9893/ を開きます。
 
 ### ビルド
 
@@ -159,7 +159,7 @@ NODE_ENV=production pnpm build
 
 # ローカル確認（開発サーバー）
 pnpm dev
-# http://localhost:5173/ を開く
+# http://localhost:9893/ を開く
 ```
 
 #### WASMファイルの更新

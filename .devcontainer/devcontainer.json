@@ -34,13 +34,13 @@
   },
 
   // フォワードするポート
-  "forwardPorts": [5173, 4173],
+  "forwardPorts": [9893, 9894],
   "portsAttributes": {
-    "5173": {
+    "9893": {
       "label": "Dev Server",
       "onAutoForward": "notify"
     },
-    "4173": {
+    "9894": {
       "label": "Preview Server",
       "onAutoForward": "notify"
     }
