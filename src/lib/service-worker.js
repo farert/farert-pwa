@@ -13,7 +13,14 @@ const sw =
 		/** @type {unknown} */ (self)
 	);
 
-const precacheManifest = sw.__WB_MANIFEST ?? [];
+// Workbox injection point: workbox-build replaces the literal token
+// `self.__WB_MANIFEST` in the built worker. Do not rename `self` or wrap it
+// in a cast here, or the production build fails with "Unable to find a place
+// to inject the manifest".
+// @ts-expect-error -- __WB_MANIFEST exists only in the built service worker.
+const injectedManifest = self.__WB_MANIFEST;
+/** @type {Array<{ url: string; revision?: string }>} */
+const precacheManifest = injectedManifest ?? [];
 const manifestUrls = precacheManifest.map((entry) => entry.url);
 const scopeUrl =
 	sw.registration?.scope ?? new URL(import.meta.env.BASE_URL || '/', sw.location.href).href;
