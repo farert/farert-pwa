@@ -12,6 +12,7 @@ import type { FaretClass } from '$lib/wasm/types';
 import type { TicketHolderItem, SavedRoute, StationHistory } from '$lib/types';
 import { STATION_HISTORY_LIMIT, STORAGE_KEYS } from '$lib/types';
 import { getSerializedRouteScript } from '$lib/utils/routeScriptPersistence';
+import { isBuildRouteSuccess } from '$lib/utils/routeResult';
 
 /**
  * 現在の経路（WASM Farert オブジェクト）
@@ -92,7 +93,8 @@ function persistSnapshot(force = false): void {
 		if (route && typeof route.routeScript === 'function') {
 			const routeStr = getSerializedRouteScript(route);
 			localStorage.setItem(STORAGE_KEYS.CURRENT_ROUTE, routeStr);
-		} else if (route === null) {
+		} else if (route === null && !force) {
+			// Skip removal on the forced initial sync so a failed restore never destroys the stored route
 			localStorage.removeItem(STORAGE_KEYS.CURRENT_ROUTE);
 		}
 	} catch (error) {
@@ -149,7 +151,7 @@ export function initStores(Farert: new () => FaretClass): void {
 			console.log('[STORE] 現在の経路を復元:', currentRouteStr);
 			const route = new Farert();
 			const buildResult = route.buildRoute(currentRouteStr);
-			if (buildResult === 0) {
+			if (isBuildRouteSuccess(buildResult)) {
 				mainRoute.set(route);
 				console.log('[STORE] 現在の経路を復元しました');
 			} else {

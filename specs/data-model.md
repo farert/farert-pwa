@@ -100,6 +100,8 @@ interface AppBackup {
 
 #### 取り扱い方針
 - `currentRoute` は `buildRoute()` で復元できる場合のみ反映する。
+  - 復元成否は rc 規約（成功 = 0/1/4/5、JSON 文字列戻りあり）で判定する。
+  - 復元に失敗しても localStorage 上の `currentRoute` は削除しない（次回起動での復元機会を残す）。
 - `savedRoutes` は正規化と重複排除を行う。
 - `ticketHolder` は `routeScript` と `fareType` を保持したまま復元する。
 - `stationHistory` は配列として復元し、実装側で件数上限を再適用してよい。
