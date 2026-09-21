@@ -715,8 +715,9 @@
 		if (info.isSpecificFare) {
 			return '近郊区間内ですので最安運賃の経路にしました（途中下車不可、有効日数当日限り）';
 		}
-		const distance = info.totalSalesKm ?? 0;
-		if (distance < 101) {
+		// Follow the WASM core rule (1 < ticketAvailDays) instead of distance:
+		// routes within a suburban area are day-only even when they exceed 101km.
+		if ((info.ticketAvailDays ?? 0) <= 1) {
 			return '途中下車前途無効';
 		}
 		if (info.isBeginInCity || info.isEndInCity) {

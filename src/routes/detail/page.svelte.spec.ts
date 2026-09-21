@@ -115,6 +115,31 @@ describe('/detail/+page.svelte', () => {
 		await expect.element(page.getByText('都区内 → 勝田')).toBeInTheDocument();
 	});
 
+	it('shows no-stopover message for a long urban-area route valid for one day', async () => {
+		const fakeRoute = {
+			routeScript: () => '海老名,相模線,橋本(横),横浜線,八王子',
+			departureStationName: () => '海老名',
+			arrivevalStationName: () => '海老名',
+			showFare: () => 'EXPORT_URBAN_AREA',
+			getFareInfoObjectJson: () =>
+				JSON.stringify({
+					fare: 8360,
+					// Over 101km, but within the suburban area: valid for the day only.
+					totalSalesKm: 480.5,
+					ticketAvailDays: 1,
+					messages: []
+				}),
+			getRoutesJson: () => JSON.stringify([{ line: '相模線', station: '橋本' }])
+		};
+		decompressMock.mockReturnValue(fakeRoute);
+
+		render(DetailPage, { initialCompressedRoute: 'encoded-urban-area' });
+
+		await expect.element(page.getByText('1日間')).toBeInTheDocument();
+		await expect.element(page.getByText('途中下車前途無効')).toBeInTheDocument();
+		expect(page.getByText('途中下車できます').query()).toBeNull();
+	});
+
 	it('displays kilometer, fare and route details from FareInfo', async () => {
 		const fakeRoute = {
 			routeScript: () => '長津田,横浜線,東神奈川,東海道線,富士,身延線,国母',
