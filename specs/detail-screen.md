@@ -144,7 +144,7 @@
 |---|---|---|---|---|---|
 | `isRuleAppliedEnable` | `isRuleApplied` | `特例を適用する` | `特例を適用しない` | `setNoRule(false)` | `setNoRule(true)` |
 | `isMeihanCityStartTerminalEnable` | `isMeihanCityTerminal` | `発駅を単駅指定` | `着駅を単駅指定` | `setArrivalAsCity()` | `setStartAsCity()` |
-| `isEnableLongRoute` | `isLongRoute` | `指定した経路で運賃計算` | `最安経路で運賃計算` | `setLongRoute(false)` | `setLongRoute(true)` |
+| `isEnableLongRoute` | `isLongRoute` | `指定した経路で運賃計算` | `最安経路で運賃計算` | `setLongRoute(true)` | `setLongRoute(false)` |
 | `isEnableRule115` | `isRule115specificTerm` | `旅客営業取扱基準規程115条(特定都区市内発着)` | `旅客営業取扱基準規程115条(単駅最安)` | `setSpecificTermRule115(true)` | `setSpecificTermRule115(false)` |
 | `isJRCentralStockEnable` | `isJRCentralStock` | `JR東海株主優待券を適用する` | `JR東海株主優待券を適用しない` | `setJrTokaiStockApply(true)` | `setJrTokaiStockApply(false)` |
 

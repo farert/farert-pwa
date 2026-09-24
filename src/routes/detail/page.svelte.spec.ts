@@ -524,6 +524,48 @@ describe('/detail/+page.svelte', () => {
 		expect(noRuleCalled).toBe(1);
 	});
 
+	it('toggles long-route option with setLongRoute(true) then setLongRoute(false)', async () => {
+		const setLongRouteCalls: boolean[] = [];
+		let isLongRoute = false;
+		const fakeRoute = {
+			routeScript: () =>
+				'吉塚,鹿児島線,西小倉,日豊線,城野,日田彦山線,田川後藤寺,後藤寺線,新飯塚,筑豊線,原田',
+			departureStationName: () => '吉塚',
+			arrivevalStationName: () => '原田',
+			showFare: () => 'EXPORT_LONG_ROUTE',
+			setLongRoute: (flag: boolean) => {
+				setLongRouteCalls.push(flag);
+				isLongRoute = flag;
+			},
+			getFareInfoObjectJson: () =>
+				JSON.stringify({
+					fareResultCode: 0,
+					fare: 560,
+					totalSalesKm: 21.5,
+					ticketAvailDays: 1,
+					isEnableLongRoute: true,
+					isLongRoute,
+					isFareOptEnabled: true
+				}),
+			getRoutesJson: () => JSON.stringify([{ line: '鹿児島線', station: '西小倉' }])
+		};
+		decompressMock.mockReturnValue(fakeRoute);
+
+		render(DetailPage, { initialCompressedRoute: 'encoded-long-route' });
+
+		await page.getByRole('button', { name: 'メニュー' }).click();
+		const specifiedMenu = page.getByRole('menuitem', { name: '指定した経路で運賃計算' });
+		await expect.element(specifiedMenu).toBeInTheDocument();
+		await specifiedMenu.click();
+		expect(setLongRouteCalls).toEqual([true]);
+
+		await page.getByRole('button', { name: 'メニュー' }).click();
+		const lowestMenu = page.getByRole('menuitem', { name: '最安経路で運賃計算' });
+		await expect.element(lowestMenu).toBeInTheDocument();
+		await lowestMenu.click();
+		expect(setLongRouteCalls).toEqual([true, false]);
+	});
+
 	it('copies fare export text when export button is clicked', async () => {
 		const writeTextMock = vi.fn(async () => undefined);
 		vi.stubGlobal('navigator', { clipboard: { writeText: writeTextMock } });

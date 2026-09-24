@@ -195,8 +195,8 @@
 			options.push({
 				label: isLongRoute ? '最安経路で運賃計算' : '指定した経路で運賃計算',
 				state: isLongRoute,
-				setOption: () => route.setLongRoute(false),
-				clearOption: () => route.setLongRoute(true)
+				setOption: () => route.setLongRoute(true),
+				clearOption: () => route.setLongRoute(false)
 			});
 		}
 		if (isEnableRule115) {
