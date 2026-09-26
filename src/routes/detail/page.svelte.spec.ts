@@ -127,7 +127,8 @@ describe('/detail/+page.svelte', () => {
 					// Over 101km, but within the suburban area: valid for the day only.
 					totalSalesKm: 480.5,
 					ticketAvailDays: 1,
-					messages: []
+					// The suburban-area note comes from the WASM core, not from the page.
+					messages: ['近郊区間内ですので最安運賃の経路にしました(途中下車不可、有効日数当日限り)']
 				}),
 			getRoutesJson: () => JSON.stringify([{ line: '相模線', station: '橋本' }])
 		};
@@ -136,8 +137,38 @@ describe('/detail/+page.svelte', () => {
 		render(DetailPage, { initialCompressedRoute: 'encoded-urban-area' });
 
 		await expect.element(page.getByText('1日間')).toBeInTheDocument();
+		await expect
+			.element(
+				page.getByText('近郊区間内ですので最安運賃の経路にしました(途中下車不可、有効日数当日限り)')
+			)
+			.toBeInTheDocument();
 		await expect.element(page.getByText('途中下車前途無効')).toBeInTheDocument();
 		expect(page.getByText('途中下車できます').query()).toBeNull();
+	});
+
+	it('does not treat isSpecificFare as the suburban-area note', async () => {
+		const fakeRoute = {
+			routeScript: () => '東京,東海道線,横浜',
+			departureStationName: () => '東京',
+			arrivevalStationName: () => '横浜',
+			showFare: () => 'EXPORT_SPECIFIC_FARE',
+			getFareInfoObjectJson: () =>
+				JSON.stringify({
+					fare: 490,
+					totalSalesKm: 28.8,
+					ticketAvailDays: 1,
+					isSpecificFare: true,
+					messages: ['特定区間割引運賃適用']
+				}),
+			getRoutesJson: () => JSON.stringify([{ line: '東海道線', station: '横浜' }])
+		};
+		decompressMock.mockReturnValue(fakeRoute);
+
+		render(DetailPage, { initialCompressedRoute: 'encoded-specific-fare' });
+
+		await expect.element(page.getByText('特定区間割引運賃適用')).toBeInTheDocument();
+		await expect.element(page.getByText('途中下車前途無効')).toBeInTheDocument();
+		expect(page.getByText(/近郊区間内ですので/).query()).toBeNull();
 	});
 
 	it('displays kilometer, fare and route details from FareInfo', async () => {

@@ -712,9 +712,8 @@
 	 */
 	function buildValidityMessage(info: FareInfo | null): string {
 		if (!info) return '';
-		if (info.isSpecificFare) {
-			return '近郊区間内ですので最安運賃の経路にしました（途中下車不可、有効日数当日限り）';
-		}
+		// The suburban-area note ("近郊区間内ですので...") is emitted by the WASM core
+		// in `messages`; `isSpecificFare` is unrelated (特定区間割引運賃).
 		// Follow the WASM core rule (1 < ticketAvailDays) instead of distance:
 		// routes within a suburban area are day-only even when they exceed 101km.
 		if ((info.ticketAvailDays ?? 0) <= 1) {
