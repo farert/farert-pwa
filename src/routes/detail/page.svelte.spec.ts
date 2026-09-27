@@ -207,8 +207,10 @@ describe('/detail/+page.svelte', () => {
 					stockDiscounts: [
 						{
 							stockDiscountTitle: 'JR東海株主優待',
-							stockDiscountFare: 3400,
-							rule114StockFare: 3600
+							// Under rule 114, stockDiscountFare is the fare before rule 114
+							// and rule114StockFare is the fare after rule 114 (shown as main).
+							stockDiscountFare: 3600,
+							rule114StockFare: 3400
 						}
 					],
 					messages: ['旅客営業取扱基準規程第114条適用営業キロ計算駅:甲斐住吉'],

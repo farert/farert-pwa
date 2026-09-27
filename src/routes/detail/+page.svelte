@@ -683,12 +683,18 @@
 			}
 			const title =
 				typeof stock.stockDiscountTitle === 'string' ? stock.stockDiscountTitle.trim() : '';
+			// Under rule 114, rule114StockFare is the applied fare and
+			// stockDiscountFare is the fare before rule 114.
+			const rule114Fare =
+				typeof stock.rule114StockFare === 'number' && stock.rule114StockFare > 0
+					? stock.rule114StockFare
+					: undefined;
 			rows.push({
 				label: title ? `株主優待運賃（${title}）` : '株主優待運賃',
-				value: formatCurrency(stock.stockDiscountFare),
+				value: formatCurrency(rule114Fare ?? stock.stockDiscountFare),
 				note:
-					typeof stock.rule114StockFare === 'number' && stock.rule114StockFare > 0
-						? `規程114条適用前: ${formatCurrency(stock.rule114StockFare)}`
+					rule114Fare !== undefined
+						? `規程114条適用前: ${formatCurrency(stock.stockDiscountFare)}`
 						: undefined
 			});
 		}
