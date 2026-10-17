@@ -154,6 +154,20 @@
 	}
 
 	/**
+	 * 経路スクリプトが終端（これ以上区間を追加できない）かを判定します。
+	 * 現在経路に buildRoute を再実行すると、新幹線⇔在来線の内部変換状態や
+	 * オプション設定が失われ以降の addRoute が誤って重複エラーになるため、
+	 * 必ず使い捨てのインスタンスで判定します。
+	 *
+	 * @param script 判定対象の経路スクリプトです。
+	 * @returns 終端なら true を返します。
+	 */
+	function isScriptTerminal(script: string): boolean {
+		const probe = new Farert();
+		return isTerminalStatusCode(resolveRouteStatusCode(probe.buildRoute(script)));
+	}
+
+	/**
 	 * `refreshRouteState` を処理します。
 	 *
 	 * @param current 処理に必要な入力値です。
@@ -233,8 +247,7 @@
 			: parsedSegments.length > 0;
 		if (parsedSegments.length > 0) {
 			try {
-				const routeStatus = resolveRouteStatusCode(current.buildRoute(script));
-				routeTerminal = isTerminalStatusCode(routeStatus);
+				routeTerminal = isScriptTerminal(script);
 			} catch (err) {
 				console.warn('経路終端状態の取得に失敗しました', err);
 				routeTerminal = false;

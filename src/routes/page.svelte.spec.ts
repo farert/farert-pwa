@@ -17,8 +17,10 @@ class MockFarert implements FaretClass {
 		ticketAvailDays: 3
 	});
 
+	static defaultBuildRouteResult = 1;
+
 	script = '';
-	buildRouteResult = 1;
+	buildRouteResult = MockFarert.defaultBuildRouteResult;
 	private osakaDetour = false;
 	private notSameKokura = false;
 	fareInfoJson = MockFarert.defaultFareInfoJson;
@@ -185,13 +187,6 @@ class ReverseReturnOneFarert extends MockFarert {
 	}
 }
 
-class TerminalRouteFarert extends MockFarert {
-	constructor(result: number) {
-		super();
-		this.buildRouteResult = result;
-	}
-}
-
 const gotoMock = vi.fn();
 
 vi.mock('$app/navigation', () => ({
@@ -223,6 +218,7 @@ const { default: Page } = await import('./+page.svelte');
 describe('/+page.svelte', () => {
 	beforeEach(() => {
 		vi.unstubAllGlobals();
+		MockFarert.defaultBuildRouteResult = 1;
 		MockFarert.defaultFareInfoJson = JSON.stringify({
 			fare: 1520,
 			totalSalesKm: 120,
@@ -441,7 +437,8 @@ describe('/+page.svelte', () => {
 	});
 
 	it('disables add route button and shows terminal message when route reached the end', async () => {
-		const seededRoute = new TerminalRouteFarert(0);
+		MockFarert.defaultBuildRouteResult = 0;
+		const seededRoute = new MockFarert();
 		seededRoute.addStartRoute('柏木平');
 		seededRoute.addRoute('北上線', '北上');
 		mainRouteStore.set(seededRoute);
@@ -452,6 +449,21 @@ describe('/+page.svelte', () => {
 		await expect.element(terminalButton).toBeDisabled();
 
 		expect(gotoMock).not.toHaveBeenCalled();
+	});
+
+	it('does not rebuild the main route itself when checking terminal state', async () => {
+		// Rebuilding the live route drops WASM internal state (e.g. shinkansen/conventional
+		// line conversion), which made a following addRoute fail with a duplicate error.
+		const seededRoute = new MockFarert();
+		seededRoute.addStartRoute('清音');
+		seededRoute.addRoute('伯備線', '岡山');
+		const buildRouteSpy = vi.spyOn(seededRoute, 'buildRoute');
+		mainRouteStore.set(seededRoute);
+
+		render(Page);
+
+		await expect.element(page.getByRole('button', { name: '経路を追加' })).toBeVisible();
+		expect(buildRouteSpy).not.toHaveBeenCalled();
 	});
 
 	it('treats reverse rc=1 as success', async () => {
