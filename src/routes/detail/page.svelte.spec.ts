@@ -146,6 +146,32 @@ describe('/detail/+page.svelte', () => {
 		expect(page.getByText('途中下車できます').query()).toBeNull();
 	});
 
+	it('keeps line breaks in a multi-line note message', async () => {
+		const message = '岡山で新幹線乗り換え可（倉敷-岡山間途中下車不可）\n（旅客営業規則第160条の4）';
+		const fakeRoute = {
+			routeScript: () => '清音,伯備線,倉敷,山陽線,新倉敷,山陽新幹線,広島',
+			departureStationName: () => '清音',
+			arrivevalStationName: () => '広島',
+			showFare: () => 'EXPORT_RULE160_4',
+			getFareInfoObjectJson: () =>
+				JSON.stringify({
+					fare: 2640,
+					totalSalesKm: 152.7,
+					ticketAvailDays: 2,
+					messages: [message]
+				}),
+			getRoutesJson: () => JSON.stringify([{ line: '山陽新幹線', station: '広島' }])
+		};
+		decompressMock.mockReturnValue(fakeRoute);
+
+		render(DetailPage, { initialCompressedRoute: 'encoded-rule160-4' });
+
+		const noteSection = locateBySelector(page.getByRole('heading', { name: '備考' }), '..');
+		const note = locateBySelector(noteSection, 'li');
+		await expect.element(note).toHaveTextContent('（旅客営業規則第160条の4）');
+		expect(getComputedStyle(note.element()).whiteSpace).toBe('pre-line');
+	});
+
 	it('does not treat isSpecificFare as the suburban-area note', async () => {
 		const fakeRoute = {
 			routeScript: () => '東京,東海道線,横浜',

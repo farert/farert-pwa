@@ -1372,6 +1372,8 @@
 		padding-left: 1.1rem;
 		margin: 0;
 		color: var(--text-main);
+		/* WASM messages may contain '\n' (e.g. rule 160-4 note + rule name) */
+		white-space: pre-line;
 	}
 
 	.validity-card .valid-days {
